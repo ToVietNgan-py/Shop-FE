@@ -1,5 +1,7 @@
+import { useContext } from "react";
 import "./style.scss";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../context/AuthContext.jsx";
 
 const menuItems = [
     { key: "info", label: "Thông tin tài khoản", path: "/tai-khoan", icon: "user" },
@@ -9,6 +11,7 @@ const menuItems = [
 
 export default function ProfileSidebar({ user, activeMenu = "info", onMenuChange }) {
     const navigate = useNavigate();
+    const { logout } = useContext(AuthContext);
 
     const handleMenuClick = (item) => {
         if (item.action === "changePassword") {
@@ -22,8 +25,10 @@ export default function ProfileSidebar({ user, activeMenu = "info", onMenuChange
     };
 
     const handleLogout = () => {
-        localStorage.removeItem("token");
-        navigate("/login");
+        if (logout) {
+            logout();
+        }
+        navigate("/");
     };
 
     // Get initials for avatar

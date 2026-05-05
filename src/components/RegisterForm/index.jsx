@@ -79,6 +79,7 @@ function RegisterForm({ onClose }) {
                     id="register-password"
                     type="password"
                     placeholder="Tạo mật khẩu mới"
+                    autoComplete="new-password"
                     value={form.password}
                     onChange={(event) => setForm({ ...form, password: event.target.value })}
                     required

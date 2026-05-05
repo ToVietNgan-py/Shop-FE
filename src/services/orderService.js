@@ -1,47 +1,197 @@
-import axios from "axios";
+import api from "../apis/default.js";
 
-const API = "http://127.0.0.1:8000/api";
-
-// Get orders for current user
-export const getOrders = async () => {
-    return await axios.get(`${API}/user/orders`, {
-        headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-    });
+export const ORDER_PAYMENT_METHODS = {
+    COD: "cod",
+    BANK_TRANSFER: "bank_transfer",
+    VNPAY: "vnpay",
 };
 
-// Get single order by ID
-export const getOrder = async (orderId) => {
-    return await axios.get(`${API}/user/orders/${orderId}`, {
-        headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-    });
+const normalizePaymentMethod = (value) => {
+    if (value === ORDER_PAYMENT_METHODS.COD) {
+        return ORDER_PAYMENT_METHODS.COD;
+    }
+
+    if (value === ORDER_PAYMENT_METHODS.BANK_TRANSFER || value === "bank" || value === "qr") {
+        return ORDER_PAYMENT_METHODS.BANK_TRANSFER;
+    }
+
+    return value ? ORDER_PAYMENT_METHODS.VNPAY : ORDER_PAYMENT_METHODS.COD;
 };
 
-// Cancel order
-export const cancelOrder = async (orderId, reason) => {
-    return await axios.post(
-        `${API}/user/orders/${orderId}/cancel`,
-        { reason },
-        {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+const normalizeStatus = (status) => {
+    const normalized = String(status ?? "").toLowerCase();
+
+    return {
+        pending: "pending",
+        processing: "confirmed",
+        delivering: "shipping",
+        completed: "delivered",
+        cancelled: "cancelled",
+    }[normalized] ?? normalized;
+};
+
+const normalizeAddress = (address = {}, payload = {}) => ({
+    fullName: address.full_name ?? address.fullName ?? payload.fullName ?? payload.FullName ?? "",
+    phone: address.phone ?? payload.phoneNumber ?? payload.PhoneNumber ?? "",
+    address: address.address ?? address.address_line ?? address.addressLine ?? payload.address ?? payload.Address ?? "",
+    ward: address.ward ?? "",
+    district: address.district ?? "",
+    city: address.city ?? "",
+});
+
+const normalizeOrderItem = (item = {}) => {
+    const product = item.product ?? {};
+
+    return {
+        id: item.id ?? item.product_id ?? item.productId ?? product.id ?? null,
+        productId: item.product_id ?? item.productId ?? product.id ?? null,
+        name: product.name ?? item.product_name ?? item.productName ?? item.name ?? "",
+        image: product.image_url ?? product.imageUrl ?? product.image ?? product.img ?? item.image_url ?? item.imageUrl ?? item.image ?? item.img ?? "",
+        price: Number(product.price ?? item.unit_price ?? item.unitPrice ?? item.price ?? 0),
+        quantity: Number(item.quantity ?? 1),
+        color: item.color ?? item.variant?.color ?? "",
+        size: item.size ?? item.variant?.size ?? "",
+    };
+};
+
+const normalizeBankInfo = (bankInfo = {}) => ({
+    bankName: bankInfo.bank_name ?? bankInfo.bankName ?? "",
+    accountName: bankInfo.account_name ?? bankInfo.accountName ?? "",
+    accountNumber: bankInfo.account_number ?? bankInfo.accountNumber ?? "",
+});
+
+const normalizePaymentInfo = (paymentInfo = {}) => ({
+    qrCodeUrl: paymentInfo.qr_code_url ?? paymentInfo.qrCodeUrl ?? "",
+    transferContent: paymentInfo.transfer_content ?? paymentInfo.transferContent ?? "",
+    amount: Number(paymentInfo.amount ?? 0),
+    bankInfo: normalizeBankInfo(paymentInfo.bank_info ?? paymentInfo.bankInfo),
+});
+
+export const normalizeOrder = (payload = {}) => {
+    const items = Array.isArray(payload.items)
+        ? payload.items
+        : Array.isArray(payload.order_items)
+            ? payload.order_items
+            : Array.isArray(payload.details)
+                ? payload.details
+                : [];
+
+    return {
+        id: payload.id ?? null,
+        orderCode: payload.order_code ?? payload.orderCode ?? String(payload.id ?? ""),
+        status: normalizeStatus(payload.status ?? payload.Status ?? "pending"),
+        createdAt: payload.created_at ?? payload.createdAt ?? "",
+        paymentMethod: normalizePaymentMethod(payload.payment_method ?? payload.paymentMethod),
+        paymentStatus: payload.payment_status ?? payload.paymentStatus ?? "",
+        subtotal: Number(payload.subtotal ?? payload.sub_total ?? 0),
+        shippingFee: Number(payload.shipping_fee ?? payload.shippingFee ?? 0),
+        discount: Number(payload.discount ?? payload.discount_total ?? payload.discountTotal ?? 0),
+        totalAmount: Number(payload.total_amount ?? payload.totalAmount ?? payload.total ?? 0),
+        voucherCode: payload.voucher_code ?? payload.voucherCode ?? "",
+        itemCount: Number(payload.item_count ?? payload.itemCount ?? items.length),
+        items: items.map(normalizeOrderItem),
+        shippingAddress: normalizeAddress(payload.shipping_address ?? payload.shippingAddress, payload),
+        paymentInfo: normalizePaymentInfo(payload.payment_info ?? payload.paymentInfo),
+        paymentUrl: payload.payment_url ?? payload.paymentUrl ?? "",
+    };
+};
+
+const unwrap = (responseData) => responseData?.data ?? responseData;
+
+const throwNice = (error, fallback) => {
+    const errData = error.response?.data;
+    const validationMessage = errData?.errors
+        ? Object.values(errData.errors).flat().join(" ")
+        : "";
+
+    throw {
+        message: validationMessage || errData?.message || errData?.error || fallback,
+        errors: errData?.errors,
+        response: error.response,
+    };
+};
+
+export const buildCreateOrderPayload = ({
+    customer,
+    shippingAddress,
+    items,
+    note,
+}) => ({
+    FullName: customer.fullName.trim(),
+    PhoneNumber: customer.phone.trim(),
+    Email: customer.email.trim(),
+    Address: [
+        shippingAddress.addressLine,
+        shippingAddress.ward,
+        shippingAddress.district,
+        shippingAddress.city,
+        shippingAddress.country,
+    ].filter(Boolean).join(", "),
+    Note: note?.trim() || "",
+    items: items.map((item) => ({
+        product_id: item.productId ?? item.product_id ?? item.id,
+        quantity: item.quantity,
+    })),
+});
+
+export const orderService = {
+    async createOrder(payload) {
+        try {
+            const res = await api.post("/orders", payload);
+            return normalizeOrder(unwrap(res.data));
+        } catch (error) {
+            throwNice(error, "Khong tao duoc don hang");
         }
-    );
+    },
+
+    async getOrders() {
+        try {
+            const res = await api.get("/orders");
+            const data = unwrap(res.data);
+            const list = Array.isArray(data?.items)
+                ? data.items
+                : Array.isArray(data?.orders)
+                    ? data.orders
+                    : Array.isArray(data)
+                        ? data
+                        : [];
+
+            return list.map(normalizeOrder);
+        } catch (error) {
+            throwNice(error, "Khong the tai danh sach don hang");
+        }
+    },
+
+    async getOrder(orderId) {
+        try {
+            const res = await api.get(`/orders/${orderId}`);
+            return normalizeOrder(unwrap(res.data));
+        } catch (error) {
+            throwNice(error, "Khong the tai chi tiet don hang");
+        }
+    },
+
+    async cancelOrder(orderId, reason) {
+        try {
+            const res = await api.patch(`/orders/${orderId}/cancel`, { reason });
+            return normalizeOrder(unwrap(res.data));
+        } catch (error) {
+            throwNice(error, "Khong the huy don hang");
+        }
+    },
+
+    async reorder(orderId) {
+        try {
+            const res = await api.post(`/user/orders/${orderId}/reorder`);
+            return unwrap(res.data);
+        } catch (error) {
+            throwNice(error, "Khong the mua lai don hang");
+        }
+    },
 };
 
-// Reorder (buy again)
-export const reorder = async (orderId) => {
-    return await axios.post(
-        `${API}/user/orders/${orderId}/reorder`,
-        {},
-        {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-        }
-    );
-};
+export const createOrder = orderService.createOrder;
+export const getOrders = async () => ({ data: await orderService.getOrders() });
+export const getOrder = async (orderId) => ({ data: await orderService.getOrder(orderId) });
+export const cancelOrder = orderService.cancelOrder;
+export const reorder = orderService.reorder;

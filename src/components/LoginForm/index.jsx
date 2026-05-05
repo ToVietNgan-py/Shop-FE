@@ -53,6 +53,7 @@ function LoginForm({ onClose }) {
                     id="login-password"
                     type="password"
                     placeholder="Nhập mật khẩu của bạn"
+                    autoComplete="current-password"
                     value={form.password}
                     onChange={(event) => setForm({ ...form, password: event.target.value })}
                     required

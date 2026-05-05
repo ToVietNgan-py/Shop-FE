@@ -1,8 +1,9 @@
-import { useState, useEffect, memo } from "react";
+import { useContext, useState, useEffect, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOrders, cancelOrder } from "../../../services/orderService";
-import { formatVND, formatDate } from "../../../utils/format";
+import { formatVND } from "../../../utils/format";
 import ProfileSidebar from "../../../components/profile/ProfileSidebar.jsx";
+import { AuthContext } from "../../../context/AuthContext.jsx";
 import "./style.scss";
 
 // Order status labels
@@ -25,7 +26,7 @@ const STATUS_COLORS = {
 };
 
 // Mock data for demo
-const mockOrders = [
+const MOCK_ORDERS = [
     {
         id: 1,
         orderCode: "DR123456",
@@ -210,28 +211,30 @@ const OrderCard = ({ order, onViewDetail, onCancel, onReview, cancelling }) => {
 // Main Component
 const MyOrders = () => {
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [cancellingId, setCancellingId] = useState(null);
     const [error, setError] = useState(null);
-    const [showPasswordModal, setShowPasswordModal] = useState(false);
 
     // Handle menu change from sidebar
     const handleMenuChange = (menuKey) => {
         if (menuKey === "password") {
-            setShowPasswordModal(true);
+            navigate("/tai-khoan");
         } else if (menuKey === "info") {
             navigate("/tai-khoan");
         }
     };
 
     // Current user from localStorage (mock)
-    const [user, setUser] = useState({
+    const [mockUser] = useState({
         name: "Ngân Việt",
         email: "test@gmail.com",
     });
+
+    const sidebarUser = user ?? mockUser;
 
     // Fetch orders
     useEffect(() => {
@@ -246,7 +249,8 @@ const MyOrders = () => {
             setOrders(res.data || []);
         } catch (err) {
             console.error("Error fetching orders:", err);
-            setOrders(mockOrders);
+            setError(err?.message || "Khong the tai danh sach don hang.");
+            setOrders([]);
         } finally {
             setLoading(false);
         }
@@ -306,7 +310,7 @@ const MyOrders = () => {
         return (
             <div className="my-orders-page">
                 <div className="profile-layout">
-                    <ProfileSidebar user={user} activeMenu="orders" onMenuChange={handleMenuChange} />
+                    <ProfileSidebar user={sidebarUser} activeMenu="orders" onMenuChange={handleMenuChange} />
                     <div className="orders-content">
                         <div className="loading">
                             <div className="spinner"></div>
@@ -327,7 +331,7 @@ const MyOrders = () => {
             )}
 
             <div className="profile-layout">
-                <ProfileSidebar user={user} activeMenu="orders" onMenuChange={handleMenuChange} />
+                <ProfileSidebar user={sidebarUser} activeMenu="orders" onMenuChange={handleMenuChange} />
 
                 <div className="orders-content">
                     <div className="page-header">

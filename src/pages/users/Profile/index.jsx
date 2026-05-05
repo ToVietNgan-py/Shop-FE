@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { getProfile, updateProfile, changePassword } from "../../../services/userService.js";
 
 import ProfileSidebar from "../../../components/profile/ProfileSidebar.jsx";
@@ -8,7 +8,6 @@ import ProfileModal from "../../../components/profile/ProfileModal.jsx";
 import "./style.scss";
 
 export default function ProfilePage() {
-    const navigate = useNavigate();
     const location = useLocation();
 
     const [user, setUser] = useState(null);
@@ -35,7 +34,7 @@ export default function ProfilePage() {
             setLoading(true);
             setError(null);
             const res = await getProfile();
-            setUser(res.data);
+            setUser(res);
         } catch (err) {
             console.error("Error fetching profile:", err);
             setError("Không thể tải thông tin profile");

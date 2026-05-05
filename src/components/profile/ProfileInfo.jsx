@@ -1,19 +1,7 @@
-import { useEffect, useState } from "react";
 import ProfileRow from "./ProfileRow";
 import "./style.scss";
 
 export default function ProfileInfo({ user, openModal }) {
-    const [formattedAddress, setFormattedAddress] = useState("");
-    // Get initials for avatar
-    const getInitials = (name) => {
-        if (!name) return "?";
-        const parts = name.trim().split(" ");
-        if (parts.length >= 2) {
-            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-        }
-        return name.slice(0, 2).toUpperCase();
-    };
-
     return (
         <div className="content">
             <div className="content-header">

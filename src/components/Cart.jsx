@@ -29,11 +29,7 @@ const Cart = ({ onClose }) => {
             return;
         }
 
-        navigate(`/thanh-toan?productId=${cartItems[0].id}`, {
-            state: {
-                checkoutItems: cartItems
-            }
-        });
+        navigate("/thanh-toan");
         onClose();
     };
 

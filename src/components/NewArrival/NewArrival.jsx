@@ -73,7 +73,7 @@ function NewArrival() {
                             <div className="card">
 
                                 <div className="image">
-                                    <img src={item.image} alt={item.name} />
+                                    {item.image ? <img src={item.image} alt={item.name} /> : null}
                                 </div>
 
                                 <p className="name">{item.name}</p>

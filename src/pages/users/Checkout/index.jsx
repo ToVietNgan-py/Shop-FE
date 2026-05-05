@@ -1,18 +1,20 @@
 import { useContext, useEffect, useMemo, useState } from "react";
-import { FaCheckCircle, FaMoneyBillWave } from "react-icons/fa";
-import { MdContentCopy, MdQrCode2 } from "react-icons/md";
+import { FaCheckCircle, FaCreditCard, FaMoneyBillWave, FaUniversity } from "react-icons/fa";
+import { MdContentCopy } from "react-icons/md";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { regionApi } from "../../../apis/region.js";
-import { buildCreateOrderPayload, orderApi, ORDER_PAYMENT_METHODS } from "../../../apis/order.js";
 import { CartContext } from "../../../context/CartContext.jsx";
+import { AuthContext } from "../../../context/AuthContext.jsx";
+import { buildCreateOrderPayload, orderService, ORDER_PAYMENT_METHODS } from "../../../services/orderService.js";
+import { paymentService } from "../../../services/paymentService.js";
 import { productService } from "../../../services/productService.js";
+import { voucherService } from "../../../services/voucherService.js";
 import { formatVND } from "../../../utils/format.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
 import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
 import "./style.scss";
 
 const SHIPPING_FEE = 35000;
-const COUPON_DISCOUNT = 30000;
 // TODO: Khi backend hoan thien, lay phi ship va giam gia tu API pricing/promotion
 // thay vi hardcode o frontend de tranh lech tong tien voi backend.
 
@@ -21,7 +23,8 @@ const COUPON_DISCOUNT = 30000;
 function CheckoutPage() {
     const location = useLocation();
     const [searchParams] = useSearchParams();
-    const { cartItems, removeFromCart } = useContext(CartContext);
+    const { cartId, cartItems, syncCart } = useContext(CartContext);
+    const { user } = useContext(AuthContext);
     const productId = Number(searchParams.get("productId"));
     const [fallbackItem, setFallbackItem] = useState(null);
     const [isLoadingFallback, setIsLoadingFallback] = useState(true);
@@ -93,8 +96,10 @@ function CheckoutPage() {
         note: ""
     });
     const [couponCode, setCouponCode] = useState("");
-    const [appliedCoupon, setAppliedCoupon] = useState("");
-    const [paymentMethod, setPaymentMethod] = useState(ORDER_PAYMENT_METHODS.QR);
+    const [appliedCoupon, setAppliedCoupon] = useState(null);
+    const [couponError, setCouponError] = useState("");
+    const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState(ORDER_PAYMENT_METHODS.COD);
     const [checkoutStep, setCheckoutStep] = useState("form");
     const [copiedField, setCopiedField] = useState("");
     const [orderData, setOrderData] = useState(null);
@@ -114,7 +119,7 @@ function CheckoutPage() {
         () => checkoutItems.reduce((total, item) => total + item.price * item.quantity, 0),
         [checkoutItems]
     );
-    const couponDiscount = appliedCoupon ? COUPON_DISCOUNT : 0;
+    const couponDiscount = appliedCoupon?.discount ?? 0;
     const total = subtotal + SHIPPING_FEE - couponDiscount;
 
     const paymentInfo = orderData?.paymentInfo ?? {
@@ -243,12 +248,13 @@ function CheckoutPage() {
         return () => window.clearTimeout(timer);
     }, [copiedField]);
 
-    const clearPurchasedCartItems = () => {
-        checkoutItems.forEach((item) => {
-            if (item.cartKey) {
-                removeFromCart(item.cartKey);
-            }
-        });
+    const refreshCartAfterOrder = async () => {
+        try {
+            await syncCart();
+        } catch {
+            // OrderController::store already clears the cart on success.
+            // If refresh fails, the next cart load will resync from server.
+        }
     };
 
     const handleInputChange = ({ target }) => {
@@ -300,11 +306,31 @@ function CheckoutPage() {
         }));
     };
 
-    const handleApplyCoupon = () => {
+    const handleApplyCoupon = async () => {
         const normalizedCode = couponCode.trim().toUpperCase();
-        // TODO: Hien tai coupon chi validate local voi 1 ma co dinh.
-        // Khi co backend, can goi API validate coupon va nhan ve discount/thong bao loi tu server.
-        setAppliedCoupon(normalizedCode === "DEARROSE30" ? normalizedCode : "");
+
+        setCouponError("");
+        setAppliedCoupon(null);
+
+        if (!normalizedCode) {
+            return;
+        }
+
+        setIsApplyingCoupon(true);
+
+        try {
+            const voucher = await voucherService.apply({
+                code: normalizedCode,
+                orderTotal: subtotal,
+                cartId,
+            });
+
+            setAppliedCoupon(voucher);
+        } catch (error) {
+            setCouponError(error?.message || "Ma giam gia khong hop le.");
+        } finally {
+            setIsApplyingCoupon(false);
+        }
     };
 
     const handleSubmit = async (event) => {
@@ -313,41 +339,63 @@ function CheckoutPage() {
         setIsCreatingOrder(true);
 
         try {
-            // TODO: Neu backend yeu cau them field nhu userId, email, shippingFee, voucherId,
-            // item variant id... thi cap nhat buildCreateOrderPayload cho dung contract.
+            if (!cartId) {
+                throw new Error("Gio hang chua san sang. Vui long thu lai.");
+            }
+
+            if (!user?.email) {
+                throw new Error("Vui long dang nhap truoc khi dat hang.");
+            }
+
             const payload = buildCreateOrderPayload({
                 customer: {
                     fullName: formData.fullName,
-                    phone: formData.phone
+                    phone: formData.phone,
+                    email: user.email
                 },
                 shippingAddress: {
                     country: formData.country,
                     city: formData.city,
+                    cityCode: formData.cityCode,
                     district: formData.district,
+                    districtCode: formData.districtCode,
                     ward: formData.ward,
+                    wardCode: formData.wardCode,
                     addressLine: formData.addressDetail
                 },
                 items: checkoutItems,
-                paymentMethod,
-                couponCode: appliedCoupon,
                 note: formData.note
             });
 
-            const createdOrder = await orderApi.createOrder(payload);
+            const createdOrder = await orderService.createOrder(payload);
             setOrderData(createdOrder);
 
             if (createdOrder.paymentMethod === ORDER_PAYMENT_METHODS.COD) {
-                // TODO: Hien tai chi xoa gio hang tren client.
-                // Neu gio hang duoc quan ly tren backend thi can dong bo xoa/cap nhat bang API sau khi dat hang.
-                clearPurchasedCartItems();
+                await refreshCartAfterOrder();
                 setCheckoutStep("success");
                 return;
             }
 
-            setCheckoutStep("payment");
+            if (createdOrder.paymentMethod === ORDER_PAYMENT_METHODS.BANK_TRANSFER) {
+                await refreshCartAfterOrder();
+                setCheckoutStep("payment");
+                return;
+            }
+
+            const paymentUrl = createdOrder.paymentUrl || (await paymentService.createVNPay({
+                orderId: createdOrder.id,
+                orderCode: createdOrder.orderCode,
+            })).paymentUrl;
+
+            if (!paymentUrl) {
+                throw new Error("Khong tao duoc lien ket thanh toan VNPay.");
+            }
+
+            await refreshCartAfterOrder();
+            window.location.href = paymentUrl;
         } catch (error) {
             setOrderError(
-                error?.response?.data?.message || "Khong tao duoc don hang. Vui long thu lai."
+                error?.message || error?.response?.data?.message || "Khong tao duoc don hang. Vui long thu lai."
             );
         } finally {
             setIsCreatingOrder(false);
@@ -365,11 +413,8 @@ function CheckoutPage() {
         try {
             // TODO: Flow nay dang cho nguoi dung tu bam xac nhan da chuyen khoan.
             // Khi tich hop cong thanh toan that, co the doi sang polling, webhook hoac query payment status tu backend.
-            await orderApi.confirmPayment({
-                orderCode: orderData.orderCode
-            });
-
-            clearPurchasedCartItems();
+            await paymentService.confirmReturn({ order_code: orderData.orderCode });
+            await refreshCartAfterOrder();
             setCheckoutStep("success");
         } catch (error) {
             setOrderError(
@@ -556,23 +601,38 @@ function CheckoutPage() {
                                         </span>
                                         <div>
                                             <strong>(COD) Thanh toán khi nhận hàng</strong>
-
                                         </div>
                                     </label>
 
-                                    <label className={`payment-card ${paymentMethod === ORDER_PAYMENT_METHODS.QR ? "selected" : ""}`}>
+                                    <label className={`payment-card ${paymentMethod === ORDER_PAYMENT_METHODS.BANK_TRANSFER ? "selected" : ""}`}>
                                         <input
                                             type="radio"
                                             name="paymentMethod"
-                                            value={ORDER_PAYMENT_METHODS.QR}
-                                            checked={paymentMethod === ORDER_PAYMENT_METHODS.QR}
+                                            value={ORDER_PAYMENT_METHODS.BANK_TRANSFER}
+                                            checked={paymentMethod === ORDER_PAYMENT_METHODS.BANK_TRANSFER}
+                                            onChange={(event) => setPaymentMethod(event.target.value)}
+                                        />
+                                        <span className="payment-icon payment-icon-bank" aria-hidden="true">
+                                            <FaUniversity />
+                                        </span>
+                                        <div>
+                                            <strong>Chuyển khoản ngân hàng</strong>
+                                        </div>
+                                    </label>
+
+                                    <label className={`payment-card ${paymentMethod === ORDER_PAYMENT_METHODS.VNPAY ? "selected" : ""}`}>
+                                        <input
+                                            type="radio"
+                                            name="paymentMethod"
+                                            value={ORDER_PAYMENT_METHODS.VNPAY}
+                                            checked={paymentMethod === ORDER_PAYMENT_METHODS.VNPAY}
                                             onChange={(event) => setPaymentMethod(event.target.value)}
                                         />
                                         <span className="payment-icon payment-icon-vnpay" aria-hidden="true">
-                                            <MdQrCode2 />
+                                            <FaCreditCard />
                                         </span>
                                         <div>
-                                            <strong>Chuyển khoản QR</strong>
+                                            <strong>Thanh toán VNPay</strong>
                                         </div>
                                     </label>
                                 </div>
@@ -736,13 +796,17 @@ function CheckoutPage() {
                                 value={couponCode}
                                 onChange={(event) => setCouponCode(event.target.value)}
                             />
-                            <button type="button" onClick={handleApplyCoupon}>Áp dụng</button>
+                            <button type="button" onClick={handleApplyCoupon} disabled={isApplyingCoupon}>
+                                {isApplyingCoupon ? "Đang kiểm tra..." : "Áp dụng"}
+                            </button>
                         </div>
 
-                        {/* TODO: Message nay dang hardcode theo ma local.
-                            Khi validate coupon qua backend, hien message theo response thuc te. */}
-                        {couponCode && !appliedCoupon ? (
-                            <p className="coupon-note">Mã hợp lệ hiện tại là DEARROSE30.</p>
+                        {appliedCoupon ? (
+                            <p className="coupon-note">Đã áp dụng mã {appliedCoupon.code}.</p>
+                        ) : null}
+
+                        {couponError ? (
+                            <p className="coupon-note">{couponError}</p>
                         ) : null}
                     </div>
 

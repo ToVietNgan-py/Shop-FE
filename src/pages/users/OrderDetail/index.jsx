@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useCallback, useContext, useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getOrder } from "../../../services/orderService";
 import { formatVND } from "../../../utils/format";
 import ProfileSidebar from "../../../components/profile/ProfileSidebar.jsx";
+import { AuthContext } from "../../../context/AuthContext.jsx";
 import "./style.scss";
 
 // Order status labels
@@ -103,17 +104,18 @@ const OrderItem = ({ item }) => (
 
 // Main Component
 const OrderDetail = () => {
-    const { orderCode } = useParams();
+    const { id: orderId } = useParams();
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Mock user
-    // const user = {
-    //     name: "Ngân Việt",
-    //     email: "test@gmail.com",
-    // };
+    const mockUser = {
+        name: "Ngan Viet",
+        email: "test@gmail.com",
+    };
+    const sidebarUser = user ?? mockUser;
 
     // Handle menu change from sidebar
     const handleMenuChange = (menuKey) => {
@@ -125,24 +127,24 @@ const OrderDetail = () => {
     };
 
     // Fetch order detail
-    useEffect(() => {
-        fetchOrderDetail();
-    }, [orderCode]);
-
-    const fetchOrderDetail = async () => {
+    const fetchOrderDetail = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
-            const res = await getOrder(orderCode);
+            const res = await getOrder(orderId);
             setOrder(res.data || null);
         } catch (err) {
             console.error("Error fetching order:", err);
-            // Use mock data if API fails
-            setOrder({ ...mockOrderDetail, orderCode: orderCode });
+            setError("Khong tai duoc chi tiet don hang.");
+            setOrder(null);
         } finally {
             setLoading(false);
         }
-    };
+    }, [orderId]);
+
+    useEffect(() => {
+        fetchOrderDetail();
+    }, [fetchOrderDetail]);
 
     // Handle back to orders
     const handleBack = () => {
@@ -160,7 +162,7 @@ const OrderDetail = () => {
         return (
             <div className="order-detail-page">
                 <div className="profile-layout">
-                    <ProfileSidebar user={user} activeMenu="orders" onMenuChange={handleMenuChange} />
+                    <ProfileSidebar user={sidebarUser} activeMenu="orders" onMenuChange={handleMenuChange} />
                     <div className="detail-content">
                         <div className="loading">
                             <div className="spinner"></div>
@@ -177,7 +179,7 @@ const OrderDetail = () => {
         return (
             <div className="order-detail-page">
                 <div className="profile-layout">
-                    <ProfileSidebar user={user} activeMenu="orders" onMenuChange={handleMenuChange} />
+                    <ProfileSidebar user={sidebarUser} activeMenu="orders" onMenuChange={handleMenuChange} />
                     <div className="detail-content">
                         <div className="error-state">
                             <div className="error-icon">⚠️</div>
@@ -196,7 +198,7 @@ const OrderDetail = () => {
     return (
         <div className="order-detail-page">
             <div className="profile-layout">
-                <ProfileSidebar user={user} activeMenu="orders" onMenuChange={handleMenuChange} />
+                <ProfileSidebar user={sidebarUser} activeMenu="orders" onMenuChange={handleMenuChange} />
 
                 <div className="detail-content">
                     {/* Header */}

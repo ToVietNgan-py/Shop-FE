@@ -7,7 +7,6 @@ const api = axios.create({
     },
 });
 
-// ================= REQUEST =================
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem("access_token");
@@ -21,20 +20,19 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// ================= RESPONSE =================
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+        const refreshToken = localStorage.getItem("refresh_token");
+        const isAuthRequest = originalRequest?.url?.includes("/auth/login")
+            || originalRequest?.url?.includes("/auth/register")
+            || originalRequest?.url?.includes("/auth/refresh");
 
-        // Nếu bị 401 và chưa retry
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRequest && refreshToken) {
             originalRequest._retry = true;
 
             try {
-                const refreshToken = localStorage.getItem("refresh_token");
-
-                // gọi API refresh
                 const res = await axios.post(
                     `${import.meta.env.VITE_API_URL}/auth/refresh`,
                     {
@@ -43,18 +41,15 @@ api.interceptors.response.use(
                 );
 
                 const newAccessToken = res.data.access_token;
-
-                // lưu lại token mới
                 localStorage.setItem("access_token", newAccessToken);
 
-                // gắn token mới vào request cũ
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
-                return api(originalRequest); // gọi lại request cũ
-            } catch (err) {
-                // refresh fail → logout
+                return api(originalRequest);
+            } catch {
                 localStorage.removeItem("access_token");
                 localStorage.removeItem("refresh_token");
+                localStorage.removeItem("user");
 
                 window.location.href = "/login";
             }

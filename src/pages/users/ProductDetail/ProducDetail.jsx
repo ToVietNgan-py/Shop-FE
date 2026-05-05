@@ -14,6 +14,7 @@ function ProductDetail() {
     const [selectedSize, setSelectedSize] = useState("S");
     const [quantity, setQuantity] = useState(1);
     const [addedSuccess, setAddedSuccess] = useState(false);
+    const [cartActionError, setCartActionError] = useState("");
 
     const navigate = useNavigate();
     const { addToCart } = useContext(CartContext);
@@ -103,6 +104,7 @@ function ProductDetail() {
 
     const cartItem = {
         id: product.id,
+        productId: product.id,
         name: product.name,
         price: product.price,
         image: product.image,
@@ -111,11 +113,34 @@ function ProductDetail() {
         size: selectedSize
     };
 
+    const handleAddToCart = async () => {
+        setAddedSuccess(false);
+        setCartActionError("");
+
+        try {
+            await addToCart(cartItem);
+            setAddedSuccess(true);
+        } catch (addError) {
+            setCartActionError(addError?.message || "Khong the them san pham vao gio.");
+        }
+    };
+
+    const handleBuyNow = async () => {
+        setCartActionError("");
+
+        try {
+            await addToCart(cartItem);
+            navigate("/thanh-toan");
+        } catch (addError) {
+            setCartActionError(addError?.message || "Khong the them san pham vao gio.");
+        }
+    };
+
     return (
         <>
             <section className="product-detail" aria-label="Chi tiết sản phẩm">
                 <div className="product-media">
-                    <img src={product.image} alt={product.name} className="main-image" />
+                    {product.image ? <img src={product.image} alt={product.name} className="main-image" /> : null}
                 </div>
 
                 <div className="product-info">
@@ -165,9 +190,10 @@ function ProductDetail() {
                     </div>
 
                     <div className="action-list">
-                        <button type="button" className={`btn secondary ${addedSuccess ? 'added-success' : ''}`} onClick={async () => { setAddedSuccess(false); addToCart(cartItem); setAddedSuccess(true); }}>Thêm vào giỏ</button>
-                        <button type="button" className="btn primary" onClick={() => { addToCart(cartItem); navigate('/thanh-toan', { state: { checkoutItems: [cartItem] } }); }}>Mua ngay</button>
+                        <button type="button" className={`btn secondary ${addedSuccess ? 'added-success' : ''}`} onClick={handleAddToCart}>Thêm vào giỏ</button>
+                        <button type="button" className="btn primary" onClick={handleBuyNow}>Mua ngay</button>
                     </div>
+                    {cartActionError ? <p className="field-message error">{cartActionError}</p> : null}
 
                     <div className="meta-list">
                         <div className="meta-item">
@@ -190,7 +216,7 @@ function ProductDetail() {
                 <div className="related-products-list">
                     {relatedProducts.map((item) => (
                         <Link to={`/san-pham/${item.id}`} key={item.id} className="related-product-card">
-                            <img src={item.image} alt={item.name} />
+                            {item.image ? <img src={item.image} alt={item.name} /> : null}
                             <div>
                                 <strong>{item.name}</strong>
                                 <p>{formatVND(item.price)}</p>

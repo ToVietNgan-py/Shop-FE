@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import HomePage from "../pages/users/homePage/index.jsx";
 import BeautyBlog from "../pages/users/Blog/index.jsx";
 import ProductPage from "../pages/users/productPage/index.jsx";
@@ -9,10 +9,12 @@ import TermOfService from "../pages/users/termOfService/index.jsx";
 import CategoryPage from "../pages/users/CategoryPage/index.jsx";
 import ProductDetail from "../pages/users/ProductDetail/ProducDetail.jsx";
 import CheckoutPage from "../pages/users/Checkout/index.jsx";
-import Profile from "../pages/users/Profile/index.jsx";
+import PaymentResult from "../pages/users/PaymentResult/index.jsx";
 import MyOrders from "../pages/users/MyOrders/index.jsx";
 import OrderDetail from "../pages/users/OrderDetail/index.jsx";
 import ProfilePage from "../pages/users/Profile/index.jsx";
+import LoginPage from "../pages/users/auth/LoginPage.jsx";
+
 function AppRoutes() {
     return (
         <div>
@@ -27,9 +29,12 @@ function AppRoutes() {
                 <Route path="/category/:slug" element={<CategoryPage />} />
                 <Route path="/san-pham/:id" element={<ProductDetail />} />
                 <Route path="/thanh-toan" element={<CheckoutPage />} />
+                <Route path="/thanh-toan/ket-qua" element={<PaymentResult />} />
                 <Route path="/tai-khoan" element={<ProfilePage />} />
                 <Route path="/don-hang" element={<MyOrders />} />
                 <Route path="/don-hang/:id" element={<OrderDetail />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </div>
     );

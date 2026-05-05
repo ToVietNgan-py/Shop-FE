@@ -15,13 +15,15 @@ export const formatDate = (date) => {
 
 export const buildImageUrl = (path) => {
     if (!path) {
-        return "/path/to/default-image.jpg";
+        return "";
     }
 
     if (path.startsWith("http")) {
         return path;
     }
 
-    const baseUrl = "http://127.0.0.1:8000/api";
-    return `${baseUrl}${path}`;
+    const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+    const baseUrl = apiUrl.replace(/\/api\/?$/, "");
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return `${baseUrl}${normalizedPath}`;
 };

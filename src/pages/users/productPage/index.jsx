@@ -310,7 +310,7 @@ const ProductPage = () => {
                                     {/* TODO: Đang điều hướng bằng id local.
                                         Khi có backend, đảm bảo id/slug route này khớp với API chi tiết sản phẩm. */}
                                     <div className="image-box">
-                                        <img src={item.image} alt={item.name} />
+                                        {item.image ? <img src={item.image} alt={item.name} /> : null}
                                     </div>
 
                                     <div className="product-card__content">

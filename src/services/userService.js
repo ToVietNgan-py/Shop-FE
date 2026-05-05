@@ -1,26 +1,40 @@
-import axios from "axios";
+import api from "../apis/default.js";
 
-const API = "http://127.0.0.1:8000/api";
+const normalizeResponse = (res) => res.data?.data ?? res.data;
 
 export const getProfile = async () => {
-
-    return await axios.get(`${API}/user/profile`, {
-        headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-    });
+    try {
+        const res = await api.get("/auth/profile");
+        return normalizeResponse(res);
+    } catch (error) {
+        const errData = error.response?.data;
+        throw {
+            message: errData?.message || errData?.error || "Không thể lấy thông tin tài khoản",
+            errors: errData?.errors,
+        };
+    }
 };
-export const updateProfile = (data) => {
-    return axios.put(`${API}/user/profile`, data, {
-        headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-    });
+export const updateProfile = async (data) => {
+    try {
+        const res = await api.put("/auth/profile", data);
+        return normalizeResponse(res);
+    } catch (error) {
+        const errData = error.response?.data;
+        throw {
+            message: errData?.message || errData?.error || "Không thể cập nhật thông tin",
+            errors: errData?.errors,
+        };
+    }
 };
-export const changePassword = (data) => {
-    return axios.post(`${API}/user/change-password`, data, {
-        headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-    });
+export const changePassword = async (data) => {
+    try {
+        const res = await api.put("/auth/password", data);
+        return normalizeResponse(res);
+    } catch (error) {
+        const errData = error.response?.data;
+        throw {
+            message: errData?.message || errData?.error || "Không thể đổi mật khẩu",
+            errors: errData?.errors,
+        };
+    }
 };

@@ -192,6 +192,15 @@
     border-bottom-right-radius: 0;
 }
 
+.payment-card:not(:first-of-type):not(:last-of-type) {
+    border-radius: 0;
+}
+
+.payment-card:last-of-type {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
 .option-card input,
 .payment-card input {
     width: auto;
@@ -228,6 +237,11 @@
 .payment-icon-cod {
     background: linear-gradient(135deg, #e6f9ee 0%, #c8f0d8 100%);
     color: #168447;
+}
+
+.payment-icon-bank {
+    background: linear-gradient(135deg, #fff3d7 0%, #ffe1a3 100%);
+    color: #9a5b00;
 }
 
 .payment-icon-vnpay {

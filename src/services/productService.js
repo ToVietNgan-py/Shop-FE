@@ -1,21 +1,57 @@
 import api from "../apis/default.js";
 import { productSeed } from "../data/products.mock.js";
+import { buildImageUrl } from "../utils/format.js";
 
 const normalizeText = (value) => String(value ?? "").trim().toLowerCase();
+
+const slugify = (value) => String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const getProductImage = (product) => {
+    const images = product.images ?? product.productImages ?? product.product_images;
+    const firstImage = Array.isArray(images) ? images[0] : null;
+    const rawImage = (
+        product.image ??
+        product.imageUrl ??
+        product.image_url ??
+        product.thumbnail ??
+        product.thumbnailUrl ??
+        product.thumbnail_url ??
+        product.mainImage ??
+        product.main_image ??
+        firstImage?.url ??
+        firstImage?.image ??
+        firstImage?.imageUrl ??
+        firstImage?.image_url ??
+        firstImage
+    );
+
+    return buildImageUrl(typeof rawImage === "string" ? rawImage.trim() : rawImage);
+};
 
 const normalizeProduct = (product) => {
     if (!product) {
         return null;
     }
 
+    const categoryName = product.category?.name ?? product.categoryName ?? product.category ?? "";
+    const categorySlug = product.category?.slug ?? product.categorySlug ?? (categoryName ? slugify(categoryName) : "");
+
     return {
         id: product.id ?? product._id ?? product.productId ?? null,
         name: product.name ?? product.productName ?? "",
         price: Number(product.price ?? product.unitPrice ?? 0),
-        image: product.image ?? product.thumbnail ?? product.imageUrl ?? "",
+        image: getProductImage(product),
         description: product.description ?? product.shortDescription ?? "",
-        category: product.category?.name ?? product.categoryName ?? product.category ?? "",
-        categorySlug: product.category?.slug ?? product.categorySlug ?? "",
+        category: categoryName,
+        categorySlug,
         stock: Number(product.stock ?? product.quantity ?? product.availableQuantity ?? 0),
         isHot: Boolean(product.isHot ?? product.hot ?? product.featured)
     };
@@ -140,7 +176,12 @@ export const productService = {
             }
 
             if (params.category && params.category !== "all") {
-                nextProducts = nextProducts.filter((product) => product.categorySlug === params.category || product.category === params.category);
+                const categoryLower = normalizeText(params.category);
+                nextProducts = nextProducts.filter((product) => {
+                    const productCategoryLower = normalizeText(product.category);
+                    const productSlugLower = normalizeText(product.categorySlug);
+                    return productCategoryLower === categoryLower || productSlugLower === categoryLower;
+                });
             }
 
             nextProducts = applyPriceRange(nextProducts, params.priceRange ?? "all");

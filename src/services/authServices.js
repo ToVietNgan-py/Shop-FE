@@ -39,7 +39,7 @@ export const login = async (data) => {
 export const getProfile = async () => {
     try {
         const res = await api.get("/auth/profile");
-        return res.data;
+        return res.data?.data ?? res.data;
     } catch (error) {
         const errData = error.response?.data;
         throw {
@@ -52,7 +52,9 @@ export const getProfile = async () => {
 export const logout = async () => {
     try {
         await api.post("/auth/logout");
-    } catch (e) { }
+    } catch {
+        // Token may already be invalid; local cleanup still needs to run.
+    }
 
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
