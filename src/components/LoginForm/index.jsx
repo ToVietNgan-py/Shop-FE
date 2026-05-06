@@ -21,7 +21,6 @@ function LoginForm({ onClose }) {
             const data = await login(form);
             loginContext(data);
             onClose?.();
-            window.location.href = "/";
         } catch (err) {
             const message = err?.message || err?.error || "Sai tài khoản hoặc mật khẩu";
             setError(message);
