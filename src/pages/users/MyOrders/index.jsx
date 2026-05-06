@@ -238,8 +238,14 @@ const MyOrders = () => {
 
     // Fetch orders
     useEffect(() => {
+        if (!user) {
+            console.log("[MyOrders] User not logged in, skipping order fetch");
+            setOrders([]);
+            return;
+        }
+
         fetchOrders();
-    }, []);
+    }, [user]);
 
     const fetchOrders = async () => {
         try {
