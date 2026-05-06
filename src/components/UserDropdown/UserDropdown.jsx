@@ -19,6 +19,36 @@ const getInitials = (displayName) => {
     return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 };
 
+const splitRoleValue = (value) => String(value ?? "")
+    .split("|")
+    .map((role) => role.trim())
+    .filter(Boolean);
+
+const getUserRoles = (user) => {
+    const roles = user?.roles ?? user?.role ?? user?.roles_name ?? user?.role_name ?? [];
+
+    if (Array.isArray(roles)) {
+        return roles.flatMap((item) => {
+            if (typeof item === "string") {
+                return splitRoleValue(item);
+            }
+
+            if (item && typeof item === "object") {
+                return splitRoleValue(item.name ?? item.slug ?? item.role ?? item.code);
+            }
+
+            return [];
+        });
+    }
+
+    return splitRoleValue(roles);
+};
+
+const isAdminUser = (user) => {
+    const roles = getUserRoles(user);
+    return roles.includes("admin") || roles.includes("employee");
+};
+
 function UserDropdown({ user, onLogout }) {
     const navigate = useNavigate();
     const wrapperRef = useRef(null);
@@ -26,6 +56,7 @@ function UserDropdown({ user, onLogout }) {
 
     const displayName = useMemo(() => getDisplayName(user), [user]);
     const initials = useMemo(() => getInitials(displayName), [displayName]);
+    const adminVisible = useMemo(() => isAdminUser(user), [user]);
 
     useEffect(() => {
         const handlePointerDown = (event) => {
@@ -95,6 +126,20 @@ function UserDropdown({ user, onLogout }) {
                         <AiOutlineUser />
                         <span>Tài khoản</span>
                     </Link>
+
+                    {adminVisible ? (
+                        <button
+                            type="button"
+                            className="user-dropdown__item"
+                            onClick={() => {
+                                closeMenu();
+                                navigate("/admin");
+                            }}
+                        >
+                            <AiOutlineShopping />
+                            <span>Trang quản trị</span>
+                        </button>
+                    ) : null}
 
                     <button
                         type="button"
