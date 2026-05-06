@@ -37,16 +37,8 @@ export default function ProfilePage() {
             setUser(res);
         } catch (err) {
             console.error("Error fetching profile:", err);
-            setError("Không thể tải thông tin profile");
-            // Fallback mock data for demo
-            setUser({
-                name: "Ngân Việt",
-                email: "test@gmail.com",
-                phone: "",
-                gender: "",
-                dob: "",
-                address: "",
-            });
+            setError(err?.message || "Không thể tải thông tin profile");
+            setUser(null);
         } finally {
             setLoading(false);
         }
@@ -166,6 +158,16 @@ export default function ProfilePage() {
                 <div className="loading">
                     <div className="spinner"></div>
                     <p>Đang tải thông tin...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="profile-page">
+                <div className="error-message">
+                    {error || "Không thể tải thông tin tài khoản."}
                 </div>
             </div>
         );

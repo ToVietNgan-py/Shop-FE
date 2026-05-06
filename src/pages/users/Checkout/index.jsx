@@ -364,28 +364,61 @@ function CheckoutPage() {
                     addressLine: formData.addressDetail
                 },
                 items: checkoutItems,
+                paymentMethod,
                 note: formData.note
             });
 
             const createdOrder = await orderService.createOrder(payload);
-            setOrderData(createdOrder);
+            const effectivePaymentMethod =
+                createdOrder.paymentMethod === ORDER_PAYMENT_METHODS.COD && paymentMethod !== ORDER_PAYMENT_METHODS.COD
+                    ? paymentMethod
+                    : createdOrder.paymentMethod;
+            const displayOrder = {
+                ...createdOrder,
+                paymentMethod: effectivePaymentMethod,
+            };
 
-            if (createdOrder.paymentMethod === ORDER_PAYMENT_METHODS.COD) {
+            setOrderData(displayOrder);
+
+            if (effectivePaymentMethod === ORDER_PAYMENT_METHODS.COD) {
                 await refreshCartAfterOrder();
                 setCheckoutStep("success");
                 return;
             }
 
-            if (createdOrder.paymentMethod === ORDER_PAYMENT_METHODS.BANK_TRANSFER) {
+            if (effectivePaymentMethod === ORDER_PAYMENT_METHODS.BANK_TRANSFER) {
                 await refreshCartAfterOrder();
                 setCheckoutStep("payment");
                 return;
             }
 
-            const paymentUrl = createdOrder.paymentUrl || (await paymentService.createVNPay({
-                orderId: createdOrder.id,
-                orderCode: createdOrder.orderCode,
-            })).paymentUrl;
+            if (effectivePaymentMethod === ORDER_PAYMENT_METHODS.VNPAY && createdOrder.paymentInfo?.qrCodeUrl) {
+                await refreshCartAfterOrder();
+                setCheckoutStep("payment");
+                return;
+            }
+
+            const vnpayPayment = createdOrder.paymentUrl || createdOrder.paymentInfo?.qrCodeUrl
+                ? null
+                : await paymentService.createVNPay({
+                    orderId: createdOrder.id,
+                    orderCode: createdOrder.orderCode,
+                });
+            const paymentUrl = createdOrder.paymentUrl || vnpayPayment?.paymentUrl;
+            const qrCodeUrl = createdOrder.paymentInfo?.qrCodeUrl || vnpayPayment?.qrCodeUrl;
+
+            if (qrCodeUrl) {
+                setOrderData({
+                    ...displayOrder,
+                    paymentInfo: {
+                        ...displayOrder.paymentInfo,
+                        qrCodeUrl,
+                    },
+                });
+                await refreshCartAfterOrder();
+                setCheckoutStep("payment");
+                return;
+            }
 
             if (!paymentUrl) {
                 throw new Error("Khong tao duoc lien ket thanh toan VNPay.");
@@ -657,7 +690,14 @@ function CheckoutPage() {
                             <div className="payment-transfer-layout">
                                 <div className="payment-qr-card">
                                     {paymentInfo.qrCodeUrl ? (
-                                        <img src={paymentInfo.qrCodeUrl} alt="QR thanh toan don hang" />
+                                        <img
+                                            src={
+                                                /^https?:\/\//i.test(paymentInfo.qrCodeUrl) || paymentInfo.qrCodeUrl.startsWith("data:")
+                                                    ? paymentInfo.qrCodeUrl
+                                                    : `https://quickchart.io/qr?size=260&text=${encodeURIComponent(paymentInfo.qrCodeUrl)}`
+                                            }
+                                            alt="QR thanh toan don hang"
+                                        />
                                     ) : (
                                         // TODO: Placeholder nay chi phu hop khi backend chua tra QR.
                                         // Sau nay co the can them loading, expired QR, hoac nut tao lai ma.

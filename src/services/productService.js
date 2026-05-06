@@ -1,8 +1,5 @@
 import api from "../apis/default.js";
-import { productSeed } from "../data/products.mock.js";
 import { buildImageUrl } from "../utils/format.js";
-
-const normalizeText = (value) => String(value ?? "").trim().toLowerCase();
 
 const slugify = (value) => String(value ?? "")
     .normalize("NFD")
@@ -91,52 +88,6 @@ const extractListPayload = (responseData) => {
     return responseData ?? [];
 };
 
-const applyPriceRange = (items, priceRange) => {
-    if (priceRange === "under-200") {
-        return items.filter((product) => product.price < 200000);
-    }
-
-    if (priceRange === "200-400") {
-        return items.filter((product) => product.price >= 200000 && product.price <= 400000);
-    }
-
-    if (priceRange === "400-600") {
-        return items.filter((product) => product.price > 400000 && product.price <= 600000);
-    }
-
-    if (priceRange === "over-600") {
-        return items.filter((product) => product.price > 600000);
-    }
-
-    return items;
-};
-
-const applySort = (items, sortBy) => {
-    const nextItems = [...items];
-
-    nextItems.sort((firstProduct, secondProduct) => {
-        if (sortBy === "price-asc") {
-            return firstProduct.price - secondProduct.price;
-        }
-
-        if (sortBy === "price-desc") {
-            return secondProduct.price - firstProduct.price;
-        }
-
-        if (sortBy === "name-asc") {
-            return firstProduct.name.localeCompare(secondProduct.name);
-        }
-
-        if (sortBy === "stock-desc") {
-            return secondProduct.stock - firstProduct.stock;
-        }
-
-        return Number(secondProduct.isHot) - Number(firstProduct.isHot);
-    });
-
-    return nextItems;
-};
-
 export const productService = {
     async list(params = {}) {
         const queryParams = {};
@@ -151,72 +102,26 @@ export const productService = {
         if (Number.isInteger(params.limit) && params.limit > 0) queryParams.limit = params.limit;
         if (params.excludeId) queryParams.excludeId = params.excludeId;
 
-        try {
-            const response = await api.get("/products", { params: queryParams });
-            const data = response.data?.data ?? response.data;
-            const items = normalizeProductList(extractListPayload(data));
+        const response = await api.get("/products", { params: queryParams });
+        const data = response.data?.data ?? response.data;
+        const items = normalizeProductList(extractListPayload(data));
 
-            const total = Number(data?.total ?? data?.meta?.total ?? data?.pagination?.total ?? items.length);
-            const page = Number(data?.page ?? params.page ?? 1);
-            const limit = Number(data?.limit ?? params.limit ?? items.length);
+        const total = Number(data?.total ?? data?.meta?.total ?? data?.pagination?.total ?? items.length);
+        const page = Number(data?.page ?? params.page ?? 1);
+        const limit = Number(data?.limit ?? params.limit ?? items.length);
 
-            return {
-                items,
-                total,
-                page,
-                limit
-            };
-        } catch {
-            const products = [...productSeed].map(normalizeProduct).filter(Boolean);
-            const normalizedKeyword = normalizeText(params.keyword);
-            let nextProducts = products;
-
-            if (normalizedKeyword) {
-                nextProducts = nextProducts.filter((product) => normalizeText(product.name).includes(normalizedKeyword));
-            }
-
-            if (params.category && params.category !== "all") {
-                const categoryLower = normalizeText(params.category);
-                nextProducts = nextProducts.filter((product) => {
-                    const productCategoryLower = normalizeText(product.category);
-                    const productSlugLower = normalizeText(product.categorySlug);
-                    return productCategoryLower === categoryLower || productSlugLower === categoryLower;
-                });
-            }
-
-            nextProducts = applyPriceRange(nextProducts, params.priceRange ?? "all");
-
-            if (params.hotOnly) {
-                nextProducts = nextProducts.filter((product) => product.isHot);
-            }
-
-            if (params.inStockOnly) {
-                nextProducts = nextProducts.filter((product) => product.stock > 0);
-            }
-
-            nextProducts = applySort(nextProducts, params.sortBy ?? "featured");
-
-            const limit = Number.isInteger(params.limit) ? params.limit : nextProducts.length;
-            const page = Number.isInteger(params.page) && params.page > 0 ? params.page : 1;
-            const startIndex = (page - 1) * limit;
-
-            return {
-                items: nextProducts.slice(startIndex, startIndex + limit),
-                total: nextProducts.length,
-                page,
-                limit
-            };
-        }
+        return {
+            items,
+            total,
+            page,
+            limit
+        };
     },
 
     async detail(id) {
-        try {
-            const response = await api.get(`/products/${id}`);
-            const data = response.data?.data ?? response.data;
-            return normalizeProduct(data);
-        } catch {
-            return normalizeProduct(productSeed.find((product) => String(product.id) === String(id)));
-        }
+        const response = await api.get(`/products/${id}`);
+        const data = response.data?.data ?? response.data;
+        return normalizeProduct(data);
     },
 
     async related({ category, excludeId, limit = 4 } = {}) {
@@ -230,12 +135,9 @@ export const productService = {
             });
 
             return result.items.filter((product) => String(product.id) !== String(excludeId)).slice(0, limit);
-        } catch {
-            return productSeed
-                .map(normalizeProduct)
-                .filter(Boolean)
-                .filter((product) => String(product.id) !== String(excludeId) && (!category || product.categorySlug === category || product.category === category))
-                .slice(0, limit);
+        } catch (error) {
+            console.error("Failed to load related products:", error);
+            return [];
         }
     }
 };

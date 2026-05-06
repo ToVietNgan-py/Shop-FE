@@ -1,5 +1,4 @@
 import api from "../apis/default.js";
-import { productSeed } from "../data/products.mock.js";
 
 const slugify = (value) => String(value ?? "")
     .normalize("NFD")
@@ -25,18 +24,6 @@ const normalizeCategory = (category) => {
     };
 };
 
-const buildCategory = (name) => {
-    const products = productSeed.filter((product) => product.category === name);
-
-    return {
-        id: slugify(name),
-        name,
-        slug: slugify(name),
-        productCount: products.length,
-        products
-    };
-};
-
 const extractListPayload = (responseData) => {
     if (Array.isArray(responseData)) {
         return responseData;
@@ -59,38 +46,24 @@ const extractListPayload = (responseData) => {
 
 export const categoryService = {
     async list() {
-        try {
-            const response = await api.get("/categories");
-            const categories = extractListPayload(response.data?.data ?? response.data)
-                .map(normalizeCategory)
-                .filter(Boolean);
+        const response = await api.get("/categories");
+        const categories = extractListPayload(response.data?.data ?? response.data)
+            .map(normalizeCategory)
+            .filter(Boolean);
 
-            if (categories.length > 0) {
-                return categories;
-            }
-
-            return [...new Set(productSeed.map((product) => product.category))].map(buildCategory);
-        } catch {
-            return [...new Set(productSeed.map((product) => product.category))].map(buildCategory);
-        }
+        return categories;
     },
 
     async detail(identifier) {
         try {
-            const response = await api.get(`/categories/${identifier}`);
+            const response = await api.get(`/categories/${encodeURIComponent(identifier)}`);
             const data = response.data?.data ?? response.data;
-            const category = normalizeCategory(data);
-
-            if (category) {
-                return category;
-            }
-        } catch {
-            // fall through to seed fallback
+            return normalizeCategory(data);
+        } catch (error) {
+            throw {
+                message: error.response?.data?.message || error.response?.data?.error || "Không thể lấy thông tin danh mục.",
+                errors: error.response?.data?.errors,
+            };
         }
-
-        const normalizedIdentifier = slugify(identifier);
-        const categoryName = [...new Set(productSeed.map((product) => product.category))].find((name) => slugify(name) === normalizedIdentifier || name === identifier);
-
-        return categoryName ? buildCategory(categoryName) : null;
     }
 };

@@ -7,15 +7,28 @@ export const ORDER_PAYMENT_METHODS = {
 };
 
 const normalizePaymentMethod = (value) => {
-    if (value === ORDER_PAYMENT_METHODS.COD) {
+    const normalized = String(value ?? "").trim().toLowerCase();
+
+    if (normalized === ORDER_PAYMENT_METHODS.COD || normalized === "code" || normalized === "cash") {
         return ORDER_PAYMENT_METHODS.COD;
     }
 
-    if (value === ORDER_PAYMENT_METHODS.BANK_TRANSFER || value === "bank" || value === "qr") {
+    if (
+        normalized === ORDER_PAYMENT_METHODS.BANK_TRANSFER
+        || normalized === "bank"
+        || normalized === "banktransfer"
+        || normalized === "bank_transfer_qr"
+        || normalized === "transfer"
+        || normalized === "qr"
+    ) {
         return ORDER_PAYMENT_METHODS.BANK_TRANSFER;
     }
 
-    return value ? ORDER_PAYMENT_METHODS.VNPAY : ORDER_PAYMENT_METHODS.COD;
+    if (normalized === ORDER_PAYMENT_METHODS.VNPAY || normalized === "vn_pay") {
+        return ORDER_PAYMENT_METHODS.VNPAY;
+    }
+
+    return normalized ? normalized : ORDER_PAYMENT_METHODS.COD;
 };
 
 const normalizeStatus = (status) => {
@@ -54,18 +67,46 @@ const normalizeOrderItem = (item = {}) => {
     };
 };
 
-const normalizeBankInfo = (bankInfo = {}) => ({
-    bankName: bankInfo.bank_name ?? bankInfo.bankName ?? "",
-    accountName: bankInfo.account_name ?? bankInfo.accountName ?? "",
-    accountNumber: bankInfo.account_number ?? bankInfo.accountNumber ?? "",
+const normalizeBankInfo = (bankInfo = {}, payload = {}) => ({
+    bankName: bankInfo.bank_name ?? bankInfo.bankName ?? payload.bank_name ?? payload.bankName ?? "",
+    accountName: bankInfo.account_name ?? bankInfo.accountName ?? payload.account_name ?? payload.accountName ?? "",
+    accountNumber: bankInfo.account_number ?? bankInfo.accountNumber ?? payload.account_number ?? payload.accountNumber ?? "",
 });
 
-const normalizePaymentInfo = (paymentInfo = {}) => ({
-    qrCodeUrl: paymentInfo.qr_code_url ?? paymentInfo.qrCodeUrl ?? "",
-    transferContent: paymentInfo.transfer_content ?? paymentInfo.transferContent ?? "",
-    amount: Number(paymentInfo.amount ?? 0),
-    bankInfo: normalizeBankInfo(paymentInfo.bank_info ?? paymentInfo.bankInfo),
-});
+const normalizePaymentInfo = (paymentInfo = {}, payload = {}) => {
+    const qrCodeUrl = paymentInfo.qr_code_url
+        ?? paymentInfo.qrCodeUrl
+        ?? paymentInfo.qr_url
+        ?? paymentInfo.qrUrl
+        ?? paymentInfo.qr_code
+        ?? paymentInfo.qrCode
+        ?? paymentInfo.qr
+        ?? payload.qr_code_url
+        ?? payload.qrCodeUrl
+        ?? payload.qr_url
+        ?? payload.qrUrl
+        ?? payload.qr_code
+        ?? payload.qrCode
+        ?? payload.qr
+        ?? "";
+
+    return {
+        qrCodeUrl,
+        transferContent: paymentInfo.transfer_content
+            ?? paymentInfo.transferContent
+            ?? paymentInfo.content
+            ?? paymentInfo.description
+            ?? payload.transfer_content
+            ?? payload.transferContent
+            ?? payload.content
+            ?? payload.description
+            ?? payload.order_code
+            ?? payload.orderCode
+            ?? "",
+        amount: Number(paymentInfo.amount ?? payload.amount ?? payload.total_amount ?? payload.totalAmount ?? payload.total ?? 0),
+        bankInfo: normalizeBankInfo(paymentInfo.bank_info ?? paymentInfo.bankInfo, payload),
+    };
+};
 
 export const normalizeOrder = (payload = {}) => {
     const items = Array.isArray(payload.items)
@@ -91,7 +132,7 @@ export const normalizeOrder = (payload = {}) => {
         itemCount: Number(payload.item_count ?? payload.itemCount ?? items.length),
         items: items.map(normalizeOrderItem),
         shippingAddress: normalizeAddress(payload.shipping_address ?? payload.shippingAddress, payload),
-        paymentInfo: normalizePaymentInfo(payload.payment_info ?? payload.paymentInfo),
+        paymentInfo: normalizePaymentInfo(payload.payment_info ?? payload.paymentInfo, payload),
         paymentUrl: payload.payment_url ?? payload.paymentUrl ?? "",
     };
 };
@@ -115,6 +156,7 @@ export const buildCreateOrderPayload = ({
     customer,
     shippingAddress,
     items,
+    paymentMethod,
     note,
 }) => ({
     FullName: customer.fullName.trim(),
@@ -127,6 +169,7 @@ export const buildCreateOrderPayload = ({
         shippingAddress.city,
         shippingAddress.country,
     ].filter(Boolean).join(", "),
+    PaymentMethod: normalizePaymentMethod(paymentMethod),
     Note: note?.trim() || "",
     items: items.map((item) => ({
         product_id: item.productId ?? item.product_id ?? item.id,

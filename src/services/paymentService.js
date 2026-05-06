@@ -22,6 +22,7 @@ export const paymentService = {
 
             return {
                 paymentUrl: data.payment_url ?? data.url ?? data.paymentUrl ?? "",
+                qrCodeUrl: data.qr_code_url ?? data.qrCodeUrl ?? data.qr_url ?? data.qrUrl ?? data.qr_code ?? data.qrCode ?? data.qr ?? "",
                 transactionId: data.transaction_id ?? data.transactionId ?? null,
             };
         } catch (error) {
