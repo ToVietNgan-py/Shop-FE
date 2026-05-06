@@ -1,0 +1,28 @@
+:root {
+    --color-background: #f6f7fb;
+    --color-surface: #ffffff;
+    --color-surface-muted: #f3f4f6;
+    --color-text: #111827;
+    --color-text-muted: #6b7280;
+    --color-border: #e5e7eb;
+    --color-brand: #0f766e;
+    --color-brand-weak: #d9f4f1;
+    --color-brand-strong: #134e4a;
+    --shadow-card: 0 18px 42px rgba(15, 23, 42, 0.08);
+    --radius-card: 20px;
+    --radius-control: 14px;
+}
+
+body {
+    background: var(--color-background);
+    color: var(--color-text);
+}
+
+#root {
+    min-height: 100vh;
+}
+
+::selection {
+    background: var(--color-brand-weak);
+    color: var(--color-brand-strong);
+}

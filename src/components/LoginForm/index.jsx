@@ -1,10 +1,43 @@
 import { useContext, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { login } from "../../services/authServices.js";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import "./style.scss";
 
+const splitRoleValue = (value) => String(value ?? "")
+    .split("|")
+    .map((role) => role.trim())
+    .filter(Boolean);
+
+const getUserRoles = (userData) => {
+    const roles = userData?.roles ?? userData?.role ?? userData?.roles_name ?? userData?.role_name ?? [];
+
+    if (Array.isArray(roles)) {
+        return roles.flatMap((item) => {
+            if (typeof item === "string") {
+                return splitRoleValue(item);
+            }
+
+            if (item && typeof item === "object") {
+                return splitRoleValue(item.name ?? item.slug ?? item.role ?? item.code);
+            }
+
+            return [];
+        });
+    }
+
+    return splitRoleValue(roles);
+};
+
+const isAdminRole = (userData) => {
+    const roles = getUserRoles(userData);
+    return roles.includes("admin") || roles.includes("employee");
+};
+
 function LoginForm({ onClose }) {
     const { loginContext } = useContext(AuthContext);
+    const navigate = useNavigate();
+    const location = useLocation();
     const [form, setForm] = useState({
         email: "",
         password: ""
@@ -21,6 +54,21 @@ function LoginForm({ onClose }) {
             const data = await login(form);
             loginContext(data);
             onClose?.();
+
+            const nextUser = data.user ?? data.data?.user ?? data.profile ?? data.data ?? data;
+            const nextPath = location.state?.from;
+
+            if (nextPath) {
+                navigate(nextPath, { replace: true });
+                return;
+            }
+
+            if (isAdminRole(nextUser)) {
+                navigate("/admin", { replace: true });
+                return;
+            }
+
+            navigate("/", { replace: true });
         } catch (err) {
             const message = err?.message || err?.error || "Sai tài khoản hoặc mật khẩu";
             setError(message);
