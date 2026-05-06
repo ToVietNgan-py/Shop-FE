@@ -1,10 +1,12 @@
 import { useMemo, useState, useContext, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { CartContext } from "../../../context/CartContext";
+import { AuthContext } from "../../../context/AuthContext.jsx";
 import { productService } from "../../../services/productService.js";
 import { formatVND } from "../../../utils/format.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
 import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
+import AuthModal from "../../../components/AuthModal/AuthModal.jsx";
 
 import "./ProductDetail.scss";
 
@@ -15,9 +17,13 @@ function ProductDetail() {
     const [quantity, setQuantity] = useState(1);
     const [addedSuccess, setAddedSuccess] = useState(false);
     const [cartActionError, setCartActionError] = useState("");
+    const [isAuthOpen, setIsAuthOpen] = useState(false);
+    const [pendingCartItem, setPendingCartItem] = useState(null);
+    const [pendingAction, setPendingAction] = useState("");
 
     const navigate = useNavigate();
     const { addToCart } = useContext(CartContext);
+    const { user } = useContext(AuthContext) ?? {};
 
     const colors = useMemo(
         () => ["Cream", "Sky Blue", "Black"],
@@ -94,6 +100,39 @@ function ProductDetail() {
         }
     }, [addedSuccess]);
 
+    useEffect(() => {
+        if (!user || !pendingCartItem) {
+            return;
+        }
+
+        let isMounted = true;
+
+        (async () => {
+            try {
+                await addToCart(pendingCartItem);
+                if (isMounted) {
+                    setAddedSuccess(true);
+                    setPendingCartItem(null);
+                    const action = pendingAction;
+                    setPendingAction("");
+                    if (action === "buy-now") {
+                        navigate("/thanh-toan");
+                    }
+                }
+            } catch (addError) {
+                if (isMounted) {
+                    setCartActionError(addError?.message || "Khong the them san pham vao gio.");
+                    setPendingCartItem(null);
+                    setPendingAction("");
+                }
+            }
+        })();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [user, pendingCartItem, pendingAction, addToCart, navigate]);
+
     if (isLoading) {
         return <PageLoading title="Đang tải chi tiết sản phẩm" description="Đợi một chút, mình đang lấy dữ liệu từ API." />;
     }
@@ -116,6 +155,13 @@ function ProductDetail() {
     const handleAddToCart = async () => {
         setAddedSuccess(false);
         setCartActionError("");
+        setPendingAction("add-to-cart");
+
+        if (!user) {
+            setPendingCartItem(cartItem);
+            setIsAuthOpen(true);
+            return;
+        }
 
         try {
             await addToCart(cartItem);
@@ -127,6 +173,13 @@ function ProductDetail() {
 
     const handleBuyNow = async () => {
         setCartActionError("");
+        setPendingAction("buy-now");
+
+        if (!user) {
+            setPendingCartItem(cartItem);
+            setIsAuthOpen(true);
+            return;
+        }
 
         try {
             await addToCart(cartItem);
@@ -225,6 +278,7 @@ function ProductDetail() {
                     ))}
                 </div>
             </div>
+            {isAuthOpen ? <AuthModal onClose={() => setIsAuthOpen(false)} /> : null}
         </>
     );
 

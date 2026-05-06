@@ -1,10 +1,12 @@
 import { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { register } from "../../services/authServices.js";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import "./style.scss";
 
 function RegisterForm({ onClose }) {
     const { loginContext } = useContext(AuthContext);
+    const navigate = useNavigate();
     const [form, setForm] = useState({
         name: "",
         email: "",
@@ -34,7 +36,7 @@ function RegisterForm({ onClose }) {
 
             loginContext(data);
             onClose?.();
-            window.location.href = "/";
+            navigate("/", { replace: true });
         } catch (err) {
             const message = err?.message || err?.error || "Đăng ký thất bại, bạn kiểm tra lại thông tin nhé!";
             setError(message);
