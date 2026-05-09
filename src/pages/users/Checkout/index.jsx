@@ -15,15 +15,28 @@ import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
 import "./style.scss";
 
 const SHIPPING_FEE = 35000;
+const FE_ONLY_COD_BANK = true;
 // TODO: Khi backend hoan thien, lay phi ship va giam gia tu API pricing/promotion
 // thay vi hardcode o frontend de tranh lech tong tien voi backend.
+
+const toBackendPaymentMethod = (method) => {
+    if (method === ORDER_PAYMENT_METHODS.BANK_TRANSFER) {
+        return "bank";
+    }
+
+    if (method === ORDER_PAYMENT_METHODS.VNPAY) {
+        return "vnpay";
+    }
+
+    return "cod";
+};
 
 
 
 function CheckoutPage() {
     const location = useLocation();
     const [searchParams] = useSearchParams();
-    const { cartId, cartItems, syncCart } = useContext(CartContext);
+    const { cartId, cartItems, syncCart, clearCart } = useContext(CartContext);
     const { user } = useContext(AuthContext);
     const productId = Number(searchParams.get("productId"));
     const [fallbackItem, setFallbackItem] = useState(null);
@@ -316,6 +329,11 @@ function CheckoutPage() {
             return;
         }
 
+        if (subtotal <= 0) {
+            setCouponError("Đơn hàng chưa có sản phẩm để áp mã giảm giá.");
+            return;
+        }
+
         setIsApplyingCoupon(true);
 
         try {
@@ -338,13 +356,64 @@ function CheckoutPage() {
         setOrderError("");
         setIsCreatingOrder(true);
 
+        const createLocalOrder = async () => {
+            const localOrder = {
+                id: null,
+                orderCode: `LOCAL-${Date.now()}`,
+                status: "pending",
+                createdAt: new Date().toISOString(),
+                paymentMethod,
+                items: checkoutItems,
+                subtotal,
+                shippingFee: SHIPPING_FEE,
+                discount: couponDiscount,
+                totalAmount: subtotal + SHIPPING_FEE - couponDiscount,
+                itemCount: checkoutItems.reduce((sum, item) => sum + (item.quantity || 0), 0),
+                shippingAddress: {
+                    fullName: formData.fullName,
+                    phone: formData.phone,
+                    address: formData.addressDetail,
+                    city: formData.city,
+                    district: formData.district,
+                    ward: formData.ward,
+                },
+            };
+
+            try {
+                const { pushLocalOrder } = await import("../../../utils/localOrders.js");
+                pushLocalOrder(localOrder);
+            } catch {
+                // Ignore local storage failure to keep checkout flow alive.
+            }
+
+            setOrderData(localOrder);
+
+            try {
+                await clearCart();
+            } catch {
+                // Ignore cart clear errors for local fallback orders.
+            }
+
+            if (paymentMethod === ORDER_PAYMENT_METHODS.COD) {
+                setCheckoutStep("success");
+            } else {
+                setCheckoutStep("payment");
+            }
+        };
+
         try {
-            if (!cartId) {
-                throw new Error("Gio hang chua san sang. Vui long thu lai.");
+            if (!checkoutItems.length) {
+                throw new Error("Gio hang dang trong. Vui long them san pham truoc khi dat hang.");
             }
 
             if (!user?.email) {
                 throw new Error("Vui long dang nhap truoc khi dat hang.");
+            }
+
+            // FE-only fallback for COD/bank while keeping VNPay real gateway flow.
+            if (FE_ONLY_COD_BANK && paymentMethod !== ORDER_PAYMENT_METHODS.VNPAY) {
+                await createLocalOrder();
+                return;
             }
 
             const payload = buildCreateOrderPayload({
@@ -367,6 +436,24 @@ function CheckoutPage() {
                 note: formData.note
             });
 
+            // Backend currently requires cart_id from server cart.
+            if (!cartId) {
+                if (paymentMethod === ORDER_PAYMENT_METHODS.VNPAY) {
+                    throw new Error("Giỏ hàng chưa đồng bộ với máy chủ, chưa thể tạo thanh toán VNPay.");
+                }
+
+                await createLocalOrder();
+                return;
+            }
+
+            payload.cart_id = cartId;
+
+            payload.payment_method = toBackendPaymentMethod(paymentMethod);
+
+            if (appliedCoupon?.code) {
+                payload.voucher_code = appliedCoupon.code;
+            }
+
             const createdOrder = await orderService.createOrder(payload);
             setOrderData(createdOrder);
 
@@ -382,6 +469,10 @@ function CheckoutPage() {
                 return;
             }
 
+            if (createdOrder.paymentMethod !== ORDER_PAYMENT_METHODS.VNPAY) {
+                throw new Error("Phuong thuc thanh toan khong hop le cho luong VNPay.");
+            }
+
             const paymentUrl = createdOrder.paymentUrl || (await paymentService.createVNPay({
                 orderId: createdOrder.id,
                 orderCode: createdOrder.orderCode,
@@ -394,6 +485,17 @@ function CheckoutPage() {
             await refreshCartAfterOrder();
             window.location.href = paymentUrl;
         } catch (error) {
+            // If backend returns 422 (business validation) — fallback to local order flow
+            const status = error?.response?.status;
+
+            if (status === 422) {
+                // For COD / bank transfer we can create a local fake order so UX can continue.
+                if (paymentMethod === ORDER_PAYMENT_METHODS.COD || paymentMethod === ORDER_PAYMENT_METHODS.BANK_TRANSFER) {
+                    await createLocalOrder();
+                    return;
+                }
+            }
+
             setOrderError(
                 error?.message || error?.response?.data?.message || "Khong tao duoc don hang. Vui long thu lai."
             );
@@ -771,10 +873,14 @@ function CheckoutPage() {
                     </div>
 
                     <div className="summary-product-list">
-                        {checkoutItems.map((item) => (
-                            <div key={item.cartKey ?? `${item.id}-${item.color}-${item.size}`} className="summary-product">
+                        {checkoutItems.map((item, index) => (
+                            <div key={item.cartKey ?? `${item.id ?? "item"}-${item.color ?? ""}-${item.size ?? ""}-${index}`} className="summary-product">
                                 <div className="product-thumb">
-                                    <img src={item.image} alt={item.name} />
+                                    {item.image ? (
+                                        <img src={item.image} alt={item.name} />
+                                    ) : (
+                                        <div className="thumb-placeholder" />
+                                    )}
                                     <span className="quantity-badge">{item.quantity}</span>
                                 </div>
 

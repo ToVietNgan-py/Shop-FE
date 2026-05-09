@@ -7,6 +7,8 @@ import { voucherService } from "../services/voucherService.js";
 import { formatVND } from "../utils/format.js";
 import "./style.scss";
 
+const PRODUCT_PLACEHOLDER_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='92' height='112' viewBox='0 0 92 112'%3E%3Crect width='92' height='112' fill='%23f4f4f5'/%3E%3Ctext x='46' y='58' text-anchor='middle' font-size='12' fill='%239ca3af' font-family='Arial,sans-serif'%3ENo Image%3C/text%3E%3C/svg%3E";
+
 const Cart = ({ onClose }) => {
     const navigate = useNavigate();
     const {
@@ -104,10 +106,10 @@ const Cart = ({ onClose }) => {
                         </div>
                     ) : (
                         <div className="cart-list">
-                            {cartItems.map((item) => (
-                                <article key={item.cartKey} className="cart-item">
+                            {cartItems.map((item, index) => (
+                                <article key={item.cartKey || `${item.productId || "item"}-${index}`} className="cart-item">
                                     <img
-                                        src={item.image || "https://via.placeholder.com/92x112?text=No+Image"}
+                                        src={item.image || PRODUCT_PLACEHOLDER_IMAGE}
                                         alt={item.name}
                                         className="cart-item-image"
                                     />

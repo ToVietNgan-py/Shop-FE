@@ -19,8 +19,17 @@ function RegisterForm({ onClose }) {
         event.preventDefault();
         setError("");
 
+        // Validate password: min 8 chars, has letters + numbers
         if (form.password.length < 8) {
             setError("Mật khẩu phải có ít nhất 8 ký tự nhé!");
+            return;
+        }
+        if (!/[a-zA-Z]/.test(form.password)) {
+            setError("Mật khẩu phải chứa ít nhất một chữ cái!");
+            return;
+        }
+        if (!/\d/.test(form.password)) {
+            setError("Mật khẩu phải chứa ít nhất một chữ số!");
             return;
         }
 
@@ -38,7 +47,10 @@ function RegisterForm({ onClose }) {
             onClose?.();
             navigate("/", { replace: true });
         } catch (err) {
-            const message = err?.message || err?.error || "Đăng ký thất bại, bạn kiểm tra lại thông tin nhé!";
+            const validationMessage = err?.errors
+                ? Object.values(err.errors).flat().join(" ")
+                : "";
+            const message = validationMessage || err?.message || err?.error || "Đăng ký thất bại, bạn kiểm tra lại thông tin nhé!";
             setError(message);
             console.log("Chi tiết lỗi:", err);
         } finally {
@@ -84,9 +96,12 @@ function RegisterForm({ onClose }) {
                     autoComplete="new-password"
                     value={form.password}
                     onChange={(event) => setForm({ ...form, password: event.target.value })}
+                    minLength={8}
+                    title="Mật khẩu phải có ít nhất 8 ký tự, gồm cả chữ cái và số"
                     required
                     disabled={isLoading}
                 />
+                <small className="field-hint">Mật khẩu tối thiểu 8 ký tự, phải có chữ và số.</small>
             </div>
 
             <button className="btn-submit" type="submit" disabled={isLoading}>

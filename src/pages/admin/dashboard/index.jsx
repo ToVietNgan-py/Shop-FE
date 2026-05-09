@@ -1,19 +1,27 @@
-import { Card, Col, Row, Space, Statistic, Table, Tag, Typography } from "antd";
+import { Card, Col, Row, Space, Table, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
+import {
+    AiOutlineShoppingCart,
+    AiOutlineDollarCircle,
+    AiOutlineUserAdd,
+    AiOutlineWarning
+} from "react-icons/ai";
 import PageHeader from "../../../components/admin/PageHeader.jsx";
 import DataTable from "../../../components/admin/DataTable.jsx";
-import ImageUploader from "../../../components/admin/ImageUploader.jsx";
+import StatCard from "./StatCard.jsx";
+import RevenueChart from "./RevenueChart.jsx";
 import { dashboardService } from "../../../services/admin/dashboardService.js";
 
 const sampleColumns = [
-    { title: "Mã đơn", dataIndex: "code", key: "code" },
+    { title: "Mã đơn", dataIndex: "code", key: "code", width: 100 },
     { title: "Khách hàng", dataIndex: "customer", key: "customer" },
-    { title: "Tổng tiền", dataIndex: "total", key: "total" },
+    { title: "Tổng tiền", dataIndex: "total", key: "total", width: 120 },
     {
         title: "Trạng thái",
         dataIndex: "status",
         key: "status",
-        render: (value) => <Tag color={value === "Completed" ? "green" : value === "Pending" ? "gold" : "blue"}>{value}</Tag>
+        width: 100,
+        render: (value) => <Tag color={value === "Completed" ? "green" : value === "Processing" ? "blue" : "gold"}>{value}</Tag>
     }
 ];
 
@@ -62,60 +70,102 @@ function AdminDashboardPage() {
         };
     }, []);
 
+    // Icon mapping cho từng metric
+    const iconMap = {
+        0: <AiOutlineShoppingCart />,    // Đơn hôm nay
+        1: <AiOutlineDollarCircle />,    // Doanh thu tháng
+        2: <AiOutlineUserAdd />,         // User mới
+        3: <AiOutlineWarning />          // Sản phẩm thiếu kho
+    };
+
+    const colorMap = ["rose", "blue", "green", "orange"];
+
     return (
         <Space direction="vertical" size={24} style={{ width: "100%" }}>
             <PageHeader
                 title="Dashboard quản trị"
-                description="Khung chung để phase 4 bám vào: theme AntD, layout admin, role guard, DataTable và upload ảnh."
+                description="Tổng quan thống kê doanh số bán hàng, đơn hàng, người dùng và tồn kho."
             />
 
+            {/* Row 1: 4 Stat Cards */}
             <Row gutter={[16, 16]}>
-                {summary.metrics.map((item) => (
-                    <Col key={item.label} xs={24} sm={12} xl={6}>
-                        <Card style={{ borderRadius: 20, boxShadow: "var(--shadow-card)" }}>
-                            <Statistic
-                                title={item.label}
-                                value={item.value}
-                                suffix={item.suffix}
-                                prefix={item.prefix}
-                                loading={loading}
-                            />
-                        </Card>
+                {summary.metrics.map((item, index) => (
+                    <Col key={item.label} xs={24} sm={12} lg={6}>
+                        <StatCard
+                            icon={iconMap[index]}
+                            title={item.label}
+                            value={item.value}
+                            suffix={item.suffix}
+                            prefix={item.prefix}
+                            color={colorMap[index]}
+                            loading={loading}
+                        />
                     </Col>
                 ))}
             </Row>
 
+            {/* Row 2: Chart + Recent Orders Table */}
             <Row gutter={[16, 16]}>
-                <Col xs={24} xl={16}>
+                <Col xs={24} lg={16}>
+                    <RevenueChart loading={loading} />
+                </Col>
+
+                <Col xs={24} lg={8}>
+                    <Card
+                        style={{
+                            borderRadius: 12,
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                            border: "none"
+                        }}
+                        title="Thông tin nhanh"
+                    >
+                        <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                            <div>
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                    Đơn gần nhất
+                                </Typography.Text>
+                                <Typography.Title level={5} style={{ margin: "4px 0 0" }}>
+                                    {summary.recentOrders[0]?.code || "—"}
+                                </Typography.Title>
+                            </div>
+
+                            <div>
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                    Trạng thái
+                                </Typography.Text>
+                                <div style={{ marginTop: 4 }}>
+                                    <Tag color={summary.recentOrders[0]?.status === "Completed" ? "green" : "blue"}>
+                                        {summary.recentOrders[0]?.status || "—"}
+                                    </Tag>
+                                </div>
+                            </div>
+
+                            <div>
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                    Khách hàng
+                                </Typography.Text>
+                                <Typography.Title level={5} style={{ margin: "4px 0 0" }}>
+                                    {summary.recentOrders[0]?.customer || "—"}
+                                </Typography.Title>
+                            </div>
+                        </Space>
+                    </Card>
+                </Col>
+            </Row>
+
+            {/* Row 3: Recent Orders Table */}
+            <Row>
+                <Col span={24}>
                     <DataTable
-                        title="Đơn gần nhất"
-                        description="Ví dụ DataTable dùng cho list, search và phân trang ở các trang admin CRUD."
+                        title="5 đơn hàng gần nhất"
+                        description="Danh sách các đơn hàng mới nhất trong hệ thống"
                         loading={loading}
                         rowKey="code"
                         columns={sampleColumns}
-                        dataSource={summary.recentOrders}
+                        dataSource={summary.recentOrders.slice(0, 5)}
                         pagination={false}
+                        scroll={{ x: 600 }}
                     />
-                </Col>
-                <Col xs={24} xl={8}>
-                    <Card style={{ borderRadius: 20, boxShadow: "var(--shadow-card)", marginBottom: 16 }}>
-                        <Typography.Title level={4} style={{ marginTop: 0 }}>
-                            Upload ảnh demo
-                        </Typography.Title>
-                        <Typography.Paragraph type="secondary">
-                            ImageUploader dùng chung cho form sản phẩm, danh mục hoặc voucher nếu cần ảnh minh hoạ.
-                        </Typography.Paragraph>
-                        <ImageUploader value={[]} onChange={() => undefined} maxCount={3} />
-                    </Card>
-
-                    <Card style={{ borderRadius: 20, boxShadow: "var(--shadow-card)" }}>
-                        <Typography.Title level={4} style={{ marginTop: 0 }}>
-                            Service admin đã tách
-                        </Typography.Title>
-                        <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                            dashboardService, adminProductService, adminCategoryService, adminOrderService, adminVoucherService và adminUserService sẽ dùng cùng axios instance, cùng format response.
-                        </Typography.Paragraph>
-                    </Card>
                 </Col>
             </Row>
         </Space>

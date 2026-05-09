@@ -148,14 +148,14 @@ const StatusBadge = ({ status }) => (
 // Order Item Component
 const OrderItem = ({ item }) => (
     <div className="order-item">
-        <img src={item.image} alt={item.name} className="item-image" />
+        {item.image ? <img src={item.image} alt={item.name} className="item-image" /> : <div className="item-image" aria-hidden="true" />}
         <div className="item-info">
             <h4 className="item-name">{item.name}</h4>
             <p className="item-variant">
                 {item.color} / {item.size} | SL: {item.quantity}
             </p>
         </div>
-        <div className="item-price">{formatVND(item.price)}</div>
+        <div className="item-price">{formatVND(item.price * (item.quantity || 1))}</div>
     </div>
 );
 
@@ -173,8 +173,8 @@ const OrderCard = ({ order, onViewDetail, onCancel, onReview, cancelling }) => {
             <div className="order-date">{formatDateTime(order.createdAt)}</div>
 
             <div className="order-items">
-                {order.items.map((item) => (
-                    <OrderItem key={item.id} item={item} />
+                {order.items.map((item, index) => (
+                    <OrderItem key={item.id ?? item.productId ?? `${order.orderCode}-item-${index}`} item={item} />
                 ))}
             </div>
 
@@ -182,7 +182,7 @@ const OrderCard = ({ order, onViewDetail, onCancel, onReview, cancelling }) => {
                 <div className="order-total">
                     <span className="label">Tổng tiền:</span>
                     <span className="amount">{formatVND(order.totalAmount)}</span>
-                    <span className="item-count">({order.itemCount} sản phẩm)</span>
+                    <span className="item-count">({order.items.reduce((s, it) => s + (it.quantity || 0), 0)} sản phẩm)</span>
                 </div>
                 <div className="order-actions">
                     {canCancel && (
@@ -252,7 +252,23 @@ const MyOrders = () => {
             setLoading(true);
             setError(null);
             const res = await getOrders();
-            setOrders(res.data || []);
+            const serverOrders = res.data || [];
+
+            // Merge local orders (created by FE fallback) so user sees them in My Orders
+            let merged = serverOrders;
+            try {
+                const { loadLocalOrders } = await import("../../../utils/localOrders.js");
+                const local = loadLocalOrders();
+                if (Array.isArray(local) && local.length > 0) {
+                    // prepend local orders that don't exist on server
+                    const filteredServer = serverOrders.filter(s => !local.some(l => l.orderCode === s.orderCode));
+                    merged = [...local, ...filteredServer];
+                }
+            } catch (_e) {
+                // ignore local storage errors
+            }
+
+            setOrders(merged);
         } catch (err) {
             console.error("Error fetching orders:", err);
             setError(err?.message || "Khong the tai danh sach don hang.");
@@ -265,6 +281,25 @@ const MyOrders = () => {
     // Handle cancel order
     const handleCancelOrder = async (orderCode) => {
         if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) {
+            return;
+        }
+
+        // If order is local (FE-created), update local storage instead of calling API
+        const isLocal = orderCode && orderCode.startsWith && orderCode.startsWith('LOCAL-');
+
+        if (isLocal) {
+            try {
+                setCancellingId(orderCode);
+                const { updateLocalOrder } = await import("../../../utils/localOrders.js");
+                updateLocalOrder(orderCode, { status: 'cancelled' });
+                setOrders(prev => prev.map(order => order.orderCode === orderCode ? { ...order, status: 'cancelled' } : order));
+            } catch (err) {
+                console.error("Error cancelling local order:", err);
+                setError("Không thể hủy đơn hàng cục bộ. Vui lòng thử lại.");
+            } finally {
+                setCancellingId(null);
+            }
+
             return;
         }
 
@@ -403,7 +438,7 @@ const MyOrders = () => {
                         ) : (
                             filteredOrders.map((order) => (
                                 <OrderCard
-                                    key={order.id}
+                                    key={order.id ?? order.orderCode}
                                     order={order}
                                     onViewDetail={() => handleViewDetail(order.orderCode)}
                                     onCancel={() => handleCancelOrder(order.orderCode)}

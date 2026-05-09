@@ -12,8 +12,11 @@ export const register = async (data) => {
         return res.data;
     } catch (error) {
         const errData = error.response?.data;
+        const validationMessage = errData?.errors
+            ? Object.values(errData.errors).flat().join(" ")
+            : "";
         throw {
-            message: errData?.message || errData?.error || "Đăng ký thất bại",
+            message: validationMessage || errData?.message || errData?.error || "Đăng ký thất bại",
             errors: errData?.errors,
         };
     }

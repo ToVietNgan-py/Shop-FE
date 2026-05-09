@@ -17,6 +17,8 @@ import LoginPage from "../pages/users/auth/LoginPage.jsx";
 import RequireRole from "../pages/admin/_guard/RequireRole.jsx";
 import AdminLayout from "../pages/admin/_layout/AdminLayout.jsx";
 import AdminDashboardPage from "../pages/admin/dashboard/index.jsx";
+import AdminProductsPage from "../pages/admin/products/index.jsx";
+import AdminCategoriesPage from "../pages/admin/categories/index.jsx";
 import AdminModulePage from "../pages/admin/_shared/AdminModulePage.jsx";
 
 function AppRoutes() {
@@ -49,31 +51,11 @@ function AppRoutes() {
                     <Route index element={<AdminDashboardPage />} />
                     <Route
                         path="san-pham"
-                        element={
-                            <AdminModulePage
-                                title="Quản lý sản phẩm"
-                                description="Khung chung cho CRUD sản phẩm, ảnh phụ, tìm kiếm và phân trang."
-                                highlights={[
-                                    "DataTable dùng chung cho list sản phẩm",
-                                    "ImageUploader cho ảnh chính/ảnh phụ",
-                                    "Service adminProductService để đồng bộ API"
-                                ]}
-                            />
-                        }
+                        element={<AdminProductsPage />}
                     />
                     <Route
                         path="loai-san-pham"
-                        element={
-                            <AdminModulePage
-                                title="Quản lý danh mục"
-                                description="Khung chung cho danh mục, icon, soft delete và validation khi xóa."
-                                highlights={[
-                                    "DataTable + modal CRUD đơn giản",
-                                    "Tái sử dụng PageHeader và ConfirmAction",
-                                    "Service adminCategoryService"
-                                ]}
-                            />
-                        }
+                        element={<AdminCategoriesPage />}
                     />
                     <Route
                         path="don-hang"

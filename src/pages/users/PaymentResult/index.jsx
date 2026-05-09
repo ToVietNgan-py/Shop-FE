@@ -28,6 +28,20 @@ function PaymentResult() {
                     throw new Error("Khong tim thay du lieu tra ve tu VNPay.");
                 }
 
+                if (vnpayParams.mock === "1") {
+                    if (isMounted) {
+                        const isSuccess = vnpayParams.success === "1";
+                        setResult({
+                            success: isSuccess,
+                            orderCode: vnpayParams.order_code || vnpayParams.order_id || "",
+                            orderId: vnpayParams.order_id || "",
+                            message: vnpayParams.message || (isSuccess ? "Thanh toan thanh cong." : "Thanh toan that bai."),
+                        });
+                    }
+
+                    return;
+                }
+
                 const data = await paymentService.confirmReturn(vnpayParams);
 
                 if (isMounted) {

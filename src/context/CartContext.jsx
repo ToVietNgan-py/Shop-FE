@@ -117,15 +117,38 @@ export function CartProvider({ children }) {
                 const guestItems = loadGuestCart();
                 let cart;
 
-                // FE-only cart: luôn dùng localStorage để giữ trạng thái ổn định khi backend chưa hoàn thiện.
-                // Khi login, vẫn đọc từ guest_cart để không mất dữ liệu đã thêm trước đó.
-                if (isLoggedIn && !mergedRef.current && guestItems.length > 0) {
-                    console.log("[Cart] 🔄 Login detected - preserving guest cart from localStorage", guestItems);
-                    mergedRef.current = true;
+                // If user is logged in, try to fetch/merge server cart so we have a valid cart_id.
+                if (isLoggedIn) {
+                    try {
+                        // If there are guest items and we haven't merged yet, attempt merge first
+                        if (!mergedRef.current && guestItems.length > 0) {
+                            console.log("[Cart] 🔄 Login detected - merging guest cart to server", guestItems);
+                            const merged = await cartService.mergeGuestCart(guestItems);
+                            // Clear guest localStorage after successful merge
+                            clearGuestCart();
+                            mergedRef.current = true;
+
+                            if (isMounted) {
+                                dispatch({ type: "SYNCED", payload: merged });
+                                return;
+                            }
+                        }
+
+                        // No guest items to merge or already merged: fetch server cart
+                        const serverCart = await cartService.get();
+                        if (isMounted) {
+                            dispatch({ type: "SYNCED", payload: serverCart });
+                            return;
+                        }
+                    } catch (err) {
+                        console.error("[Cart] ❌ Error syncing/merging cart for logged-in user:", err);
+                        // Fallback to localStorage items if server calls fail
+                    }
                 }
 
+                // FE-only guest cart fallback
                 if (!isLoggedIn) {
-                    mergedRef.current = false; // Reset merge flag khi logout
+                    mergedRef.current = false; // Reset merge flag when logout
                 }
 
                 cart = {
@@ -349,22 +372,28 @@ export function CartProvider({ children }) {
 
         try {
             console.log("[Cart] Clearing cart...");
-            clearGuestCart();
-            dispatch({
-                type: "SYNCED",
-                payload: {
-                    id: null,
-                    sessionToken: cartService.getSessionToken(),
-                    items: [],
-                },
-            });
-            console.log("[Cart] Cart cleared from localStorage");
+            if (isLoggedIn) {
+                const cart = await cartService.clear();
+                dispatch({ type: "SYNCED", payload: cart });
+                console.log("[Cart] User cart cleared");
+            } else {
+                clearGuestCart();
+                dispatch({
+                    type: "SYNCED",
+                    payload: {
+                        id: null,
+                        sessionToken: cartService.getSessionToken(),
+                        items: [],
+                    },
+                });
+                console.log("[Cart] Guest cart cleared");
+            }
         } catch (err) {
             console.error("[Cart] Clear cart error:", err);
             dispatch({ type: "ERROR", payload: err.message ?? "Khong the xoa gio hang" });
             throw err;
         }
-    }, []);
+    }, [isLoggedIn]);
 
     // ===== Computed values =====
     const cartCount = useMemo(
