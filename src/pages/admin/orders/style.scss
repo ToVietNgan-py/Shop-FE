@@ -1,0 +1,15 @@
+:root {}
+
+.admin-orders-summary-card {
+    border-radius: 20px !important;
+    box-shadow: var(--shadow-card) !important;
+    min-height: 150px;
+}
+
+.admin-orders-summary-card .ant-statistic {
+    margin-bottom: 12px;
+}
+
+.admin-orders-summary-card .ant-typography {
+    display: block;
+}

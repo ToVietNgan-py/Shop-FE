@@ -363,9 +363,10 @@ function CheckoutPage() {
                     wardCode: formData.wardCode,
                     addressLine: formData.addressDetail
                 },
-                items: checkoutItems,
+                cartId,
                 paymentMethod,
-                note: formData.note
+                note: formData.note,
+                voucherCode: appliedCoupon?.code,
             });
 
             const createdOrder = await orderService.createOrder(payload);

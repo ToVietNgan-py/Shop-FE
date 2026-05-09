@@ -6,6 +6,7 @@ import babel from '@rolldown/plugin-babel'
 export default defineConfig({
   server: {
     port: 5173,
+    strictPort: true,
   },
   plugins: [
     react(),

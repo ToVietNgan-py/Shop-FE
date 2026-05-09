@@ -92,23 +92,30 @@ export const productService = {
     async list(params = {}) {
         const queryParams = {};
 
-        if (params.keyword) queryParams.keyword = params.keyword;
-        if (params.category && params.category !== "all") queryParams.category = params.category;
-        if (params.priceRange && params.priceRange !== "all") queryParams.priceRange = params.priceRange;
-        if (params.hotOnly) queryParams.hotOnly = "true";
-        if (params.inStockOnly) queryParams.inStockOnly = "true";
-        if (params.sortBy) queryParams.sortBy = params.sortBy;
+        if (params.keyword) queryParams.q = params.keyword;
+        if (params.category && params.category !== "all") queryParams.category_id = params.category;
+        if (params.priceMin) queryParams.price_min = params.priceMin;
+        if (params.priceMax) queryParams.price_max = params.priceMax;
+        if (params.inStockOnly) queryParams.in_stock = 1;
+        if (params.sortBy) {
+            const sortMap = {
+                newest: "newest",
+                priceAsc: "price_asc",
+                priceDesc: "price_desc",
+                bestSeller: "best_seller",
+            };
+            queryParams.sort = sortMap[params.sortBy] ?? params.sortBy;
+        }
         if (Number.isInteger(params.page) && params.page > 0) queryParams.page = params.page;
-        if (Number.isInteger(params.limit) && params.limit > 0) queryParams.limit = params.limit;
-        if (params.excludeId) queryParams.excludeId = params.excludeId;
+        if (Number.isInteger(params.limit) && params.limit > 0) queryParams.per_page = params.limit;
 
         const response = await api.get("/products", { params: queryParams });
         const data = response.data?.data ?? response.data;
         const items = normalizeProductList(extractListPayload(data));
 
-        const total = Number(data?.total ?? data?.meta?.total ?? data?.pagination?.total ?? items.length);
-        const page = Number(data?.page ?? params.page ?? 1);
-        const limit = Number(data?.limit ?? params.limit ?? items.length);
+        const total = Number(data?.meta?.total ?? data?.pagination?.total ?? data?.total ?? items.length);
+        const page = Number(data?.meta?.current_page ?? data?.pagination?.current_page ?? params.page ?? 1);
+        const limit = Number(data?.meta?.per_page ?? data?.pagination?.per_page ?? params.limit ?? items.length);
 
         return {
             items,

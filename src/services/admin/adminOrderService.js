@@ -1,13 +1,12 @@
 import api from "../../apis/default.js";
-import { createCrudService, readResponseData } from "./adminBaseService.js";
 
-const orderService = createCrudService("/admin/orders");
+const adminOrderService = {
+    getAll: (params) => api.get('/admin/orders', { params }),
+    // params: { page, per_page, status, search, date_from, date_to }
 
-export const adminOrderService = {
-    ...orderService,
+    getById: (id) => api.get(`/admin/orders/${id}`),
 
-    async updateStatus(id, status) {
-        const response = await api.patch(`/admin/orders/${id}/status`, { status });
-        return readResponseData(response);
-    }
+    updateStatus: (id, status) => api.patch(`/admin/orders/${id}/status`, { status }),
 };
+
+export default adminOrderService;

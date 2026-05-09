@@ -6,9 +6,11 @@ import {
     AiOutlineSetting,
     AiOutlineShopping,
     AiOutlineTags,
-    AiOutlineTeam
+    AiOutlineTeam,
+    AiOutlineMenuFold,
+    AiOutlineMenuUnfold
 } from "react-icons/ai";
-import { useContext, useMemo } from "react";
+import { useContext, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext.jsx";
 import "./AdminLayout.scss";
@@ -53,6 +55,7 @@ function AdminLayout() {
     const { user, logout } = useContext(AuthContext);
     const location = useLocation();
     const navigate = useNavigate();
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
     const selectedKey = useMemo(() => {
         const currentPath = location.pathname;
@@ -68,8 +71,9 @@ function AdminLayout() {
 
     return (
         <Layout className="admin-layout">
-            <Sider width={248} className="admin-layout__sider" breakpoint="lg" collapsedWidth={72}>
+            <Sider width={248} className="admin-layout__sider" breakpoint="lg" collapsedWidth={60} collapsed={sidebarCollapsed} onCollapse={(collapsed) => setSidebarCollapsed(collapsed)}>
                 <div className="admin-layout__brand">
+
                     <img className="admin-layout__brand-logo" src="/logo.png" alt="Dear Rose" />
                     <span>Khung quản trị chung</span>
                 </div>
@@ -107,7 +111,7 @@ function AdminLayout() {
                     <Outlet />
                 </Content>
             </Layout>
-        </Layout>
+        </Layout >
     );
 }
 

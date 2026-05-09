@@ -2,7 +2,7 @@ import api from "../apis/default.js";
 
 export const ORDER_PAYMENT_METHODS = {
     COD: "cod",
-    BANK_TRANSFER: "bank_transfer",
+    BANK_TRANSFER: "bank",
     VNPAY: "vnpay",
 };
 
@@ -16,6 +16,7 @@ const normalizePaymentMethod = (value) => {
     if (
         normalized === ORDER_PAYMENT_METHODS.BANK_TRANSFER
         || normalized === "bank"
+        || normalized === "bank_transfer"
         || normalized === "banktransfer"
         || normalized === "bank_transfer_qr"
         || normalized === "transfer"
@@ -155,10 +156,12 @@ const throwNice = (error, fallback) => {
 export const buildCreateOrderPayload = ({
     customer,
     shippingAddress,
-    items,
+    cartId,
     paymentMethod,
     note,
+    voucherCode,
 }) => ({
+    cart_id: cartId,
     FullName: customer.fullName.trim(),
     PhoneNumber: customer.phone.trim(),
     Email: customer.email.trim(),
@@ -169,12 +172,9 @@ export const buildCreateOrderPayload = ({
         shippingAddress.city,
         shippingAddress.country,
     ].filter(Boolean).join(", "),
-    PaymentMethod: normalizePaymentMethod(paymentMethod),
+    payment_method: normalizePaymentMethod(paymentMethod),
     Note: note?.trim() || "",
-    items: items.map((item) => ({
-        product_id: item.productId ?? item.product_id ?? item.id,
-        quantity: item.quantity,
-    })),
+    voucher_code: voucherCode?.trim() || undefined,
 });
 
 export const orderService = {
