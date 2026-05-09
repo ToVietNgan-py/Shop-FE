@@ -1,10 +1,10 @@
-import { Button, Modal, Space, message } from "antd";
+import { Button, Modal, message } from "antd";
 import { useEffect, useState } from "react";
 import { AiOutlinePlus } from "react-icons/ai";
-import PageHeader from "../../../components/admin/PageHeader.jsx";
 import CategoryTable from "./CategoryTable.jsx";
 import CategoryForm from "./CategoryForm.jsx";
 import { adminCategoryService } from "../../../services/admin/adminCategoryService.js";
+import "../_shared/admin-page.scss";
 
 /**
  * Admin Categories Page — Quản lý danh mục sản phẩm
@@ -105,28 +105,28 @@ function AdminCategoriesPage() {
     };
 
     return (
-        <Space direction="vertical" size={24} style={{ width: "100%" }}>
-            <PageHeader
-                title="Quản lý danh mục"
-                description="Thêm, sửa hoặc xóa danh mục sản phẩm"
-                actions={[
-                    {
-                        label: "Thêm danh mục",
-                        type: "primary",
-                        icon: <AiOutlinePlus />,
-                        onClick: handleAddCategory
-                    }
-                ]}
-            />
+        <div className="admin-page">
+            <div className="admin-page__breadcrumbs">Home / Admin / Danh mục</div>
+            <div className="admin-page__toolbar">
+                <div>
+                    <h2 className="admin-page__title">Danh mục</h2>
+                    <div className="admin-page__subtitle">Quản lý nhóm sản phẩm hiển thị trên cửa hàng.</div>
+                </div>
+                <Button type="primary" icon={<AiOutlinePlus />} onClick={handleAddCategory}>
+                    Thêm danh mục
+                </Button>
+            </div>
 
-            <CategoryTable
-                data={categories}
-                meta={meta}
-                loading={loading}
-                onEdit={handleEditCategory}
-                onDelete={handleDeleteCategory}
-                onChange={handleTableChange}
-            />
+            <div className="admin-page__card">
+                <CategoryTable
+                    data={categories}
+                    meta={meta}
+                    loading={loading}
+                    onEdit={handleEditCategory}
+                    onDelete={handleDeleteCategory}
+                    onChange={handleTableChange}
+                />
+            </div>
 
             <CategoryForm
                 visible={formVisible}
@@ -135,7 +135,7 @@ function AdminCategoriesPage() {
                 onSave={handleSaveCategory}
                 onClose={handleCloseForm}
             />
-        </Space>
+        </div>
     );
 }
 

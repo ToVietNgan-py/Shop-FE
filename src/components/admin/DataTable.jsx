@@ -26,7 +26,7 @@ export default function DataTable({ columns, dataSource, meta, loading, onChange
                 onChange: (page, pageSize) => onChange?.(page, pageSize),
             }}
             scroll={{ x: 'max-content' }}
-            style={{ background: '#161b22' }}
+            style={{ background: '#ffffff' }}
         />
     );
 }

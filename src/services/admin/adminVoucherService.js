@@ -1,13 +1,26 @@
 import api from "../../apis/default.js";
-import { createCrudService, readResponseData } from "./adminBaseService.js";
 
-const voucherService = createCrudService("/admin/vouchers");
+const sanitizeParams = (params = {}) => Object.fromEntries(
+    Object.entries(params).filter(([, value]) => {
+        if (value === null || value === undefined) {
+            return false;
+        }
 
-export const adminVoucherService = {
-    ...voucherService,
+        if (typeof value === "string") {
+            return value.trim() !== "";
+        }
 
-    async usage(id) {
-        const response = await api.get(`/admin/vouchers/${id}/usage`);
-        return readResponseData(response);
-    }
+        return true;
+    })
+);
+
+const adminVoucherService = {
+    getAll: (params) => api.get('/admin/vouchers', { params: sanitizeParams(params) }),
+    getById: (id) => api.get(`/admin/vouchers/${id}`),
+    create: (data) => api.post('/admin/vouchers', data),
+    update: (id, data) => api.put(`/admin/vouchers/${id}`, data),
+    remove: (id) => api.delete(`/admin/vouchers/${id}`),
+    getUsage: (id) => api.get(`/admin/vouchers/${id}/usage`),
 };
+
+export default adminVoucherService;

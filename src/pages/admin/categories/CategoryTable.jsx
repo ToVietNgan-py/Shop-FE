@@ -72,8 +72,6 @@ function CategoryTable({ data, meta, loading, onEdit, onDelete, onChange }) {
 
     return (
         <DataTable
-            title="Danh sách danh mục"
-            description="Quản lý toàn bộ danh mục sản phẩm"
             columns={columns}
             dataSource={data}
             meta={meta}

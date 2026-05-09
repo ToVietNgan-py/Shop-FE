@@ -25,103 +25,6 @@ const STATUS_COLORS = {
     cancelled: "#f44336",
 };
 
-// Mock data for demo
-const MOCK_ORDERS = [
-    {
-        id: 1,
-        orderCode: "DR123456",
-        status: "pending",
-        createdAt: "2024-01-15T10:30:00",
-        totalAmount: 450000,
-        itemCount: 2,
-        items: [
-            {
-                id: 1,
-                name: "Áo Thun Dear Rose",
-                image: "https://via.placeholder.com/80",
-                price: 200000,
-                quantity: 1,
-                color: "Trắng",
-                size: "M",
-            },
-            {
-                id: 2,
-                name: "Quần Jean Skinny",
-                image: "https://via.placeholder.com/80",
-                price: 250000,
-                quantity: 1,
-                color: "Xanh đen",
-                size: "30",
-            },
-        ],
-    },
-    {
-        id: 2,
-        orderCode: "DR789012",
-        status: "delivered",
-        createdAt: "2024-01-10T14:20:00",
-        totalAmount: 320000,
-        itemCount: 1,
-        items: [
-            {
-                id: 3,
-                name: "Áo Sơ Mi Caro",
-                image: "https://via.placeholder.com/80",
-                price: 320000,
-                quantity: 1,
-                color: "Xanh rêu",
-                size: "L",
-            },
-        ],
-    },
-    {
-        id: 3,
-        orderCode: "DR345678",
-        status: "shipping",
-        createdAt: "2024-01-12T09:15:00",
-        totalAmount: 890000,
-        itemCount: 3,
-        items: [
-            {
-                id: 4,
-                name: "Áo Hoodie Unisex",
-                image: "https://via.placeholder.com/80",
-                price: 390000,
-                quantity: 2,
-                color: "Đen",
-                size: "M",
-            },
-            {
-                id: 5,
-                name: "Mũ Lười",
-                image: "https://via.placeholder.com/80",
-                price: 110000,
-                quantity: 1,
-                color: "Xám",
-                size: "F",
-            },
-        ],
-    },
-    {
-        id: 4,
-        orderCode: "DR901234",
-        status: "cancelled",
-        createdAt: "2024-01-08T16:45:00",
-        totalAmount: 180000,
-        itemCount: 1,
-        items: [
-            {
-                id: 6,
-                name: "Túi Tote Dear Rose",
-                image: "https://via.placeholder.com/80",
-                price: 180000,
-                quantity: 1,
-                color: "Hồng",
-                size: "F",
-            },
-        ],
-    },
-];
 
 // Format datetime
 const formatDateTime = (dateString) => {
@@ -228,13 +131,7 @@ const MyOrders = () => {
         }
     };
 
-    // Current user from localStorage (mock)
-    const [mockUser] = useState({
-        name: "Ngân Việt",
-        email: "test@gmail.com",
-    });
-
-    const sidebarUser = user ?? mockUser;
+    const sidebarUser = user;
 
     // Fetch orders
     useEffect(() => {

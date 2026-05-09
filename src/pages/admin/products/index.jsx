@@ -1,11 +1,11 @@
-import { Button, Modal, Space, message } from "antd";
+import { Button, Modal, message } from "antd";
 import { useEffect, useState } from "react";
 import { AiOutlinePlus } from "react-icons/ai";
-import PageHeader from "../../../components/admin/PageHeader.jsx";
 import ProductTable from "./ProductTable.jsx";
 import ProductForm from "./ProductForm.jsx";
 import { adminProductService } from "../../../services/admin/adminProductService.js";
 import { adminCategoryService } from "../../../services/admin/adminCategoryService.js";
+import "../_shared/admin-page.scss";
 
 /**
  * Admin Products Page — Quản lý sản phẩm
@@ -118,28 +118,28 @@ function AdminProductsPage() {
     };
 
     return (
-        <Space direction="vertical" size={24} style={{ width: "100%" }}>
-            <PageHeader
-                title="Quản lý sản phẩm"
-                description="Thêm, sửa hoặc xóa sản phẩm trong cửa hàng"
-                actions={[
-                    {
-                        label: "Thêm sản phẩm",
-                        type: "primary",
-                        icon: <AiOutlinePlus />,
-                        onClick: handleAddProduct
-                    }
-                ]}
-            />
+        <div className="admin-page">
+            <div className="admin-page__breadcrumbs">Home / Admin / Sản phẩm</div>
+            <div className="admin-page__toolbar">
+                <div>
+                    <h2 className="admin-page__title">Sản phẩm</h2>
+                    <div className="admin-page__subtitle">Quản lý danh sách sản phẩm và thông tin tồn kho.</div>
+                </div>
+                <Button type="primary" icon={<AiOutlinePlus />} onClick={handleAddProduct}>
+                    Thêm sản phẩm
+                </Button>
+            </div>
 
-            <ProductTable
-                data={products}
-                meta={meta}
-                loading={loading}
-                onEdit={handleEditProduct}
-                onDelete={handleDeleteProduct}
-                onChange={handleTableChange}
-            />
+            <div className="admin-page__card">
+                <ProductTable
+                    data={products}
+                    meta={meta}
+                    loading={loading}
+                    onEdit={handleEditProduct}
+                    onDelete={handleDeleteProduct}
+                    onChange={handleTableChange}
+                />
+            </div>
 
             <ProductForm
                 visible={formVisible}
@@ -149,7 +149,7 @@ function AdminProductsPage() {
                 onSave={handleSaveProduct}
                 onClose={handleCloseForm}
             />
-        </Space>
+        </div>
     );
 }
 

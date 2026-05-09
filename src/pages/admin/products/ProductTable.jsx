@@ -97,8 +97,6 @@ function ProductTable({ data, meta, loading, onEdit, onDelete, onChange }) {
 
     return (
         <DataTable
-            title="Danh sách sản phẩm"
-            description="Quản lý toàn bộ sản phẩm trong cửa hàng"
             columns={columns}
             dataSource={data}
             meta={meta}

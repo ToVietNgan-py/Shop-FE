@@ -20,7 +20,9 @@ import AdminDashboardPage from "../pages/admin/dashboard/index.jsx";
 import AdminProductsPage from "../pages/admin/products/index.jsx";
 import AdminCategoriesPage from "../pages/admin/categories/index.jsx";
 import AdminModulePage from "../pages/admin/_shared/AdminModulePage.jsx";
-
+import OrdersAdminPage from "../pages/admin/orders/index.jsx";
+import VouchersPage from "../pages/admin/vouchers/index.jsx";
+import AdminAccount from "../pages/admin/accounts/index.jsx";
 function AppRoutes() {
     return (
         <div>
@@ -59,44 +61,16 @@ function AppRoutes() {
                     />
                     <Route
                         path="don-hang"
-                        element={
-                            <AdminModulePage
-                                title="Quản lý đơn hàng"
-                                description="Khung chung cho filter trạng thái, ngày tạo, drawer chi tiết đơn và đổi status."
-                                highlights={[
-                                    "DataTable filter/search chuẩn",
-                                    "Drawer/side panel hiển thị chi tiết đơn",
-                                    "Service adminOrderService"
-                                ]}
-                            />
-                        }
+                        element={<OrdersAdminPage />}
                     />
                     <Route
                         path="khuyen-mai"
-                        element={
-                            <AdminModulePage
-                                title="Quản lý khuyến mãi"
-                                description="Khung chung cho CRUD voucher, hạn dùng, limit lượt sử dụng và tab usage."
-                                highlights={[
-                                    "Form voucher dùng chung",
-                                    "DataTable xem lịch sử sử dụng",
-                                    "Service adminVoucherService"
-                                ]}
-                            />
-                        }
+                        element={<VouchersPage />}
                     />
                     <Route
                         path="tai-khoan"
                         element={
-                            <AdminModulePage
-                                title="Quản lý tài khoản"
-                                description="Khung chung cho list user, gán role employee, lock/unlock và phân quyền admin."
-                                highlights={[
-                                    "DataTable filter role/search",
-                                    "Action modal cho tạo/sửa/gán role",
-                                    "Service adminUserService"
-                                ]}
-                            />
+                            <AdminAccount />
                         }
                     />
                 </Route>

@@ -1,23 +1,18 @@
 import api from "../../apis/default.js";
-import { createCrudService, readResponseData } from "./adminBaseService.js";
+const adminUserService = {
+    getAll: (params) => api.get('/admin/users', { params }),
+    // params: { page, per_page, role, search }
 
-const userService = createCrudService("/admin/users");
+    getById: (id) => api.get(`/admin/users/${id}`),
+    create: (data) => api.post('/admin/users', data),
+    update: (id, data) => api.put(`/admin/users/${id}`, data),
+    remove: (id) => api.delete(`/admin/users/${id}`),
 
-export const adminUserService = {
-    ...userService,
+    updateRole: (id, role) => api.patch(`/admin/users/${id}/role`, { role }),
+    lock: (id) => api.patch(`/admin/users/${id}/lock`),
+    unlock: (id) => api.patch(`/admin/users/${id}/unlock`),
 
-    async updateRole(id, role) {
-        const response = await api.patch(`/admin/users/${id}/role`, { role });
-        return readResponseData(response);
-    },
-
-    async lock(id) {
-        const response = await api.patch(`/admin/users/${id}/lock`);
-        return readResponseData(response);
-    },
-
-    async unlock(id) {
-        const response = await api.patch(`/admin/users/${id}/unlock`);
-        return readResponseData(response);
-    }
+    getRoles: () => api.get('/admin/roles'),
 };
+
+export default adminUserService;

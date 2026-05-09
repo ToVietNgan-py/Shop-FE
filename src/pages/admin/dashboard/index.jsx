@@ -1,4 +1,4 @@
-import { Card, Col, Row, Space, Table, Tag, Typography } from "antd";
+import { Card, Col, Row, Space, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
 import {
     AiOutlineShoppingCart,
@@ -6,11 +6,11 @@ import {
     AiOutlineUserAdd,
     AiOutlineWarning
 } from "react-icons/ai";
-import PageHeader from "../../../components/admin/PageHeader.jsx";
 import DataTable from "../../../components/admin/DataTable.jsx";
 import StatCard from "./StatCard.jsx";
 import RevenueChart from "./RevenueChart.jsx";
 import { dashboardService } from "../../../services/admin/dashboardService.js";
+import "../_shared/admin-page.scss";
 
 const sampleColumns = [
     { title: "Mã đơn", dataIndex: "code", key: "code", width: 100 },
@@ -81,11 +81,16 @@ function AdminDashboardPage() {
     const colorMap = ["rose", "blue", "green", "orange"];
 
     return (
-        <Space direction="vertical" size={24} style={{ width: "100%" }}>
-            <PageHeader
-                title="Dashboard quản trị"
-                description="Tổng quan thống kê doanh số bán hàng, đơn hàng, người dùng và tồn kho."
-            />
+        <div className="admin-page">
+            <div className="admin-page__breadcrumbs">Home / Admin / Dashboard</div>
+            <div className="admin-page__toolbar">
+                <div>
+                    <h2 className="admin-page__title">Dashboard</h2>
+                    <div className="admin-page__subtitle">Tổng quan doanh thu, đơn hàng và tồn kho theo thời gian thực.</div>
+                </div>
+            </div>
+
+            <Space direction="vertical" size={24} style={{ width: "100%" }}>
 
             {/* Row 1: 4 Stat Cards */}
             <Row gutter={[16, 16]}>
@@ -168,7 +173,8 @@ function AdminDashboardPage() {
                     />
                 </Col>
             </Row>
-        </Space>
+            </Space>
+        </div>
     );
 }
 

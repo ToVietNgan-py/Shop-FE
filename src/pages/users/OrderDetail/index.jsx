@@ -24,21 +24,35 @@ const STATUS_COLORS = {
     cancelled: "#f44336",
 };
 
-// Mock order data for demo
-// const mockOrderDetail = {
-//     id: 1,
-//     orderCode: "DR123456",
-//     status: "pending",
-//     createdAt: "2024-01-15T10:30:00",
-//     totalAmount: 450000,
-//     itemCount: 2,
-//     shippingFee: 0,
-//     discount: 0,
-//     items: [
-//         {
-//             id: 1,
-//             name: "Áo Thun Dear Rose",
-//             image: "https://via.placeholder.com/80",
+const PAYMENT_METHOD_LABELS = {
+    cod: "Thanh toán khi nhận hàng (COD)",
+    code: "Thanh toán khi nhận hàng (COD)",
+    cash: "Thanh toán khi nhận hàng (COD)",
+    bank: "Chuyển khoản ngân hàng",
+    bank_transfer: "Chuyển khoản ngân hàng",
+    transfer: "Chuyển khoản ngân hàng",
+    qr: "Chuyển khoản ngân hàng",
+    vnpay: "Thanh toán VNPay",
+    vn_pay: "Thanh toán VNPay",
+};
+
+const getPaymentMethodLabel = (method) => {
+    const normalized = String(method ?? "").trim().toLowerCase();
+    return PAYMENT_METHOD_LABELS[normalized] ?? method ?? "Chưa có thông tin";
+};
+
+const getQrImageSrc = (qrCode) => {
+    if (!qrCode) {
+        return "";
+    }
+
+    if (/^https?:\/\//i.test(qrCode) || qrCode.startsWith("data:")) {
+        return qrCode;
+    }
+
+    return `https://quickchart.io/qr?size=220&text=${encodeURIComponent(qrCode)}`;
+};
+
 //             price: 200000,
 //             quantity: 1,
 //             color: "Trắng",
@@ -111,11 +125,7 @@ const OrderDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const mockUser = {
-        name: "Ngan Viet",
-        email: "test@gmail.com",
-    };
-    const sidebarUser = user ?? mockUser;
+    const sidebarUser = user;
 
     // Handle menu change from sidebar
     const handleMenuChange = (menuKey) => {
@@ -156,6 +166,9 @@ const OrderDetail = () => {
         // Navigate to product page or add to cart
         navigate("/san-pham");
     };
+
+    const paymentInfo = order?.paymentInfo ?? {};
+    const qrImageSrc = getQrImageSrc(paymentInfo.qrCodeUrl);
 
     // If loading
     if (loading) {
@@ -248,8 +261,37 @@ const OrderDetail = () => {
                         <div className="payment-details">
                             <div className="payment-row">
                                 <span className="label">Phương thức:</span>
-                                <span className="value">{order.paymentMethod}</span>
+                                <span className="value">{getPaymentMethodLabel(order.paymentMethod)}</span>
                             </div>
+                            {order.paymentStatus ? (
+                                <div className="payment-row">
+                                    <span className="label">Trạng thái:</span>
+                                    <span className="value">{order.paymentStatus}</span>
+                                </div>
+                            ) : null}
+                            {paymentInfo.bankInfo?.bankName ? (
+                                <div className="payment-row">
+                                    <span className="label">Ngân hàng:</span>
+                                    <span className="value">{paymentInfo.bankInfo.bankName}</span>
+                                </div>
+                            ) : null}
+                            {paymentInfo.bankInfo?.accountNumber ? (
+                                <div className="payment-row">
+                                    <span className="label">Số tài khoản:</span>
+                                    <span className="value">{paymentInfo.bankInfo.accountNumber}</span>
+                                </div>
+                            ) : null}
+                            {paymentInfo.transferContent ? (
+                                <div className="payment-row">
+                                    <span className="label">Nội dung:</span>
+                                    <span className="value">{paymentInfo.transferContent}</span>
+                                </div>
+                            ) : null}
+                            {qrImageSrc ? (
+                                <div className="payment-qr-detail">
+                                    <img src={qrImageSrc} alt="QR thanh toán đơn hàng" />
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
