@@ -123,10 +123,6 @@ function AdminDashboardPage() {
 
     return (
         <Space direction="vertical" size={24} style={{ width: "100%" }}>
-            <PageHeader
-                title="Dashboard quản trị"
-                description="Theo dõi doanh số, top sản phẩm bán chạy và so sánh tăng giảm theo tháng."
-            />
 
             <Card style={{ borderRadius: 20, boxShadow: "var(--shadow-card)" }}>
                 <Row align="middle" justify="space-between" gutter={[16, 16]}>

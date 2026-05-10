@@ -21,7 +21,7 @@ import AdminModulePage from "../pages/admin/_shared/AdminModulePage.jsx";
 import OrdersAdminPage from "../pages/admin/orders/index.jsx";
 import VoucherModal from "../pages/admin/vouchers/index.jsx";
 import AdminAccount from "../pages/admin/accounts/index.jsx";
-function AppRoutes() {
+import RequireAuth from "../components/RequireAuth/RequireAuth.jsx"; function AppRoutes() {
     return (
         <div>
             <Routes>
@@ -34,12 +34,13 @@ function AppRoutes() {
                 <Route path="/terms" element={<TermOfService />} />
                 <Route path="/category/:slug" element={<CategoryPage />} />
                 <Route path="/san-pham/:id" element={<ProductDetail />} />
-                <Route path="/thanh-toan" element={<CheckoutPage />} />
+                <Route path="/thanh-toan" element={<RequireAuth> <CheckoutPage /> </RequireAuth>} />
                 <Route path="/thanh-toan/ket-qua" element={<PaymentResult />} />
                 <Route path="/tai-khoan" element={<ProfilePage />} />
                 <Route path="/don-hang" element={<MyOrders />} />
                 <Route path="/don-hang/:id" element={<OrderDetail />} />
                 <Route path="/login" element={<LoginPage />} />
+
                 <Route
                     path="/admin"
                     element={
@@ -93,6 +94,7 @@ function AppRoutes() {
                             <AdminAccount />
                         }
                     />
+
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

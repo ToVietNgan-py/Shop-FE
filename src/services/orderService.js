@@ -2,7 +2,7 @@ import api from "../apis/default.js";
 
 export const ORDER_PAYMENT_METHODS = {
     COD: "cod",
-    BANK_TRANSFER: "bank",
+    BANK_TRANSFER: "bank_transfer",
     VNPAY: "vnpay",
 };
 

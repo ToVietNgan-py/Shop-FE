@@ -114,18 +114,72 @@ export function CartProvider({ children }) {
             dispatch({ type: "INIT_LOADING" });
 
             try {
-                // Luôn gọi API backend để sync cart
-                const cart = await cartService.get();
-                console.log("[Cart] 💾 Using backend cart", cart);
+                const guestItems = loadGuestCart();
+                let cart;
+
+                // If user is logged in, try to fetch/merge server cart so we have a valid cart_id.
+                if (isLoggedIn) {
+                    try {
+                        // If there are guest items and we haven't merged yet, attempt merge first
+                        if (!mergedRef.current && guestItems.length > 0) {
+                            console.log("[Cart] 🔄 Login detected - merging guest cart to server", guestItems);
+                            const merged = await cartService.mergeGuestCart(guestItems);
+                            // Clear guest localStorage after successful merge
+                            clearGuestCart();
+                            mergedRef.current = true;
+
+                            if (isMounted) {
+                                dispatch({ type: "SYNCED", payload: merged });
+                                return;
+                            }
+                        }
+
+                        // No guest items to merge or already merged: fetch server cart
+                        const serverCart = await cartService.get();
+                        if (isMounted) {
+                            dispatch({ type: "SYNCED", payload: serverCart });
+                            return;
+                        }
+                    } catch (err) {
+                        console.error("[Cart] ❌ Error syncing/merging cart for logged-in user:", err);
+                        // Fallback to localStorage items if server calls fail
+                    }
+                }
+
+                // FE-only guest cart fallback
+                if (!isLoggedIn) {
+                    mergedRef.current = false; // Reset merge flag when logout
+                }
+
+                cart = {
+                    id: null,
+                    sessionToken: cartService.getSessionToken(),
+                    items: guestItems,
+                };
+
+                console.log("[Cart] 💾 Using localStorage cart", cart);
 
                 if (isMounted) {
                     dispatch({ type: "SYNCED", payload: cart });
                 }
             } catch (err) {
                 console.error("[Cart] ❌ Load cart error:", err);
-                // Fallback: dùng empty cart nếu API fail
+                // Fallback: dùng guest cart từ localStorage
+                const fallbackItems = loadGuestCart();
+                if (isMounted && fallbackItems.length > 0) {
+                    console.log("[Cart] 🛟 Fallback to localStorage items (last resort)");
+                    dispatch({
+                        type: "SYNCED",
+                        payload: {
+                            id: null,
+                            sessionToken: cartService.getSessionToken(),
+                            items: fallbackItems,
+                        },
+                    });
+                    return;
+                }
+
                 if (isMounted) {
-                    dispatch({ type: "SYNCED", payload: { id: null, sessionToken: cartService.getSessionToken(), items: [] } });
                     dispatch({ type: "ERROR", payload: err.message ?? "Khong the tai gio hang" });
                 }
             }
@@ -157,17 +211,16 @@ export function CartProvider({ children }) {
                 dispatch({ type: "SYNCING" });
 
                 try {
-                    // Sync với backend API thay vì chỉ localStorage
-                    console.log("[Cart] 🔄 Syncing with backend API...");
-                    const cart = await cartService.get();
-                    dispatch({ type: "SYNCED", payload: cart });
-                    console.log("[Cart] ✅ Backend synced successfully");
-                } catch (err) {
-                    console.error("[Cart] ❌ Backend sync error:", err);
-                    // Fallback: lưu localStorage nếu API fail
+                    // FE-only cart: luôn lưu localStorage, không sync backend.
+                    console.log("[Cart] 💾 Saving to localStorage...");
                     saveGuestCart(updatedItems);
                     dispatch({ type: "UPDATE_ITEMS", payload: updatedItems });
-                    dispatch({ type: "ERROR", payload: err.message ?? "Khong the dong bo gio hang" });
+                    console.log("[Cart] ✅ localStorage saved successfully");
+                } catch (err) {
+                    // ⚠️ Unexpected error but don't lose data
+                    console.error("[Cart] ⚠️ Unexpected sync error:", err);
+                    saveGuestCart(updatedItems); // ← Cũng lưu localStorage
+                    dispatch({ type: "UPDATE_ITEMS", payload: updatedItems });
                 } finally {
                     previousStateRef.current = null;
                 }
@@ -183,7 +236,7 @@ export function CartProvider({ children }) {
         };
     }, []);
 
-    // ===== removeFromCart: Optimistic update + API call =====
+    // ===== removeFromCart: Optimistic update + debounce (định nghĩa trước để updateQuantity dùng) =====
     const removeFromCart = useCallback(
         async (cartKey) => {
             try {
@@ -207,29 +260,20 @@ export function CartProvider({ children }) {
                 // Update UI ngay (optimistic)
                 dispatch({ type: "UPDATE_ITEMS", payload: newItems });
 
-                // Gọi API remove item
-                try {
-                    const cart = await cartService.remove(cartItem.cartItemId || cartItem.id);
-                    dispatch({ type: "SYNCED", payload: cart });
-                    console.log("[Cart] ✅ API remove successful");
-                } catch (apiErr) {
-                    console.error("[Cart] ❌ API remove failed:", apiErr);
-                    // Revert UI nếu API fail
-                    revertToPreview();
-                    dispatch({ type: "ERROR", payload: apiErr.message ?? "Khong the xoa san pham khoi gio" });
-                }
+                // Debounce API call
+                debouncedSync(newItems, "removeItem");
 
                 return { items: newItems };
             } catch (err) {
                 console.error("[Cart] ❌ Remove item error:", err);
                 dispatch({ type: "ERROR", payload: err.message ?? "Khong the xoa san pham khoi gio" });
-                // Not throwing - keep local state
+                // Not throwing - keep local state, debounce will retry
             }
         },
-        [state.cartItems, isLoggedIn]
+        [state.cartItems, isLoggedIn, debouncedSync]
     );
 
-    // ===== addToCart: Optimistic update + API call =====
+    // ===== addToCart: Optimistic update + debounce =====
     const addToCart = useCallback(
         async (item) => {
             try {
@@ -263,29 +307,20 @@ export function CartProvider({ children }) {
                 dispatch({ type: "UPDATE_ITEMS", payload: newItems });
                 console.log(`[Cart] UI updated, items count: ${newItems.length}`);
 
-                // Gọi API add item
-                try {
-                    const cart = await cartService.add(normalizedItem);
-                    dispatch({ type: "SYNCED", payload: cart });
-                    console.log("[Cart] ✅ API add successful");
-                } catch (apiErr) {
-                    console.error("[Cart] ❌ API add failed:", apiErr);
-                    // Revert UI nếu API fail
-                    revertToPreview();
-                    dispatch({ type: "ERROR", payload: apiErr.message ?? "Khong the them san pham vao gio" });
-                }
+                // Debounce API call
+                debouncedSync(newItems, "addToCart");
 
                 return { items: newItems };
             } catch (err) {
                 console.error("[Cart] ❌ Add to cart error:", err);
                 dispatch({ type: "ERROR", payload: err.message ?? "Khong the them san pham vao gio" });
-                // Not throwing - keep local state
+                // Not throwing - keep local state, debounce will retry
             }
         },
-        [state.cartItems, isLoggedIn]
+        [state.cartItems, isLoggedIn, debouncedSync]
     );
 
-    // ===== updateCartItemQuantity: Optimistic update + API call =====
+    // ===== updateCartItemQuantity: Optimistic update + debounce =====
     const updateCartItemQuantity = useCallback(
         async (cartKey, quantity) => {
             try {
@@ -318,26 +353,17 @@ export function CartProvider({ children }) {
                 dispatch({ type: "UPDATE_ITEMS", payload: newItems });
                 console.log(`[Cart] UI updated`);
 
-                // Gọi API update quantity
-                try {
-                    const cart = await cartService.update(cartItem.cartItemId || cartItem.id, quantity);
-                    dispatch({ type: "SYNCED", payload: cart });
-                    console.log("[Cart] ✅ API update successful");
-                } catch (apiErr) {
-                    console.error("[Cart] ❌ API update failed:", apiErr);
-                    // Revert UI nếu API fail
-                    revertToPreview();
-                    dispatch({ type: "ERROR", payload: apiErr.message ?? "Khong the cap nhat gio hang" });
-                }
+                // Debounce API call
+                debouncedSync(newItems, "updateQuantity");
 
                 return { items: newItems };
             } catch (err) {
                 console.error("[Cart] ❌ Update quantity error:", err);
                 dispatch({ type: "ERROR", payload: err.message ?? "Khong the cap nhat gio hang" });
-                // Not throwing - keep local state
+                // Not throwing - keep local state, debounce will retry
             }
         },
-        [state.cartItems, isLoggedIn, removeFromCart]
+        [state.cartItems, isLoggedIn, debouncedSync, removeFromCart]
     );
 
     // ===== clearCart =====
@@ -346,22 +372,28 @@ export function CartProvider({ children }) {
 
         try {
             console.log("[Cart] Clearing cart...");
-            clearGuestCart();
-            dispatch({
-                type: "SYNCED",
-                payload: {
-                    id: null,
-                    sessionToken: cartService.getSessionToken(),
-                    items: [],
-                },
-            });
-            console.log("[Cart] Cart cleared from localStorage");
+            if (isLoggedIn) {
+                const cart = await cartService.clear();
+                dispatch({ type: "SYNCED", payload: cart });
+                console.log("[Cart] User cart cleared");
+            } else {
+                clearGuestCart();
+                dispatch({
+                    type: "SYNCED",
+                    payload: {
+                        id: null,
+                        sessionToken: cartService.getSessionToken(),
+                        items: [],
+                    },
+                });
+                console.log("[Cart] Guest cart cleared");
+            }
         } catch (err) {
             console.error("[Cart] Clear cart error:", err);
             dispatch({ type: "ERROR", payload: err.message ?? "Khong the xoa gio hang" });
             throw err;
         }
-    }, []);
+    }, [isLoggedIn]);
 
     // ===== Computed values =====
     const cartCount = useMemo(

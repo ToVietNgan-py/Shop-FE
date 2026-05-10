@@ -25,6 +25,7 @@
 .admin-layout__brand span {
     color: rgba(255, 255, 255, 0.72);
     font-size: 12px;
+    font-family: sans-serif;
 }
 
 .admin-layout__menu {
@@ -46,42 +47,74 @@
     background: linear-gradient(180deg, #f8fbfb 0%, #eef3f5 100%);
 }
 
+// .admin-layout__header {
+//     position: sticky;
+//     top: 0;
+//     z-index: 10;
+//     display: flex;
+//     align-items: center;
+//     justify-content: space-between;
+//     gap: 16px;
+//     height: auto !important;
+//     padding: 20px 28px !important;
+//     background: rgba(255, 255, 255, 0.9) !important;
+//     backdrop-filter: blur(12px);
+//     border-bottom: 1px solid var(--color-border);
+// }
+
+// .admin-layout__header-meta {
+//     display: flex;
+//     flex-direction: column;
+//     gap: 4px;
+// }
+
+// .admin-layout__header-logo {
+//     width: 148px;
+//     height: auto;
+//     display: block;
+// }
+
+// .admin-layout__header-meta span {
+//     color: var(--color-text-muted);
+//     font-size: 13px;
+// }
+
+// .admin-layout__header-user {
+//     display: flex;
+//     align-items: center;
+//     gap: 12px;
+// }
+/* CSS thêm vào */
 .admin-layout__header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    height: auto !important;
-    padding: 20px 28px !important;
-    background: rgba(255, 255, 255, 0.9) !important;
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--color-border);
+    padding: 0 24px;
+    height: 48px;
+    /* hẹp lại so với default 64px */
+    line-height: 48px;
+    background: #fff;
+    border-bottom: none;
+    position: relative;
 }
 
-.admin-layout__header-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.admin-layout__header-logo {
-    width: 148px;
-    height: auto;
-    display: block;
-}
-
-.admin-layout__header-meta span {
-    color: var(--color-text-muted);
-    font-size: 13px;
-}
-
-.admin-layout__header-user {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.admin-layout__header-rainbow {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(to right,
+            #38bdf8 0%,
+            #38bdf8 20%,
+            #a78bfa 20%,
+            #a78bfa 40%,
+            #fbbf24 40%,
+            #fbbf24 60%,
+            #34d399 60%,
+            #34d399 80%,
+            #f87171 80%,
+            #f87171 100%);
 }
 
 .admin-layout__content {

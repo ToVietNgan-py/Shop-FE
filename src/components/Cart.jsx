@@ -78,7 +78,7 @@ const Cart = ({ onClose }) => {
     const finalTotal = Math.max(0, cartSubtotal - discountAmount);
 
     const handleCheckout = () => {
-        if (!cartItems.length) {
+        if (!cartItems?.length) {
             return;
         }
 
@@ -95,7 +95,7 @@ const Cart = ({ onClose }) => {
                 </div>
 
                 <div className="cart-content">
-                    {cartItems.length === 0 ? (
+                    {cartItems?.length === 0 ? (
                         <div className="empty-cart">
                             <p>Chưa có sản phẩm trong giỏ hàng.</p>
                             <button className="btn-back" onClick={onClose}>
@@ -147,7 +147,7 @@ const Cart = ({ onClose }) => {
                     )}
                 </div>
 
-                {cartItems.length > 0 ? (
+                {cartItems?.length > 0 ? (
                     <div className="cart-footer">
                         {/* ===== Voucher Section ===== */}
                         <div className="voucher-section">

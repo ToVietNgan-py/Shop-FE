@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Input, Space, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 
-import PageHeader from '../../../components/admin/PageHeader.jsx';
 import DataTable from '../../../components/admin/DataTable.jsx';
 import adminVoucherService from '../../../services/admin/adminVoucherService.js';
 
@@ -113,31 +112,28 @@ export default function VouchersPage() {
 
     return (
         <div>
-            <PageHeader
-                title="Quản lý khuyến mãi"
-                description="CRUD voucher, xem lịch sử usage"
-                actions={[
-                    {
-                        label: 'Tạo voucher mới',
-                        icon: <PlusOutlined />,
-                        type: 'primary',
-                        onClick: () => {
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Input.Search
+                        placeholder="Tìm mã voucher..."
+                        allowClear
+                        style={{ maxWidth: 360 }}
+                        value={filters.search}
+                        onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))}
+                    />
+
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => {
                             setSelectedVoucher(null);
                             setModalOpen(true);
-                        },
-                    },
-                ]}
-            />
-
-            <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Input.Search
-                    placeholder="Tìm mã voucher..."
-                    allowClear
-                    style={{ maxWidth: 360 }}
-                    value={filters.search}
-                    onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))}
-                />
-            </Space>
+                        }}
+                    >
+                        Tạo voucher
+                    </Button>
+                </Space>
+            </div>
 
             <DataTable
                 columns={columns}

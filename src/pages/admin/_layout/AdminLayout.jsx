@@ -8,13 +8,15 @@ import {
     AiOutlineTags,
     AiOutlineTeam,
     AiOutlineMenuFold,
-    AiOutlineMenuUnfold
+    AiOutlineMenuUnfold,
+    AiOutlineSearch,
+    AiOutlineLineChart
 } from "react-icons/ai";
 import { useContext, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext.jsx";
 import "./AdminLayout.scss";
-
+import AdminHeader from "../../../components/admin/PageHeader.jsx";
 const { Sider, Header, Content } = Layout;
 
 const splitRoleValue = (value) => String(value ?? "")
@@ -73,9 +75,8 @@ function AdminLayout() {
         <Layout className="admin-layout">
             <Sider width={248} className="admin-layout__sider" breakpoint="lg" collapsedWidth={60} collapsed={sidebarCollapsed} onCollapse={(collapsed) => setSidebarCollapsed(collapsed)}>
                 <div className="admin-layout__brand">
-
                     <img className="admin-layout__brand-logo" src="/logo.png" alt="Dear Rose" />
-                    <span>Khung quản trị chung</span>
+                    <span className="admin-layout__brand-name">HỆ THỐNG</span>
                 </div>
                 <Menu
                     className="admin-layout__menu"
@@ -87,26 +88,8 @@ function AdminLayout() {
             </Sider>
 
             <Layout className="admin-layout__shell">
-                <Header className="admin-layout__header">
-                    <div className="admin-layout__header-meta">
-                        <img className="admin-layout__header-logo" src="/logo.png" alt="Dear Rose" />
-                        <span>Mang đến những thiết kế váy đầm nữ tính, chất liệu mềm mại, giúp cô gái tuổi 20 tỏa sáng nhẹ nhàng.</span>
-                    </div>
 
-                    <div className="admin-layout__header-user">
-                        <Space size={10} align="center">
-                            <Tag color="green">{roleLabel}</Tag>
-                            <Avatar>{displayName.slice(0, 1).toUpperCase()}</Avatar>
-                            <div>
-                                <strong>{displayName}</strong>
-                            </div>
-                        </Space>
-                        <Button icon={<AiOutlineLogout />} onClick={logout}>
-                            Đăng xuất
-                        </Button>
-                    </div>
-                </Header>
-
+                <AdminHeader roleLabel={roleLabel} logout={logout} />
                 <Content className="admin-layout__content">
                     <Outlet />
                 </Content>

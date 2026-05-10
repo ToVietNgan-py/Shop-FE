@@ -1,104 +1,72 @@
-import { useEffect, useMemo, useState } from "react";
-import { FaCheckCircle, FaTimesCircle } from "react-icons/fa";
-import { Link, useSearchParams } from "react-router-dom";
-import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
-import { paymentService } from "../../../services/paymentService.js";
-import "./style.scss";
+import { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import paymentService from '../../../services/paymentService';
 
-function PaymentResult() {
-    const [searchParams] = useSearchParams();
-    const [result, setResult] = useState(null);
-    const [error, setError] = useState("");
-    const [isLoading, setIsLoading] = useState(true);
-
-    const vnpayParams = useMemo(
-        () => Object.fromEntries(searchParams.entries()),
-        [searchParams]
-    );
+export default function PaymentResultPage() {
+    const navigate = useNavigate();
+    const [status, setStatus] = useState('verifying'); // 'verifying' | 'success' | 'fail'
+    const [orderId, setOrderId] = useState(null);
+    const [message, setMessage] = useState('');
 
     useEffect(() => {
-        let isMounted = true;
+        // Lấy toàn bộ query string VNPay gửi về — gửi nguyên lên BE để verify chữ ký
+        const qs = window.location.search.replace('?', '');
 
-        async function confirmPayment() {
-            setIsLoading(true);
-            setError("");
+        paymentService.confirmReturn(qs)
+            .then(res => {
+                const { success, order_id, message } = res.data;
+                setOrderId(order_id);
+                setMessage(message);
+                setStatus(success ? 'success' : 'fail');
+            })
+            .catch(() => {
+                setStatus('fail');
+                setMessage('Không thể xác nhận giao dịch. Vui lòng kiểm tra lại trong mục Đơn hàng.');
+            });
+    }, []);
 
-            try {
-                if (Object.keys(vnpayParams).length === 0) {
-                    throw new Error("Khong tim thay du lieu tra ve tu VNPay.");
-                }
-
-                const data = await paymentService.confirmReturn(vnpayParams);
-
-                if (isMounted) {
-                    setResult(data);
-                }
-            } catch (confirmError) {
-                if (isMounted) {
-                    setError(confirmError?.message || "Khong xac nhan duoc ket qua thanh toan.");
-                }
-            } finally {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
-            }
-        }
-
-        confirmPayment();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [vnpayParams]);
-
-    if (isLoading) {
+    if (status === 'verifying') {
         return (
-            <PageLoading
-                title="Dang xac nhan thanh toan"
-                description="He thong dang doi chieu ket qua tu VNPay."
-            />
+            <div className="payment-result verifying">
+                <div className="spinner" />
+                <p>Đang xác nhận thanh toán...</p>
+            </div>
         );
     }
 
-    const orderRef = result?.orderCode
-        || result?.order?.order_code
-        || result?.order?.orderCode
-        || result?.orderId;
-    const isSuccess = Boolean(result?.success) && !error;
-
     return (
-        <section className="payment-result-page">
-            <div className={`payment-result-card ${isSuccess ? "success" : "failed"}`}>
-                {isSuccess ? (
-                    <FaCheckCircle className="result-icon" />
-                ) : (
-                    <FaTimesCircle className="result-icon" />
-                )}
-
-                <h1>{isSuccess ? "Thanh toan thanh cong" : "Thanh toan that bai"}</h1>
-                <p>
-                    {isSuccess
-                        ? "Don hang cua ban da duoc ghi nhan va cap nhat trang thai thanh toan."
-                        : error || result?.message || "Giao dich chua duoc xac nhan. Vui long thu lai hoac lien he ho tro."}
-                </p>
-
-                {orderRef ? (
-                    <p className="order-code">Ma don hang: <strong>{orderRef}</strong></p>
-                ) : null}
-
-                <div className="result-actions">
-                    {orderRef ? (
-                        <Link to={`/don-hang/${orderRef}`} className="primary-action">
-                            Xem don hang
-                        </Link>
-                    ) : null}
-                    <Link to="/don-hang" className="secondary-action">
-                        Lich su don hang
-                    </Link>
-                </div>
-            </div>
-        </section>
+        <div className={`payment-result ${status}`}>
+            {status === 'success' ? (
+                <>
+                    <div className="result-icon success-icon">✓</div>
+                    <h1>Thanh toán thành công!</h1>
+                    <p>{message || 'Đơn hàng của bạn đã được xác nhận và đang được xử lý.'}</p>
+                    <div className="result-actions">
+                        {orderId && (
+                            <Link to={`/don-hang/${orderId}`} className="btn-primary">
+                                Xem đơn hàng →
+                            </Link>
+                        )}
+                        <Link to="/" className="btn-secondary">Tiếp tục mua sắm</Link>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className="result-icon fail-icon">✗</div>
+                    <h1>Thanh toán thất bại</h1>
+                    <p>{message}</p>
+                    <div className="result-actions">
+                        {orderId && (
+                            <Link to={`/don-hang/${orderId}`} className="btn-primary">
+                                Kiểm tra đơn hàng
+                            </Link>
+                        )}
+                        <button onClick={() => navigate(-1)} className="btn-secondary">
+                            Thử lại
+                        </button>
+                    </div>
+                </>
+            )}
+        </div>
     );
 }
-
-export default PaymentResult;
