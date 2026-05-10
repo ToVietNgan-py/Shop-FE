@@ -1,68 +1,36 @@
-﻿import { Button, Card, Col, Row, Space, Statistic, Tag, Typography } from "antd";
-import { useEffect, useMemo, useState } from "react";
-import PageHeader from "../../../components/admin/PageHeader.jsx";
+import { Card, Col, Row, Space, Tag, Typography } from "antd";
+import { useEffect, useState } from "react";
+import {
+    AiOutlineShoppingCart,
+    AiOutlineDollarCircle,
+    AiOutlineUserAdd,
+    AiOutlineWarning
+} from "react-icons/ai";
 import DataTable from "../../../components/admin/DataTable.jsx";
+import StatCard from "./StatCard.jsx";
+import RevenueChart from "./RevenueChart.jsx";
 import { dashboardService } from "../../../services/admin/dashboardService.js";
+import "../_shared/admin-page.scss";
 
-const orderColumns = [
-    { title: "Mã đơn", dataIndex: "code", key: "code" },
+const sampleColumns = [
+    { title: "Mã đơn", dataIndex: "code", key: "code", width: 100 },
     { title: "Khách hàng", dataIndex: "customer", key: "customer" },
-    { title: "Tổng tiền", dataIndex: "total", key: "total" },
+    { title: "Tổng tiền", dataIndex: "total", key: "total", width: 120 },
     {
         title: "Trạng thái",
         dataIndex: "status",
         key: "status",
-        render: (value) => <Tag color={value === "Completed" ? "green" : value === "Pending" ? "gold" : "blue"}>{value}</Tag>
-    }
-];
-
-const topProductsColumns = [
-    {
-        title: "Sản phẩm",
-        dataIndex: "name",
-        key: "name",
-        render: (value, record) => (
-            <div>
-                <Typography.Text strong>{value}</Typography.Text>
-                {record.sku ? <div style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>Mã SP: {record.sku}</div> : null}
-            </div>
-        )
-    },
-    { title: "Đã bán", dataIndex: "sold", key: "sold", align: "right" },
-    {
-        title: "So với tháng trước",
-        dataIndex: "change",
-        key: "change",
-        align: "right",
-        render: (value) => {
-            if (value === undefined || value === null || value === "") {
-                return "-";
-            }
-
-            const normalized = String(value).replace("%", "").replace("+", "");
-            const number = Number(normalized);
-            const color = Number.isNaN(number) ? "default" : number >= 0 ? "green" : "volcano";
-            const label = String(value).startsWith("+") || number >= 0 ? `+${normalized}%` : `${normalized}%`;
-
-            return <Tag color={color}>{label}</Tag>;
-        }
+        width: 100,
+        render: (value) => <Tag color={value === "Completed" ? "green" : value === "Processing" ? "blue" : "gold"}>{value}</Tag>
     }
 ];
 
 const fallbackSummary = {
-    period: "2026-05",
     metrics: [
-        { label: "Đơn hôm nay", value: 18, suffix: "+12%", compare: "So với ngày này tháng trước: +12%" },
-        { label: "Doanh thu tháng", value: 12500000, prefix: "đ", compare: "So với tháng trước: +8%" },
-        { label: "User mới", value: 24, suffix: "+4", compare: "So với tháng trước: +33%" },
-        { label: "Sản phẩm thiếu kho", value: 6, compare: "So với tháng trước: -2%" }
-    ],
-    topProducts: [
-        { key: 1, name: "Phấn Phủ Carslan Kiểm Soát Dầu Tiện Dụng Trang Điểm 10g", sku: "7980357970", sold: 107, change: "+22%" },
-        { key: 2, name: "COLORKEY Phấn Phủ Nền Kiểm Dầu, Giữ Lớp Trang Điểm Lâu", sku: "53400527831", sold: 94, change: "+8%" },
-        { key: 3, name: "[DUY KHÁNH YÊU THÍCH] Son Bùn COLORKEY, Chất Bùn Mịn", sku: "17582479297", sold: 72, change: "-4%" },
-        { key: 4, name: "[Dành cho thành viên] Kem lót chống nắng Carslan SPF50", sku: "44003340600", sold: 41, change: "+14%" },
-        { key: 5, name: "Phấn Mắt Đơn Cat's Lab Eye Stamp Shadow 5in1 Lì Mịn Ánh", sku: "28943198543", sold: 36, change: "-2%" }
+        { label: "Đơn hôm nay", value: 18, suffix: "+12%" },
+        { label: "Doanh thu tháng", value: 12500000, prefix: "đ" },
+        { label: "User mới", value: 24, suffix: "+4" },
+        { label: "Sản phẩm thiếu kho", value: 6 }
     ],
     recentOrders: [
         { key: 1, code: "DH-1024", customer: "Nguyen Thi A", total: "1.250.000đ", status: "Completed" },
@@ -71,39 +39,20 @@ const fallbackSummary = {
     ]
 };
 
-const buildMonthKey = (date = new Date()) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    return `${year}-${month}`;
-};
-
-const formatMonthLabel = (monthKey = "") => {
-    const [year, month] = monthKey.split("-");
-    return month && year ? `Tháng ${month}/${year}` : "";
-};
-
 function AdminDashboardPage() {
     const [summary, setSummary] = useState(fallbackSummary);
-    const [selectedMonth, setSelectedMonth] = useState(buildMonthKey(new Date()));
-    const [appliedMonth, setAppliedMonth] = useState(buildMonthKey(new Date()));
     const [loading, setLoading] = useState(true);
-
-    const periodLabel = useMemo(() => formatMonthLabel(summary.period ?? appliedMonth), [summary.period, appliedMonth]);
 
     useEffect(() => {
         let active = true;
 
         async function loadSummary() {
-            setLoading(true);
-
             try {
-                const nextSummary = await dashboardService.summary({ month: appliedMonth });
+                const nextSummary = await dashboardService.summary();
 
                 if (active && nextSummary) {
                     setSummary({
-                        period: nextSummary.period ?? appliedMonth,
                         metrics: nextSummary.metrics ?? fallbackSummary.metrics,
-                        topProducts: nextSummary.topProducts ?? fallbackSummary.topProducts,
                         recentOrders: nextSummary.recentOrders ?? fallbackSummary.recentOrders
                     });
                 }
@@ -119,93 +68,117 @@ function AdminDashboardPage() {
         return () => {
             active = false;
         };
-    }, [appliedMonth]);
+    }, []);
+
+    // Icon mapping cho từng metric
+    const iconMap = {
+        0: <AiOutlineShoppingCart />,    // Đơn hôm nay
+        1: <AiOutlineDollarCircle />,    // Doanh thu tháng
+        2: <AiOutlineUserAdd />,         // User mới
+        3: <AiOutlineWarning />          // Sản phẩm thiếu kho
+    };
+
+    const colorMap = ["rose", "blue", "green", "orange"];
 
     return (
+<<<<<<< HEAD
         <Space direction="vertical" size={24} style={{ width: "100%" }}>
+=======
+        <div className="admin-page">
+            <div className="admin-page__breadcrumbs">Home / Admin / Dashboard</div>
+            <div className="admin-page__toolbar">
+                <div>
+                    <h2 className="admin-page__title">Dashboard</h2>
+                    <div className="admin-page__subtitle">Tổng quan doanh thu, đơn hàng và tồn kho theo thời gian thực.</div>
+                </div>
+            </div>
+>>>>>>> 2446754ffc7a9beb855332c946efc38d2e4eaeea
 
-            <Card style={{ borderRadius: 20, boxShadow: "var(--shadow-card)" }}>
-                <Row align="middle" justify="space-between" gutter={[16, 16]}>
-                    <Col xs={24} lg={14}>
-                        <Space direction="vertical" size={4}>
-                            <Typography.Text type="secondary">Lọc dữ liệu dashboard theo tháng</Typography.Text>
-                            <Typography.Title level={4} style={{ margin: 0 }}>{periodLabel || "Chưa có dữ liệu"}</Typography.Title>
-                            <Typography.Text type="secondary">
-                                Hiển thị top 5 sản phẩm bán chạy trong tháng và so sánh phần trăm tăng/giảm so với tháng trước.
-                            </Typography.Text>
-                        </Space>
-                    </Col>
+            <Space direction="vertical" size={24} style={{ width: "100%" }}>
 
-                    <Col xs={24} lg={10}>
-                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                            <label style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 160 }}>
-                                <Typography.Text strong>Chọn tháng</Typography.Text>
-                                <input
-                                    type="month"
-                                    value={selectedMonth}
-                                    onChange={(event) => setSelectedMonth(event.target.value)}
-                                    style={{ padding: 10, borderRadius: 10, border: "1px solid #d9d9d9", width: "100%" }}
-                                />
-                            </label>
-                            <Button
-                                type="primary"
-                                onClick={() => setAppliedMonth(selectedMonth)}
-                                disabled={selectedMonth === appliedMonth}
-                            >
-                                Áp dụng
-                            </Button>
-                        </div>
-                    </Col>
-                </Row>
-            </Card>
-
+            {/* Row 1: 4 Stat Cards */}
             <Row gutter={[16, 16]}>
-                {summary.metrics.map((item) => (
-                    <Col key={item.label} xs={24} sm={12} xl={6}>
-                        <Card style={{ borderRadius: 20, boxShadow: "var(--shadow-card)" }}>
-                            <Statistic
-                                title={item.label}
-                                value={item.value}
-                                suffix={item.suffix}
-                                prefix={item.prefix}
-                                loading={loading}
-                            />
-                            {item.compare ? (
-                                <Typography.Text type="secondary" style={{ display: "block", marginTop: 12 }}>
-                                    {item.compare}
-                                </Typography.Text>
-                            ) : null}
-                        </Card>
+                {summary.metrics.map((item, index) => (
+                    <Col key={item.label} xs={24} sm={12} lg={6}>
+                        <StatCard
+                            icon={iconMap[index]}
+                            title={item.label}
+                            value={item.value}
+                            suffix={item.suffix}
+                            prefix={item.prefix}
+                            color={colorMap[index]}
+                            loading={loading}
+                        />
                     </Col>
                 ))}
             </Row>
 
+            {/* Row 2: Chart + Recent Orders Table */}
             <Row gutter={[16, 16]}>
-                <Col xs={24} xl={12}>
-                    <DataTable
-                        title="Top 5 sản phẩm bán chạy"
-                        description="Danh sách sản phẩm bán chạy nhất theo tháng, kèm % tăng/giảm so với tháng trước."
-                        loading={loading}
-                        rowKey={(record) => record.key ?? record.id ?? record.sku ?? record.name}
-                        columns={topProductsColumns}
-                        dataSource={summary.topProducts}
-                        pagination={false}
-                    />
+                <Col xs={24} lg={16}>
+                    <RevenueChart loading={loading} />
                 </Col>
 
-                <Col xs={24} xl={12}>
+                <Col xs={24} lg={8}>
+                    <Card
+                        style={{
+                            borderRadius: 12,
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                            border: "none"
+                        }}
+                        title="Thông tin nhanh"
+                    >
+                        <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                            <div>
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                    Đơn gần nhất
+                                </Typography.Text>
+                                <Typography.Title level={5} style={{ margin: "4px 0 0" }}>
+                                    {summary.recentOrders[0]?.code || "—"}
+                                </Typography.Title>
+                            </div>
+
+                            <div>
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                    Trạng thái
+                                </Typography.Text>
+                                <div style={{ marginTop: 4 }}>
+                                    <Tag color={summary.recentOrders[0]?.status === "Completed" ? "green" : "blue"}>
+                                        {summary.recentOrders[0]?.status || "—"}
+                                    </Tag>
+                                </div>
+                            </div>
+
+                            <div>
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                    Khách hàng
+                                </Typography.Text>
+                                <Typography.Title level={5} style={{ margin: "4px 0 0" }}>
+                                    {summary.recentOrders[0]?.customer || "—"}
+                                </Typography.Title>
+                            </div>
+                        </Space>
+                    </Card>
+                </Col>
+            </Row>
+
+            {/* Row 3: Recent Orders Table */}
+            <Row>
+                <Col span={24}>
                     <DataTable
-                        title="Đơn gần nhất"
-                        description="Đơn hàng mới nhất để quản trị viên nắm tình hình thực tế."
+                        title="5 đơn hàng gần nhất"
+                        description="Danh sách các đơn hàng mới nhất trong hệ thống"
                         loading={loading}
                         rowKey="code"
-                        columns={orderColumns}
-                        dataSource={summary.recentOrders}
+                        columns={sampleColumns}
+                        dataSource={summary.recentOrders.slice(0, 5)}
                         pagination={false}
+                        scroll={{ x: 600 }}
                     />
                 </Col>
             </Row>
-        </Space>
+            </Space>
+        </div>
     );
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Space, Typography } from 'antd';
+import { Button, Input, Space, Typography, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 
 import DataTable from '../../../components/admin/DataTable.jsx';
@@ -7,6 +7,7 @@ import adminVoucherService from '../../../services/admin/adminVoucherService.js'
 
 import VoucherModal from './VoucherModal.jsx';
 import VoucherUsageDrawer from './VoucherUsageDrawer.jsx';
+import '../_shared/admin-page.scss';
 
 export default function VouchersPage() {
     const [loading, setLoading] = useState(true);
@@ -25,6 +26,32 @@ export default function VouchersPage() {
     const [usageDrawerOpen, setUsageDrawerOpen] = useState(false);
     const [usageVoucherId, setUsageVoucherId] = useState(null);
 
+    const normalizeVoucherResponse = (res, fallbackFilters) => {
+        const payload = res?.data ?? {};
+
+        // Common Laravel shapes:
+        // 1) { data: [...], meta: {...} }
+        // 2) { data: { data: [...], meta: {...} } }
+        const nestedData = payload?.data;
+        const items = Array.isArray(nestedData)
+            ? nestedData
+            : Array.isArray(nestedData?.data)
+                ? nestedData.data
+                : Array.isArray(payload)
+                    ? payload
+                    : [];
+
+        const rawMeta = nestedData?.meta ?? payload?.meta ?? {};
+
+        const meta = {
+            current_page: rawMeta?.current_page ?? fallbackFilters.page,
+            per_page: rawMeta?.per_page ?? fallbackFilters.per_page,
+            total: rawMeta?.total ?? items.length,
+        };
+
+        return { items, meta };
+    };
+
     const fetchVouchers = useCallback(async () => {
         setLoading(true);
         try {
@@ -33,8 +60,30 @@ export default function VouchersPage() {
                 // API có thể cần tên khác; tuy nhiên adminVoucherService.getAll nhận params chung
             };
             const res = await adminVoucherService.getAll(params);
-            setVouchers(res?.data?.data ?? []);
-            setMeta(res?.data?.meta ?? {});
+            const { items, meta: nextMeta } = normalizeVoucherResponse(res, filters);
+
+            setVouchers(items);
+            setMeta(nextMeta);
+        } catch (error) {
+            const status = error?.response?.status;
+
+            if (status === 401) {
+                message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+            } else if (status === 403) {
+                message.error('Tài khoản hiện tại không có quyền xem vouchers admin.');
+            } else if (status === 404) {
+                message.error('API admin vouchers chưa sẵn sàng trên backend của máy bạn.');
+            } else {
+                message.error(error?.response?.data?.message || 'Không tải được danh sách voucher từ API.');
+            }
+
+            // Giữ UI ổn định khi lỗi
+            setVouchers([]);
+            setMeta({
+                current_page: filters.page,
+                per_page: filters.per_page,
+                total: 0,
+            });
         } finally {
             setLoading(false);
         }
@@ -111,52 +160,58 @@ export default function VouchersPage() {
     }, []);
 
     return (
-        <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                    <Input.Search
-                        placeholder="Tìm mã voucher..."
-                        allowClear
-                        style={{ maxWidth: 360 }}
-                        value={filters.search}
-                        onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))}
-                    />
+        <>
+            <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                        <Input.Search
+                            placeholder="Tìm mã voucher..."
+                            allowClear
+                            style={{ maxWidth: 360 }}
+                            value={filters.search}
+                            onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))}
+                        />
 
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => {
-                            setSelectedVoucher(null);
-                            setModalOpen(true);
-                        }}
-                    >
-                        Tạo voucher
-                    </Button>
-                </Space>
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => {
+                                setSelectedVoucher(null);
+                                setModalOpen(true);
+                            }}
+                        >
+                            Tạo voucher
+                        </Button>
+                    </Space>
+                </div>
+
+                <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                        setSelectedVoucher(null);
+                        setModalOpen(true);
+                    }}
+                >
+                    Tạo voucher
+                </Button>
             </div>
 
-            <DataTable
-                columns={columns}
-                dataSource={vouchers}
-                meta={meta}
-                loading={loading}
-                tableProps={{
-                    rowKey: 'id',
-                    onChange: (pagination) => {
+            <div className="admin-page__card">
+                <DataTable
+                    columns={columns}
+                    dataSource={vouchers}
+                    meta={meta}
+                    loading={loading}
+                    onChange={(page, pageSize) => {
                         setFilters((f) => ({
                             ...f,
-                            page: pagination?.current ?? 1,
-                            per_page: pagination?.pageSize ?? f.per_page,
+                            page,
+                            per_page: pageSize,
                         }));
-                    },
-                    pagination: {
-                        current: meta?.current_page ?? filters.page,
-                        pageSize: meta?.per_page ?? filters.per_page,
-                        total: meta?.total ?? 0,
-                        showSizeChanger: true,
-                    },
-                }}
-            />
+                    }}
+                />
+            </div>
 
             <VoucherModal
                 open={modalOpen}
@@ -176,7 +231,8 @@ export default function VouchersPage() {
                     setUsageVoucherId(null);
                 }}
             />
-        </div>
+        </>
+
     );
 }
 

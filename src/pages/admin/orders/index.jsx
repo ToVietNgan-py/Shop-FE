@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Input, Select, DatePicker, Space, Button, Typography } from 'antd';
-import { SearchOutlined, EyeOutlined, PrinterOutlined } from '@ant-design/icons';
+import { Input, Select, DatePicker, Space, Button, message } from 'antd';
+import { EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import DataTable from '../../../components/admin/DataTable';
 import adminOrderService from "../../../services/admin/adminOrderService.js";
 import OrderStatusTag from './OrderStatusTag';
 import OrderDrawer from './OrderDrawer';
+import '../_shared/admin-page.scss';
 
-const { Title } = Typography;
 const { RangePicker } = DatePicker;
 
 const STATUS_OPTIONS = [
@@ -37,7 +37,30 @@ export default function AdminOrders() {
             );
             const res = await adminOrderService.getAll(params);
             setOrders(res.data.data ?? []);
-            setMeta(res.data.meta);
+            setMeta(res.data.meta ?? {
+                current_page: filters.page,
+                per_page: filters.per_page,
+                total: 0,
+            });
+        } catch (error) {
+            const status = error?.response?.status;
+
+            if (status === 401) {
+                message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+            } else if (status === 403) {
+                message.error('Tài khoản hiện tại không có quyền xem đơn hàng admin.');
+            } else if (status === 422) {
+                message.error(error?.response?.data?.message || 'Query filter không hợp lệ cho API admin/orders.');
+            } else {
+                message.error(error?.response?.data?.message || 'Không tải được danh sách đơn hàng.');
+            }
+
+            setOrders([]);
+            setMeta({
+                current_page: filters.page,
+                per_page: filters.per_page,
+                total: 0,
+            });
         } finally { setLoading(false); }
     }, [filters]);
 
@@ -60,11 +83,17 @@ export default function AdminOrders() {
     ];
 
     return (
-        <div>
-            <Title level={4} style={{ marginBottom: 16 }}>Quản lý Đơn hàng</Title>
+        <div className="admin-page">
+            <div className="admin-page__breadcrumbs">Home / Admin / Đơn hàng</div>
+            <div className="admin-page__toolbar">
+                <div>
+                    <h2 className="admin-page__title">Đơn hàng</h2>
+                    <div className="admin-page__subtitle">Theo dõi trạng thái đơn và xử lý vận hành.</div>
+                </div>
+            </div>
 
             {/* Thanh filter */}
-            <Space wrap style={{ marginBottom: 16 }}>
+            <Space wrap className="admin-page__filters">
                 <Input.Search
                     placeholder="Tìm mã đơn, tên khách..."
                     style={{ width: 260 }}
@@ -88,13 +117,15 @@ export default function AdminOrders() {
                 />
             </Space>
 
-            <DataTable
-                columns={columns}
-                dataSource={Array.isArray(orders) ? orders : []}  // ✅ đảm bảo luôn là array
-                meta={meta}
-                loading={loading}
-                onChange={(page, pageSize) => setFilters(f => ({ ...f, page, per_page: pageSize }))}
-            />
+            <div className="admin-page__card">
+                <DataTable
+                    columns={columns}
+                    dataSource={Array.isArray(orders) ? orders : []}
+                    meta={meta}
+                    loading={loading}
+                    onChange={(page, pageSize) => setFilters(f => ({ ...f, page, per_page: pageSize }))}
+                />
+            </div>
 
             <OrderDrawer
                 open={drawerOpen}

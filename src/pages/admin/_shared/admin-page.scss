@@ -1,0 +1,60 @@
+.admin-page {
+    .admin-page__breadcrumbs {
+        color: #9aa3b2;
+        font-size: 14px;
+        margin-bottom: 12px;
+    }
+
+    .admin-page__toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .admin-page__title {
+        font-size: 34px;
+        line-height: 1.1;
+        letter-spacing: -0.5px;
+        font-weight: 700;
+        color: #1f2b3d;
+        margin: 0;
+    }
+
+    .admin-page__subtitle {
+        margin-top: 4px;
+        color: #9aa3b2;
+        font-size: 14px;
+    }
+
+    .admin-page__filters {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+
+    .admin-page__search {
+        max-width: 320px;
+    }
+
+    .admin-page__card {
+        background: #ffffff;
+        border: 1px solid #eef1f5;
+        border-radius: 10px;
+        padding: 10px 12px 2px;
+    }
+
+    .admin-page__card .ant-table {
+        background: #ffffff;
+    }
+
+    .admin-page__card .ant-table-thead > tr > th {
+        font-weight: 600;
+        color: #1f2b3d;
+        background: #ffffff;
+    }
+}

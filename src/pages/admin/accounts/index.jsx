@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Button, Input, Select, Space, Tag, Popconfirm, message, Typography, Tooltip } from 'antd';
+import { Button, Input, Select, Space, Tag, Popconfirm, message, Tooltip } from 'antd';
 import { PlusOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import DataTable from '../../../components/admin/DataTable';
 import adminUserService from '../../../services/admin/adminUserService.js';
 import AccountModal from './AccountModal';
-
-const { Title } = Typography;
+import '../_shared/admin-page.scss';
 
 const ROLE_OPTIONS = [
     { value: '', label: 'Tất cả role' },
@@ -14,8 +13,6 @@ const ROLE_OPTIONS = [
     { value: 'employee', label: 'Nhân viên' },
     { value: 'customer', label: 'Khách hàng' },
 ];
-
-const ROLE_COLOR = { admin: 'purple', employee: 'blue', customer: 'default' };
 
 export default function AdminAccounts() {
     const [users, setUsers] = useState([]);
@@ -101,15 +98,20 @@ export default function AdminAccounts() {
     ];
 
     return (
-        <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Title level={4} style={{ margin: 0 }}>Quản lý Tài khoản</Title>
+        <div className="admin-page">
+            <div className="admin-page__breadcrumbs">Home / Admin / Tài khoản</div>
+
+            <div className="admin-page__toolbar">
+                <div>
+                    <h2 className="admin-page__title">Tài khoản</h2>
+                    <div className="admin-page__subtitle">Phân quyền và khóa/mở khóa tài khoản hệ thống.</div>
+                </div>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
                     Tạo nhân viên
                 </Button>
             </div>
 
-            <Space wrap style={{ marginBottom: 16 }}>
+            <Space wrap className="admin-page__filters">
                 <Input.Search
                     placeholder="Tìm tên, email..."
                     style={{ width: 260 }}
@@ -124,13 +126,15 @@ export default function AdminAccounts() {
                 />
             </Space>
 
-            <DataTable
-                columns={columns}
-                dataSource={users}
-                meta={meta}
-                loading={loading}
-                onChange={(page, per_page) => setFilters(f => ({ ...f, page, per_page }))}
-            />
+            <div className="admin-page__card">
+                <DataTable
+                    columns={columns}
+                    dataSource={users}
+                    meta={meta}
+                    loading={loading}
+                    onChange={(page, per_page) => setFilters(f => ({ ...f, page, per_page }))}
+                />
+            </div>
 
             <AccountModal
                 open={modalOpen}

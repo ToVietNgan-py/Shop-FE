@@ -1,31 +1,49 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import paymentService from '../../../services/paymentService';
+import './style.scss';
 
 export default function PaymentResultPage() {
     const navigate = useNavigate();
+
     const [status, setStatus] = useState('verifying'); // 'verifying' | 'success' | 'fail'
     const [orderId, setOrderId] = useState(null);
     const [message, setMessage] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Lấy toàn bộ query string VNPay gửi về — gửi nguyên lên BE để verify chữ ký
+        let isMounted = true;
+
         const qs = window.location.search.replace('?', '');
 
-        paymentService.confirmReturn(qs)
-            .then(res => {
-                const { success, order_id, message } = res.data;
-                setOrderId(order_id);
-                setMessage(message);
+        paymentService
+            .confirmReturn(qs)
+            .then((res) => {
+                const { success, order_id, message: serverMessage } = res.data || {};
+
+                if (!isMounted) return;
+
+                setOrderId(order_id ?? null);
+                setMessage(serverMessage ?? '');
                 setStatus(success ? 'success' : 'fail');
             })
             .catch(() => {
+                if (!isMounted) return;
+
                 setStatus('fail');
                 setMessage('Không thể xác nhận giao dịch. Vui lòng kiểm tra lại trong mục Đơn hàng.');
+            })
+            .finally(() => {
+                if (!isMounted) return;
+                setIsLoading(false);
             });
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
-    if (status === 'verifying') {
+    if (isLoading || status === 'verifying') {
         return (
             <div className="payment-result verifying">
                 <div className="spinner" />
@@ -47,7 +65,9 @@ export default function PaymentResultPage() {
                                 Xem đơn hàng →
                             </Link>
                         )}
-                        <Link to="/" className="btn-secondary">Tiếp tục mua sắm</Link>
+                        <Link to="/" className="btn-secondary">
+                            Tiếp tục mua sắm
+                        </Link>
                     </div>
                 </>
             ) : (
@@ -70,3 +90,4 @@ export default function PaymentResultPage() {
         </div>
     );
 }
+

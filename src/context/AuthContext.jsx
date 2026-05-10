@@ -6,6 +6,13 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(() => {
+        const token = localStorage.getItem("access_token");
+
+        if (!token) {
+            localStorage.removeItem("user");
+            return null;
+        }
+
         const stored = localStorage.getItem("user");
         if (stored && stored !== "undefined") {
             try {
@@ -51,6 +58,8 @@ export const AuthProvider = ({ children }) => {
         if (token) {
             fetchProfile();
         } else {
+            localStorage.removeItem("user");
+            setUser(null);
             setLoading(false);
         }
     }, [fetchProfile]);

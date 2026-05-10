@@ -105,14 +105,14 @@ const StatusBadge = ({ status }) => (
 // Order Item Component
 const OrderItem = ({ item }) => (
     <div className="order-item">
-        <img src={item.image} alt={item.name} className="item-image" />
+        {item.image ? <img src={item.image} alt={item.name} className="item-image" /> : <div className="item-image" aria-hidden="true" />}
         <div className="item-details">
             <h4 className="item-name">{item.name}</h4>
             <p className="item-variant">
                 {item.color} / {item.size} | SL: {item.quantity}
             </p>
         </div>
-        <div className="item-price">{formatVND(item.price)}</div>
+        <div className="item-price">{formatVND(item.price * (item.quantity || 1))}</div>
     </div>
 );
 
@@ -247,10 +247,10 @@ const OrderDetail = () => {
 
                     {/* Products */}
                     <div className="info-card">
-                        <h3>🛍️ Sản phẩm ({order.itemCount})</h3>
+                        <h3>🛍️ Sản phẩm ({order.items?.reduce((s, it) => s + (it.quantity || 0), 0)})</h3>
                         <div className="order-items">
-                            {order.items?.map((item) => (
-                                <OrderItem key={item.id} item={item} />
+                            {order.items?.map((item, index) => (
+                                <OrderItem key={item.id ?? item.productId ?? `${order.orderCode}-item-${index}`} item={item} />
                             ))}
                         </div>
                     </div>
