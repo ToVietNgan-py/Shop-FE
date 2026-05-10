@@ -1,11 +1,11 @@
 import { Tag } from 'antd';
 
 const STATUS_MAP = {
-    pending: { color: 'gold', label: 'Chờ xác nhận' },
-    confirmed: { color: 'blue', label: 'Đã xác nhận' },
-    shipping: { color: 'cyan', label: 'Đang giao' },
-    completed: { color: 'green', label: 'Hoàn thành' },
-    cancelled: { color: 'red', label: 'Đã huỷ' },
+    Pending: { color: 'gold', label: 'Chờ xác nhận' },
+    Processing: { color: 'blue', label: 'Đã xác nhận' },
+    Shipping: { color: 'cyan', label: 'Đang giao' },
+    Completed: { color: 'green', label: 'Hoàn thành' },
+    Cancelled: { color: 'red', label: 'Đã huỷ' },
 };
 
 export default function OrderStatusTag({ status }) {

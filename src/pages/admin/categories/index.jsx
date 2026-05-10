@@ -106,7 +106,6 @@ function AdminCategoriesPage() {
 
     return (
         <div className="admin-page">
-            <div className="admin-page__breadcrumbs">Home / Admin / Danh mục</div>
             <div className="admin-page__toolbar">
                 <div>
                     <h2 className="admin-page__title">Danh mục</h2>

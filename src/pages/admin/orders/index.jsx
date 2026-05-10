@@ -12,14 +12,15 @@ const { RangePicker } = DatePicker;
 
 const STATUS_OPTIONS = [
     { value: '', label: 'Tất cả trạng thái' },
-    { value: 'pending', label: 'Chờ xác nhận' },
-    { value: 'confirmed', label: 'Đã xác nhận' },
-    { value: 'shipping', label: 'Đang giao' },
-    { value: 'completed', label: 'Hoàn thành' },
-    { value: 'cancelled', label: 'Đã huỷ' },
+    { value: 'Pending', label: 'Chờ xác nhận' },
+    { value: 'Processing', label: 'Đã xác nhận' },
+    { value: 'Shipping', label: 'Đang giao' },
+    { value: 'Completed', label: 'Hoàn thành' },
+    { value: 'Cancelled', label: 'Đã huỷ' },
 ];
 
 export default function AdminOrders() {
+    const [selectedOrder, setSelectedOrder] = useState(null);
     const [orders, setOrders] = useState([]);
     const [meta, setMeta] = useState({});
     const [loading, setLoading] = useState(true);
@@ -36,11 +37,12 @@ export default function AdminOrders() {
                 Object.entries(filters).filter(([_, v]) => v !== "" && v !== null && v !== undefined)
             );
             const res = await adminOrderService.getAll(params);
-            setOrders(res.data.data ?? []);
-            setMeta(res.data.meta ?? {
-                current_page: filters.page,
-                per_page: filters.per_page,
-                total: 0,
+            const pagination = res.data.data;
+            setOrders(pagination.data ?? []);
+            setMeta({
+                current_page: pagination.current_page,
+                per_page: pagination.per_page,
+                total: pagination.total,
             });
         } catch (error) {
             const status = error?.response?.status;
@@ -63,19 +65,47 @@ export default function AdminOrders() {
             });
         } finally { setLoading(false); }
     }, [filters]);
-
     useEffect(() => { fetchOrders(); }, [fetchOrders]);
-
     const columns = [
         { title: 'Mã đơn', dataIndex: 'id', render: (id) => `#${id}`, width: 90 },
-        { title: 'Khách hàng', dataIndex: ['user', 'name'] },
-        { title: 'Tổng tiền', dataIndex: 'total', render: (v) => v.toLocaleString('vi-VN') + '₫', width: 130 },
-        { title: 'Trạng thái', dataIndex: 'status', render: (s) => <OrderStatusTag status={s} />, width: 140 },
+        { title: 'Khách hàng', dataIndex: 'FullName' },
+        {
+            title: 'Hành động', width: 160, render: (_, record) => (
+                <Space size="small">
+                    {record.Status === 'Pending' && (
+                        <Button
+                            size="small"
+                            type="primary"
+                            style={{
+                                background: 'linear-gradient(135deg, #7c3aed, #a78bfa)',
+                                border: 'none',
+                                fontWeight: 600,
+                                fontSize: 12,
+                            }}
+                            onClick={async () => {
+                                try {
+                                    await adminOrderService.updateStatus(record.id, 'Processing');
+                                    message.success(`Đã xác nhận đơn #${record.id}`);
+                                    fetchOrders();
+                                } catch {
+                                    message.error('Xác nhận thất bại, thử lại sau');
+                                }
+                            }}
+                        >
+                            Xác nhận
+                        </Button>
+                    )}
+
+                </Space>
+            )
+        },
+        { title: 'Tổng tiền', dataIndex: 'total', render: (v) => Number(v).toLocaleString('vi-VN') + '₫', width: 130 },
+        { title: 'Trạng thái', dataIndex: 'Status', render: (s) => <OrderStatusTag status={s} />, width: 140 },
         { title: 'Thanh toán', dataIndex: 'payment_status', width: 110 },
         { title: 'Ngày đặt', dataIndex: 'created_at', render: (d) => dayjs(d).format('DD/MM/YYYY HH:mm'), width: 150 },
         {
             title: 'Hành động', width: 100, render: (_, record) => (
-                <Button icon={<EyeOutlined />} size="small" onClick={() => { setSelectedId(record.id); setDrawerOpen(true); }}>
+                <Button icon={<EyeOutlined />} size="small" onClick={() => { setSelectedId(record.id); setSelectedOrder(record); setDrawerOpen(true); }}>
                     Xem
                 </Button>
             )
@@ -84,7 +114,6 @@ export default function AdminOrders() {
 
     return (
         <div className="admin-page">
-            <div className="admin-page__breadcrumbs">Home / Admin / Đơn hàng</div>
             <div className="admin-page__toolbar">
                 <div>
                     <h2 className="admin-page__title">Đơn hàng</h2>
@@ -130,8 +159,10 @@ export default function AdminOrders() {
             <OrderDrawer
                 open={drawerOpen}
                 orderId={selectedId}
-                onClose={() => { setDrawerOpen(false); setSelectedId(null); }}
+                orderData={selectedOrder}
+                onClose={() => { setDrawerOpen(false); setSelectedOrder(null); setSelectedId(null); }}
                 onStatusChanged={fetchOrders}
+                onClick={() => { setSelectedId(record.id); setSelectedOrder(record); setDrawerOpen(true); }}
             />
         </div>
     );

@@ -379,21 +379,12 @@ function CheckoutPage() {
                 },
             };
 
-<<<<<<< HEAD
             // try {
             //     const { pushLocalOrder } = await import("../../../utils/localOrders.js");
             //     pushLocalOrder(localOrder);
             // } catch {
             //     // Ignore local storage failure to keep checkout flow alive.
             // }
-=======
-            try {
-                const { pushLocalOrder } = await import("../../../utils/localOrders.js");
-                pushLocalOrder(localOrder);
-            } catch {
-                // Ignore local storage failure to keep checkout flow alive.
-            }
->>>>>>> 2446754ffc7a9beb855332c946efc38d2e4eaeea
 
             setOrderData(localOrder);
 
@@ -411,7 +402,6 @@ function CheckoutPage() {
         };
 
         try {
-<<<<<<< HEAD
             console.log('[Checkout] submit start', {
                 checkoutItemsLen: checkoutItems.length,
                 hasUserEmail: Boolean(user?.email),
@@ -419,8 +409,6 @@ function CheckoutPage() {
                 cartId,
             });
 
-=======
->>>>>>> 2446754ffc7a9beb855332c946efc38d2e4eaeea
             if (!checkoutItems.length) {
                 throw new Error("Gio hang dang trong. Vui long them san pham truoc khi dat hang.");
             }
@@ -429,10 +417,6 @@ function CheckoutPage() {
                 throw new Error("Vui long dang nhap truoc khi dat hang.");
             }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 2446754ffc7a9beb855332c946efc38d2e4eaeea
             // FE-only fallback for COD/bank while keeping VNPay real gateway flow.
             if (FE_ONLY_COD_BANK && paymentMethod !== ORDER_PAYMENT_METHODS.VNPAY) {
                 await createLocalOrder();
@@ -473,7 +457,6 @@ function CheckoutPage() {
 
             payload.payment_method = toBackendPaymentMethod(paymentMethod);
 
-<<<<<<< HEAD
             // VNPay backend hiện báo cần chữ ký/querystring ngay khi tạo order.
             // Tạm thời đưa thêm các field VNPay tối thiểu để BE có thể tự tạo signature/querystring.
             // (Nếu BE yêu cầu tên field khác, mình sẽ chỉnh theo schema bạn cung cấp ở response 400/422 errors.)
@@ -494,23 +477,17 @@ function CheckoutPage() {
             payload.address_id = payload.address_id ?? null;
 
 
-=======
->>>>>>> 2446754ffc7a9beb855332c946efc38d2e4eaeea
             if (appliedCoupon?.code) {
                 payload.voucher_code = appliedCoupon.code;
             }
 
             const createdOrder = await orderService.createOrder(payload);
             setOrderData(createdOrder);
-<<<<<<< HEAD
             // Đảm bảo checkout update UI đúng + dữ liệu đã lưu BE.
             // Nếu BE trả dữ liệu normalizeOrder thì createdOrder.id sẽ tồn tại.
             // Sau khi tạo đơn thành công, luôn sync cart để người dùng không bị kẹt ở history cũ.
 
 
-=======
-
->>>>>>> 2446754ffc7a9beb855332c946efc38d2e4eaeea
             if (createdOrder.paymentMethod === ORDER_PAYMENT_METHODS.COD) {
                 await refreshCartAfterOrder();
                 setCheckoutStep("success");
@@ -543,7 +520,6 @@ function CheckoutPage() {
             const status = error?.response?.status;
 
             if (status === 422) {
-<<<<<<< HEAD
                 // Nếu BE trả 422 thì khả năng cao không tạo được order thật.
                 // Không nên tạo local fake order vì sẽ không nằm trong DB => lịch sử đơn hàng trống.
                 // Tạm thời remove local fallback để đảm bảo order thật.
@@ -551,13 +527,6 @@ function CheckoutPage() {
                     throw error;
                 }
 
-=======
-                // For COD / bank transfer we can create a local fake order so UX can continue.
-                if (paymentMethod === ORDER_PAYMENT_METHODS.COD || paymentMethod === ORDER_PAYMENT_METHODS.BANK_TRANSFER) {
-                    await createLocalOrder();
-                    return;
-                }
->>>>>>> 2446754ffc7a9beb855332c946efc38d2e4eaeea
             }
 
             setOrderError(

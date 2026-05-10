@@ -1,4 +1,4 @@
-import { Card, Col, Row, Space, Tag, Typography } from "antd";
+﻿import { Card, Col, Row, Space, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
 import {
     AiOutlineShoppingCart,
@@ -81,102 +81,97 @@ function AdminDashboardPage() {
     const colorMap = ["rose", "blue", "green", "orange"];
 
     return (
-<<<<<<< HEAD
-        <Space direction="vertical" size={24} style={{ width: "100%" }}>
-=======
         <div className="admin-page">
-            <div className="admin-page__breadcrumbs">Home / Admin / Dashboard</div>
             <div className="admin-page__toolbar">
                 <div>
                     <h2 className="admin-page__title">Dashboard</h2>
                     <div className="admin-page__subtitle">Tổng quan doanh thu, đơn hàng và tồn kho theo thời gian thực.</div>
                 </div>
             </div>
->>>>>>> 2446754ffc7a9beb855332c946efc38d2e4eaeea
 
             <Space direction="vertical" size={24} style={{ width: "100%" }}>
 
-            {/* Row 1: 4 Stat Cards */}
-            <Row gutter={[16, 16]}>
-                {summary.metrics.map((item, index) => (
-                    <Col key={item.label} xs={24} sm={12} lg={6}>
-                        <StatCard
-                            icon={iconMap[index]}
-                            title={item.label}
-                            value={item.value}
-                            suffix={item.suffix}
-                            prefix={item.prefix}
-                            color={colorMap[index]}
+                {/* Row 1: 4 Stat Cards */}
+                <Row gutter={[16, 16]}>
+                    {summary.metrics.map((item, index) => (
+                        <Col key={item.label} xs={24} sm={12} lg={6}>
+                            <StatCard
+                                icon={iconMap[index]}
+                                title={item.label}
+                                value={item.value}
+                                suffix={item.suffix}
+                                prefix={item.prefix}
+                                color={colorMap[index]}
+                                loading={loading}
+                            />
+                        </Col>
+                    ))}
+                </Row>
+
+                {/* Row 2: Chart + Recent Orders Table */}
+                <Row gutter={[16, 16]}>
+                    <Col xs={24} lg={16}>
+                        <RevenueChart loading={loading} />
+                    </Col>
+
+                    <Col xs={24} lg={8}>
+                        <Card
+                            style={{
+                                borderRadius: 12,
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                                border: "none"
+                            }}
+                            title="Thông tin nhanh"
+                        >
+                            <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                                <div>
+                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                        Đơn gần nhất
+                                    </Typography.Text>
+                                    <Typography.Title level={5} style={{ margin: "4px 0 0" }}>
+                                        {summary.recentOrders[0]?.code || "—"}
+                                    </Typography.Title>
+                                </div>
+
+                                <div>
+                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                        Trạng thái
+                                    </Typography.Text>
+                                    <div style={{ marginTop: 4 }}>
+                                        <Tag color={summary.recentOrders[0]?.status === "Completed" ? "green" : "blue"}>
+                                            {summary.recentOrders[0]?.status || "—"}
+                                        </Tag>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                        Khách hàng
+                                    </Typography.Text>
+                                    <Typography.Title level={5} style={{ margin: "4px 0 0" }}>
+                                        {summary.recentOrders[0]?.customer || "—"}
+                                    </Typography.Title>
+                                </div>
+                            </Space>
+                        </Card>
+                    </Col>
+                </Row>
+
+                {/* Row 3: Recent Orders Table */}
+                <Row>
+                    <Col span={24}>
+                        <DataTable
+                            title="5 đơn hàng gần nhất"
+                            description="Danh sách các đơn hàng mới nhất trong hệ thống"
                             loading={loading}
+                            rowKey="code"
+                            columns={sampleColumns}
+                            dataSource={summary.recentOrders.slice(0, 5)}
+                            pagination={false}
+                            scroll={{ x: 600 }}
                         />
                     </Col>
-                ))}
-            </Row>
-
-            {/* Row 2: Chart + Recent Orders Table */}
-            <Row gutter={[16, 16]}>
-                <Col xs={24} lg={16}>
-                    <RevenueChart loading={loading} />
-                </Col>
-
-                <Col xs={24} lg={8}>
-                    <Card
-                        style={{
-                            borderRadius: 12,
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                            border: "none"
-                        }}
-                        title="Thông tin nhanh"
-                    >
-                        <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                            <div>
-                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                                    Đơn gần nhất
-                                </Typography.Text>
-                                <Typography.Title level={5} style={{ margin: "4px 0 0" }}>
-                                    {summary.recentOrders[0]?.code || "—"}
-                                </Typography.Title>
-                            </div>
-
-                            <div>
-                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                                    Trạng thái
-                                </Typography.Text>
-                                <div style={{ marginTop: 4 }}>
-                                    <Tag color={summary.recentOrders[0]?.status === "Completed" ? "green" : "blue"}>
-                                        {summary.recentOrders[0]?.status || "—"}
-                                    </Tag>
-                                </div>
-                            </div>
-
-                            <div>
-                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                                    Khách hàng
-                                </Typography.Text>
-                                <Typography.Title level={5} style={{ margin: "4px 0 0" }}>
-                                    {summary.recentOrders[0]?.customer || "—"}
-                                </Typography.Title>
-                            </div>
-                        </Space>
-                    </Card>
-                </Col>
-            </Row>
-
-            {/* Row 3: Recent Orders Table */}
-            <Row>
-                <Col span={24}>
-                    <DataTable
-                        title="5 đơn hàng gần nhất"
-                        description="Danh sách các đơn hàng mới nhất trong hệ thống"
-                        loading={loading}
-                        rowKey="code"
-                        columns={sampleColumns}
-                        dataSource={summary.recentOrders.slice(0, 5)}
-                        pagination={false}
-                        scroll={{ x: 600 }}
-                    />
-                </Col>
-            </Row>
+                </Row>
             </Space>
         </div>
     );

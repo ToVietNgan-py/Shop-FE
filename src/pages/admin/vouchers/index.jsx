@@ -185,16 +185,6 @@ export default function VouchersPage() {
                     </Space>
                 </div>
 
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                        setSelectedVoucher(null);
-                        setModalOpen(true);
-                    }}
-                >
-                    Tạo voucher
-                </Button>
             </div>
 
             <div className="admin-page__card">

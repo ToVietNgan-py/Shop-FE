@@ -1,25 +1,29 @@
-import { Modal, Form, Input, Select } from 'antd';
+import { useEffect } from 'react';
+import { Modal, Form, Input } from 'antd';
 import adminUserService from '../../../services/admin/adminUserService.js';
 
-const ROLE_CREATE_OPTIONS = [
-    { value: 'employee', label: 'Nhân viên' },
-    { value: 'admin', label: 'Admin' },
-    { value: 'customer', label: 'Khách hàng' },
-];
-
 /**
- * AccountModal
- * POST /api/admin/users
+ * EditAccountModal
+ * PUT /api/admin/users/{id}
  * onSuccess(name) — trả về tên để parent hiện notification
  */
-export default function AccountModal({ open, onClose, onSuccess }) {
+export default function EditAccountModal({ open, user, onClose, onSuccess }) {
     const [form] = Form.useForm();
+
+    useEffect(() => {
+        if (open && user) {
+            form.setFieldsValue({
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+            });
+        }
+    }, [open, user, form]);
 
     const handleSubmit = async () => {
         const values = await form.validateFields();
         try {
-            await adminUserService.create(values);
-            form.resetFields();
+            await adminUserService.update(user.id, values);
             onSuccess(values.name);          // ← trả tên về parent
         } catch (err) {
             const serverErrors = err.response?.data?.errors;
@@ -28,21 +32,20 @@ export default function AccountModal({ open, onClose, onSuccess }) {
                     Object.entries(serverErrors).map(([name, errors]) => ({ name, errors }))
                 );
             }
-            // lỗi chung: parent không nhận, không cần throw
         }
     };
 
     return (
         <Modal
-            title="Tạo tài khoản mới"
+            title="Chỉnh sửa tài khoản"
             open={open}
             onCancel={onClose}
             onOk={handleSubmit}
-            okText="Tạo tài khoản"
+            okText="Lưu thay đổi"
             cancelText="Huỷ"
             afterClose={() => form.resetFields()}
         >
-            <Form form={form} layout="vertical" style={{ marginTop: 16 }} initialValues={{ role: 'employee' }}>
+            <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
                 <Form.Item name="name" label="Họ tên" rules={[{ required: true, min: 2, message: 'Tên tối thiểu 2 ký tự' }]}>
                     <Input placeholder="Nguyễn Văn A" />
                 </Form.Item>
@@ -51,12 +54,6 @@ export default function AccountModal({ open, onClose, onSuccess }) {
                 </Form.Item>
                 <Form.Item name="phone" label="Số điện thoại" rules={[{ pattern: /^0[0-9]{9}$/, message: 'SĐT không hợp lệ' }]}>
                     <Input placeholder="0912345678" />
-                </Form.Item>
-                <Form.Item name="role" label="Role" rules={[{ required: true }]}>
-                    <Select options={ROLE_CREATE_OPTIONS} />
-                </Form.Item>
-                <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, min: 8, message: 'Mật khẩu tối thiểu 8 ký tự' }]}>
-                    <Input.Password placeholder="Tối thiểu 8 ký tự" />
                 </Form.Item>
             </Form>
         </Modal>

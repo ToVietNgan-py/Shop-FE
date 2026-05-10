@@ -91,10 +91,6 @@ const applyLocalVoucher = ({ code, orderTotal }) => {
 };
 
 export const voucherService = {
-<<<<<<< HEAD
-    apply: (code) => api.post('/vouchers/apply', { code }),
-    // response: { discount, discount_type, message }
-=======
     async apply({ code, orderTotal, cartId }) {
         try {
             return applyLocalVoucher({ code, orderTotal, cartId });
@@ -102,6 +98,5 @@ export const voucherService = {
             throwNice(error, "Ma giam gia khong hop le");
         }
     },
->>>>>>> 2446754ffc7a9beb855332c946efc38d2e4eaeea
 };
 
