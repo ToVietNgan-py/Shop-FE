@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "react-router-dom";
 import { getProfile, updateProfile, changePassword } from "../../../services/userService.js";
+import { changePasswordSchema } from "../../../validations/profileSchema.js";
 
 import ProfileSidebar from "../../../components/profile/ProfileSidebar.jsx";
 import ProfileInfo from "../../../components/profile/ProfileInfo.jsx";
@@ -16,15 +19,20 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
-
-    // Password change state
-    const [passwordData, setPasswordData] = useState({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
+    const {
+        register,
+        handleSubmit,
+        reset,
+        formState: { errors: passwordErrors, isSubmitting: isSavingPassword },
+    } = useForm({
+        resolver: zodResolver(changePasswordSchema),
+        defaultValues: {
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
+        },
     });
 
-    // Fetch profile data from API
     useEffect(() => {
         fetchProfile();
     }, []);
@@ -44,63 +52,33 @@ export default function ProfilePage() {
         }
     };
 
-    const openModal = (f) => {
-        // If it's password change, handle differently
-        if (f === "password") {
+    const openModal = (nextField) => {
+        if (nextField === "password") {
             setField("password");
-            setPasswordData({
+            reset({
                 currentPassword: "",
                 newPassword: "",
                 confirmPassword: "",
             });
-        } else {
-            setField(f);
-            setTempValue(user?.[f] || "");
+            return;
         }
+
+        setField(nextField);
+        setTempValue(user?.[nextField] || "");
     };
 
-    const handlePasswordChange = (e) => {
-        setPasswordData({
-            ...passwordData,
-            [e.target.name]: e.target.value,
-        });
-    };
-
-    const handleSavePassword = async () => {
-        const { currentPassword, newPassword, confirmPassword } = passwordData;
-
-        // Validation
-        if (!currentPassword || !newPassword || !confirmPassword) {
-            setError("Vui lòng nhập đầy đủ thông tin");
-            return;
-        }
-
-        if (newPassword !== confirmPassword) {
-            setError("Mật khẩu mới không khớp");
-            return;
-        }
-
-        if (newPassword.length < 6) {
-            setError("Mật khẩu mới phải có ít nhất 6 ký tự");
-            return;
-        }
-
+    const handleSavePassword = async ({ currentPassword, newPassword }) => {
         try {
-            setSaving(true);
-            setError(null);
 
-            // Call API to change password
+            setError(null);
             await changePassword({
                 current_password: currentPassword,
                 new_password: newPassword,
             });
 
-            // Close modal and show success
             setField(null);
             setError("Đổi mật khẩu thành công!");
-
-            // Clear error after 3 seconds
-            setTimeout(() => setError(null), 3000);
+            window.setTimeout(() => setError(null), 3000);
         } catch (err) {
             console.error("Error changing password:", err);
             setError(err.response?.data?.message || "Không thể đổi mật khẩu. Vui lòng thử lại.");
@@ -109,30 +87,26 @@ export default function ProfilePage() {
         }
     };
 
-    // Handle menu change from sidebar
     const handleMenuChange = (menuKey) => {
         if (menuKey === "password") {
             openModal("password");
         }
     };
 
-    const handleSave = async () => {
+    const handleSave = async (nextValue = tempValue) => {
         if (!field) return;
 
         try {
             setSaving(true);
             setError(null);
 
-            // Call API to update profile
-            await updateProfile({ [field]: tempValue });
+            await updateProfile({ [field]: nextValue });
 
-            // Update local state with new value
             setUser((prev) => ({
                 ...prev,
-                [field]: tempValue,
+                [field]: nextValue,
             }));
 
-            // Close modal
             setField(null);
         } catch (err) {
             console.error("Error updating profile:", err);
@@ -142,7 +116,6 @@ export default function ProfilePage() {
         }
     };
 
-    // Determine active menu based on current path
     const getActiveMenu = () => {
         const path = location.pathname;
         if (path.includes("don-hang")) return "orders";
@@ -193,50 +166,47 @@ export default function ProfilePage() {
 
             {field === "password" ? (
                 <div className="modal-overlay">
-                    <div className="modal">
+                    <form className="modal" onSubmit={handleSubmit(handleSavePassword)} noValidate>
                         <h3>Đổi mật khẩu</h3>
 
                         <div className="password-form">
                             <label>Mật khẩu hiện tại</label>
                             <input
                                 type="password"
-                                name="currentPassword"
-                                value={passwordData.currentPassword}
-                                onChange={handlePasswordChange}
                                 placeholder="Nhập mật khẩu hiện tại"
-                                disabled={saving}
+                                disabled={isSavingPassword}
+                                {...register("currentPassword")}
                             />
+                            {passwordErrors.currentPassword ? <p className="form-error">{passwordErrors.currentPassword.message}</p> : null}
 
                             <label>Mật khẩu mới</label>
                             <input
                                 type="password"
-                                name="newPassword"
-                                value={passwordData.newPassword}
-                                onChange={handlePasswordChange}
                                 placeholder="Nhập mật khẩu mới"
-                                disabled={saving}
+                                disabled={isSavingPassword}
+                                {...register("newPassword")}
                             />
+                            {passwordErrors.newPassword ? <p className="form-error">{passwordErrors.newPassword.message}</p> : null}
 
                             <label>Xác nhận mật khẩu mới</label>
                             <input
                                 type="password"
-                                name="confirmPassword"
-                                value={passwordData.confirmPassword}
-                                onChange={handlePasswordChange}
                                 placeholder="Xác nhận mật khẩu mới"
-                                disabled={saving}
+                                disabled={isSavingPassword}
+                                {...register("confirmPassword")}
                             />
+                            {passwordErrors.confirmPassword ? <p className="form-error">{passwordErrors.confirmPassword.message}</p> : null}
                         </div>
 
                         <div className="modal-btns">
-                            <button onClick={handleSavePassword} disabled={saving}>
+                            <button type="submit" disabled={isSavingPassword}>
                                 {saving ? "Đang lưu..." : "Lưu"}
                             </button>
-                            <button onClick={() => setField(null)} disabled={saving}>
+                            <button type="button" onClick={() => setField(null)} disabled={isSavingPassword}>
                                 Hủy
                             </button>
                         </div>
-                    </div>
+                    </form>
                 </div>
             ) : field && (
                 <ProfileModal

@@ -1,7 +1,10 @@
 import { useContext, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation, useNavigate } from "react-router-dom";
 import { login } from "../../services/authServices.js";
 import { AuthContext } from "../../context/AuthContext.jsx";
+import { loginSchema } from "../../validations/authSchema.js";
 import "./style.scss";
 
 const splitRoleValue = (value) => String(value ?? "")
@@ -38,17 +41,21 @@ function LoginForm({ onClose }) {
     const { loginContext } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
-    const [form, setForm] = useState({
-        email: "",
-        password: ""
-    });
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const {
+        register,
+        handleSubmit,
+        formState: { errors, isSubmitting },
+    } = useForm({
+        resolver: zodResolver(loginSchema),
+        defaultValues: {
+            email: "",
+            password: "",
+        },
+    });
 
-    const handleSubmit = async (event) => {
-        event.preventDefault();
+    const onSubmit = async (form) => {
         setError("");
-        setIsLoading(true);
 
         try {
             const data = await login(form);
@@ -72,13 +79,11 @@ function LoginForm({ onClose }) {
         } catch (err) {
             const message = err?.message || err?.error || "Sai tài khoản hoặc mật khẩu";
             setError(message);
-        } finally {
-            setIsLoading(false);
         }
     };
 
     return (
-        <form className="auth-form auth-form--login" onSubmit={handleSubmit}>
+        <form className="auth-form auth-form--login" onSubmit={handleSubmit(onSubmit)} noValidate>
             {error && <div className="auth-error">{error}</div>}
 
             <div className="form-group">
@@ -87,11 +92,12 @@ function LoginForm({ onClose }) {
                     id="login-email"
                     type="email"
                     placeholder="hello@dearrose.vn"
-                    value={form.email}
-                    onChange={(event) => setForm({ ...form, email: event.target.value })}
-                    required
-                    disabled={isLoading}
+                    autoComplete="email"
+                    disabled={isSubmitting}
+                    aria-invalid={!!errors.email}
+                    {...register("email")}
                 />
+                {errors.email && <p className="form-error">{errors.email.message}</p>}
             </div>
 
             <div className="form-group">
@@ -101,19 +107,18 @@ function LoginForm({ onClose }) {
                     type="password"
                     placeholder="Nhập mật khẩu của bạn"
                     autoComplete="current-password"
-                    value={form.password}
-                    onChange={(event) => setForm({ ...form, password: event.target.value })}
-                    required
-                    disabled={isLoading}
+                    disabled={isSubmitting}
+                    aria-invalid={!!errors.password}
+                    {...register("password")}
                 />
+                {errors.password && <p className="form-error">{errors.password.message}</p>}
             </div>
 
-            <button className="btn-submit" type="submit" disabled={isLoading}>
-                {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
+            <button className="btn-submit" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </button>
         </form>
     );
 }
 
 export default LoginForm;
-
