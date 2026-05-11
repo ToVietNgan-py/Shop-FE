@@ -12,8 +12,8 @@ import dayjs from 'dayjs';
 import DataTable from '../../../components/admin/DataTable';
 import adminUserService from '../../../services/admin/adminUserService.js';
 import AccountModal from './AccountModal';
-import EditAccountModal from './EditAccountModal';
-import ViewAccountModal from './ViewAccountModal';
+import EditAccountModal from './EditAccountModal.jsx';
+import ViewAccountModal from './ViewAccountModal.jsx';
 import '../_shared/admin-page.scss';
 
 const ROLE_OPTIONS = [
