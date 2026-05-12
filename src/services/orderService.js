@@ -181,7 +181,14 @@ export const orderService = {
     async createOrder(payload) {
         try {
             const res = await api.post("/orders", payload);
-            return normalizeOrder(unwrap(res.data));
+            const orderData = unwrap(res.data) ?? {};
+            // BE trả payment_url ở root response (sibling với `data`) khi payment_method=vnpay.
+            // Merge vào order data để normalizeOrder() đọc được qua paymentUrl.
+            const rootPaymentUrl = res.data?.payment_url ?? res.data?.paymentUrl;
+            const merged = rootPaymentUrl
+                ? { ...orderData, payment_url: orderData.payment_url ?? rootPaymentUrl }
+                : orderData;
+            return normalizeOrder(merged);
         } catch (error) {
             throwNice(error, "Khong tao duoc don hang");
         }

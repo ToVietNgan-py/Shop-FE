@@ -199,10 +199,12 @@ export function CartProvider({ children }) {
         }
     };
 
-    // ===== Debounced sync to API/localStorage =====
+    // ===== Debounced sync to server (logged-in) or localStorage (guest) =====
+    // Strategy: replace toàn bộ server cart bằng items hiện tại (clear + merge) cho
+    // logged-in user. Idempotent, không cần biết op nào (add/update/remove), an toàn
+    // khi user click nhanh nhiều lần vì debounce 300ms gộp lại 1 sync cuối.
     const debouncedSync = useCallback(
         (updatedItems, operationType) => {
-            // Cleanup previous debounce timer
             if (debounceTimersRef.current[operationType]) {
                 clearTimeout(debounceTimersRef.current[operationType]);
             }
@@ -211,20 +213,48 @@ export function CartProvider({ children }) {
                 dispatch({ type: "SYNCING" });
 
                 try {
-                    // FE-only cart: luôn lưu localStorage, không sync backend.
-                    console.log("[Cart] 💾 Saving to localStorage...");
-                    saveGuestCart(updatedItems);
-                    dispatch({ type: "UPDATE_ITEMS", payload: updatedItems });
-                    console.log("[Cart] ✅ localStorage saved successfully");
+                    if (isLoggedIn) {
+                        // Wipe server cart trước để xoá items không còn ở FE (case remove).
+                        try {
+                            await cartService.clear();
+                        } catch (clearErr) {
+                            console.warn("[Cart] server clear failed (ignored):", clearErr?.message);
+                        }
+
+                        if (updatedItems.length > 0) {
+                            const cart = await cartService.mergeGuestCart(updatedItems);
+                            dispatch({ type: "SYNCED", payload: cart });
+                        } else {
+                            // Server cart đã trống, không cần merge.
+                            dispatch({
+                                type: "SYNCED",
+                                payload: {
+                                    id: null,
+                                    sessionToken: cartService.getSessionToken(),
+                                    items: [],
+                                },
+                            });
+                        }
+
+                        // Logged-in không dùng localStorage → dọn cho sạch.
+                        clearGuestCart();
+                    } else {
+                        saveGuestCart(updatedItems);
+                        dispatch({ type: "UPDATE_ITEMS", payload: updatedItems });
+                    }
                 } catch (err) {
-                    // ⚠️ Unexpected error but don't lose data
-                    console.error("[Cart] ⚠️ Unexpected sync error:", err);
-                    saveGuestCart(updatedItems); // ← Cũng lưu localStorage
+                    console.error("[Cart] Sync error:", err);
+                    dispatch({
+                        type: "ERROR",
+                        payload: err?.message ?? "Khong dong bo duoc gio hang.",
+                    });
+                    // Giữ optimistic state để user không mất items đang thấy;
+                    // lần thao tác tiếp theo sẽ retry sync.
                     dispatch({ type: "UPDATE_ITEMS", payload: updatedItems });
                 } finally {
                     previousStateRef.current = null;
                 }
-            }, 300); // 300ms debounce
+            }, 300);
         },
         [isLoggedIn]
     );
@@ -371,11 +401,10 @@ export function CartProvider({ children }) {
         dispatch({ type: "INIT_LOADING" });
 
         try {
-            console.log("[Cart] Clearing cart...");
             if (isLoggedIn) {
                 const cart = await cartService.clear();
+                clearGuestCart();
                 dispatch({ type: "SYNCED", payload: cart });
-                console.log("[Cart] User cart cleared");
             } else {
                 clearGuestCart();
                 dispatch({
@@ -386,7 +415,6 @@ export function CartProvider({ children }) {
                         items: [],
                     },
                 });
-                console.log("[Cart] Guest cart cleared");
             }
         } catch (err) {
             console.error("[Cart] Clear cart error:", err);

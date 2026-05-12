@@ -1,49 +1,91 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import paymentService from '../../../services/paymentService';
+import { orderService } from '../../../services/orderService.js';
 import './style.scss';
+
+// VNPay redirect về BE → BE verify signature, update DB, rồi redirect tiếp về FE
+// với query đã rút gọn: ?success=1&order_id=...&txn_ref=...&message=...
+// Tuy nhiên ở môi trường sandbox, signature có thể fail dù VNPay đã trừ tiền.
+// Vì vậy ta đọc query để biết flag hiển thị, đồng thời lấy trạng thái thực từ BE
+// qua GET /orders/{id} để xác thực và override flag khi cần.
+const parseQuery = () => {
+    if (typeof window === 'undefined') {
+        return { orderId: null, isSuccessByQuery: false, messageParam: '' };
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const successFlag = params.get('success');
+    const orderIdParam = params.get('order_id');
+
+    return {
+        orderId: orderIdParam ? Number(orderIdParam) : null,
+        isSuccessByQuery: successFlag === '1' || successFlag === 'true',
+        messageParam: params.get('message') ?? '',
+    };
+};
 
 export default function PaymentResultPage() {
     const navigate = useNavigate();
 
+    const { orderId, isSuccessByQuery, messageParam } = useMemo(() => parseQuery(), []);
     const [status, setStatus] = useState('verifying'); // 'verifying' | 'success' | 'fail'
-    const [orderId, setOrderId] = useState(null);
     const [message, setMessage] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        let isMounted = true;
+        let cancelled = false;
 
-        const qs = window.location.search.replace('?', '');
+        async function resolveResult() {
+            // Không có order_id (truy cập trực tiếp) → dựa hẳn vào query.
+            if (!orderId) {
+                setMessage(messageParam || (isSuccessByQuery ? 'Thanh toán thành công.' : 'Giao dịch không thành công.'));
+                setStatus(isSuccessByQuery ? 'success' : 'fail');
+                return;
+            }
 
-        paymentService
-            .confirmReturn(qs)
-            .then((res) => {
-                const { success, order_id, message: serverMessage } = res.data || {};
+            try {
+                const order = await orderService.getOrder(orderId);
+                if (cancelled) return;
 
-                if (!isMounted) return;
+                const paymentStatus = String(order?.paymentStatus || '').toLowerCase();
+                const isPaid = paymentStatus === 'paid' || paymentStatus === 'success';
+                const isFailed = paymentStatus === 'failed' || paymentStatus === 'cancelled';
 
-                setOrderId(order_id ?? null);
-                setMessage(serverMessage ?? '');
-                setStatus(success ? 'success' : 'fail');
-            })
-            .catch(() => {
-                if (!isMounted) return;
+                if (isPaid) {
+                    setMessage(messageParam || 'Thanh toán thành công.');
+                    setStatus('success');
+                    return;
+                }
 
-                setStatus('fail');
-                setMessage('Không thể xác nhận giao dịch. Vui lòng kiểm tra lại trong mục Đơn hàng.');
-            })
-            .finally(() => {
-                if (!isMounted) return;
-                setIsLoading(false);
-            });
+                if (isFailed) {
+                    setMessage(messageParam || 'Giao dịch không thành công.');
+                    setStatus('fail');
+                    return;
+                }
+
+                // Pending: tin theo flag query (sandbox đôi khi chưa kịp gửi IPN).
+                setMessage(
+                    messageParam
+                    || (isSuccessByQuery
+                        ? 'Thanh toán đang được xác nhận. Bạn có thể xem chi tiết trong đơn hàng.'
+                        : 'Giao dịch không thành công.')
+                );
+                setStatus(isSuccessByQuery ? 'success' : 'fail');
+            } catch (err) {
+                if (cancelled) return;
+                console.warn('[PaymentResult] Không lấy được trạng thái đơn:', err?.message);
+                setMessage(messageParam || (isSuccessByQuery ? 'Thanh toán thành công.' : 'Không xác nhận được giao dịch.'));
+                setStatus(isSuccessByQuery ? 'success' : 'fail');
+            }
+        }
+
+        resolveResult();
 
         return () => {
-            isMounted = false;
+            cancelled = true;
         };
-    }, []);
+    }, [orderId, isSuccessByQuery, messageParam]);
 
-    if (isLoading || status === 'verifying') {
+    if (status === 'verifying') {
         return (
             <div className="payment-result verifying">
                 <div className="spinner" />
@@ -90,4 +132,3 @@ export default function PaymentResultPage() {
         </div>
     );
 }
-

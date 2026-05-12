@@ -7,6 +7,7 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { regionApi } from "../../../apis/region.js";
 import { CartContext } from "../../../context/CartContext.jsx";
 import { AuthContext } from "../../../context/AuthContext.jsx";
+import { cartService } from "../../../services/cartService.js";
 import { buildCreateOrderPayload, orderService, ORDER_PAYMENT_METHODS } from "../../../services/orderService.js";
 import { paymentService } from "../../../services/paymentService.js";
 import { productService } from "../../../services/productService.js";
@@ -18,9 +19,17 @@ import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
 import "./style.scss";
 
 const SHIPPING_FEE = 35000;
-const FE_ONLY_COD_BANK = true;
 // TODO: Khi backend hoan thien, lay phi ship va giam gia tu API pricing/promotion
 // thay vi hardcode o frontend de tranh lech tong tien voi backend.
+
+// Backend hiện chưa trả về bank_info trong response của POST /orders.
+// Dùng tạm thông tin tài khoản cố định để hiển thị cho người dùng chuyển khoản.
+// TODO: Bỏ fallback này khi BE trả về payment_info.bank_info.
+const DEFAULT_BANK_INFO = {
+    bankName: "Vietcombank",
+    accountName: "CONG TY TNHH DEAR ROSE",
+    accountNumber: "0123456789",
+};
 
 const toBackendPaymentMethod = (method) => {
     if (method === ORDER_PAYMENT_METHODS.BANK_TRANSFER) {
@@ -39,7 +48,7 @@ const toBackendPaymentMethod = (method) => {
 function CheckoutPage() {
     const location = useLocation();
     const [searchParams] = useSearchParams();
-    const { cartId, cartItems, syncCart, clearCart } = useContext(CartContext);
+    const { cartId, cartItems, syncCart } = useContext(CartContext);
     const { user } = useContext(AuthContext);
     const productId = Number(searchParams.get("productId"));
     const [fallbackItem, setFallbackItem] = useState(null);
@@ -149,18 +158,20 @@ function CheckoutPage() {
     const couponDiscount = appliedCoupon?.discount ?? 0;
     const total = subtotal + SHIPPING_FEE - couponDiscount;
 
-    const paymentInfo = orderData?.paymentInfo ?? {
-        qrCodeUrl: "",
-        transferContent: "",
-        amount: total,
-        bankInfo: {
-            bankName: "",
-            accountName: "",
-            accountNumber: ""
-        }
-    };
-    // TODO: paymentInfo dang fallback rong neu backend chua tra ve du lieu thanh toan.
-    // Khi chot contract backend, validate day du QR, amount, transferContent va bankInfo.
+    const paymentInfo = useMemo(() => {
+        const beInfo = orderData?.paymentInfo;
+        const beBank = beInfo?.bankInfo;
+        const hasBeBank = beBank && (beBank.bankName || beBank.accountNumber);
+
+        return {
+            qrCodeUrl: beInfo?.qrCodeUrl ?? "",
+            transferContent: beInfo?.transferContent
+                || (orderData?.orderCode ? `DEARROSE ${orderData.orderCode}` : ""),
+            amount: beInfo?.amount || orderData?.totalAmount || total,
+            bankInfo: hasBeBank ? beBank : DEFAULT_BANK_INFO,
+        };
+    }, [orderData, total]);
+    // TODO: Khi backend trả về payment_info.bank_info chuẩn, bỏ DEFAULT_BANK_INFO.
 
     useEffect(() => {
         let isMounted = true;
@@ -276,6 +287,15 @@ function CheckoutPage() {
     }, [copiedField]);
 
     const refreshCartAfterOrder = async () => {
+        // BE order creation đã xoá items trong server cart.
+        // Xoá luôn guest cart trong localStorage để khi VNPay redirect quay lại,
+        // CartContext không re-merge stale items lên server (gây cart cũ hiện trở lại).
+        try {
+            window.localStorage.removeItem("guest_cart");
+        } catch {
+            // Ignore localStorage errors.
+        }
+
         try {
             await syncCart();
         } catch {
@@ -351,51 +371,6 @@ function CheckoutPage() {
     const handlePlaceOrder = async (values) => {
         setOrderError("");
 
-        const createLocalOrder = async () => {
-            const localOrder = {
-                id: null,
-                orderCode: `LOCAL-${Date.now()}`,
-                status: "pending",
-                createdAt: new Date().toISOString(),
-                paymentMethod: values.paymentMethod,
-                items: checkoutItems,
-                subtotal,
-                shippingFee: SHIPPING_FEE,
-                discount: couponDiscount,
-                totalAmount: subtotal + SHIPPING_FEE - couponDiscount,
-                itemCount: checkoutItems.reduce((sum, item) => sum + (item.quantity || 0), 0),
-                shippingAddress: {
-                    fullName: values.fullName,
-                    phone: values.phone,
-                    address: values.addressDetail,
-                    city: values.city,
-                    district: values.district,
-                    ward: values.ward,
-                },
-            };
-
-            // try {
-            //     const { pushLocalOrder } = await import("../../../utils/localOrders.js");
-            //     pushLocalOrder(localOrder);
-            // } catch {
-            //     // Ignore local storage failure to keep checkout flow alive.
-            // }
-
-            setOrderData(localOrder);
-
-            try {
-                await clearCart();
-            } catch {
-                // Ignore cart clear errors for local fallback orders.
-            }
-
-            if (values.paymentMethod === ORDER_PAYMENT_METHODS.COD) {
-                setCheckoutStep("success");
-            } else {
-                setCheckoutStep("payment");
-            }
-        };
-
         try {
             console.log('[Checkout] submit start', {
                 checkoutItemsLen: checkoutItems.length,
@@ -410,12 +385,6 @@ function CheckoutPage() {
 
             if (!user?.email) {
                 throw new Error("Vui long dang nhap truoc khi dat hang.");
-            }
-
-            // FE-only fallback for COD/bank while keeping VNPay real gateway flow.
-            if (FE_ONLY_COD_BANK && values.paymentMethod !== ORDER_PAYMENT_METHODS.VNPAY) {
-                await createLocalOrder();
-                return;
             }
 
             const payload = buildCreateOrderPayload({
@@ -438,39 +407,34 @@ function CheckoutPage() {
                 note: values.note
             });
 
-            // Backend currently requires cart_id from server cart.
-            if (!cartId) {
-                if (values.paymentMethod === ORDER_PAYMENT_METHODS.VNPAY) {
-                    throw new Error("Giỏ hàng chưa đồng bộ với máy chủ, chưa thể tạo thanh toán VNPay.");
+            // CartContext hiện chỉ lưu localStorage → server cart có thể rỗng hoặc lệch.
+            // BE checkout đọc items từ cart_id, nên phải đẩy local items lên server trước
+            // bằng cách clear server cart rồi merge lại đúng list FE đang thấy.
+            let resolvedCartId = null;
+
+            try {
+                try {
+                    const cleared = await cartService.clear();
+                    resolvedCartId = cleared?.id ?? null;
+                } catch (clearErr) {
+                    console.warn("[Checkout] cartService.clear() failed (ignored):", clearErr?.message);
                 }
 
-                await createLocalOrder();
-                return;
+                const serverCart = await cartService.mergeGuestCart(checkoutItems);
+                resolvedCartId = serverCart?.id ?? resolvedCartId;
+            } catch (syncErr) {
+                throw new Error(
+                    syncErr?.message
+                    || "Khong dong bo duoc gio hang voi may chu de tao don hang."
+                );
             }
 
-            payload.cart_id = cartId;
+            if (!resolvedCartId) {
+                throw new Error("Khong tao duoc gio hang tren may chu de tao don hang.");
+            }
 
+            payload.cart_id = resolvedCartId;
             payload.payment_method = toBackendPaymentMethod(values.paymentMethod);
-
-            // VNPay backend hiện báo cần chữ ký/querystring ngay khi tạo order.
-            // Tạm thời đưa thêm các field VNPay tối thiểu để BE có thể tự tạo signature/querystring.
-            // (Nếu BE yêu cầu tên field khác, mình sẽ chỉnh theo schema bạn cung cấp ở response 400/422 errors.)
-            if (payload.payment_method === "vnpay") {
-                payload.vnpay_return_url = payload.vnpay_return_url ?? window.location.origin + "/payment-result";
-            }
-
-            // Chỉ VNPay mới cần các field /return_url /signature.
-            // Với bank-transfer, BE cần payment_method khác (không phải vnpay).
-
-
-
-            // BE chỉ định rõ các trường bắt buộc cho /api/orders:
-            // { cart_id, address_id, payment_method, voucher_code?, note? }
-            // Checkout hiện đang không có address_id, nên mapping sang address_id = (server address) nếu có.
-            // Nếu BE không cần address_id khi tạo theo shippingAddress payload thì bỏ qua.
-            // Hiện tại dùng giá trị null để tránh undefined.
-            payload.address_id = payload.address_id ?? null;
-
 
             if (appliedCoupon?.code) {
                 payload.voucher_code = appliedCoupon.code;
@@ -478,10 +442,6 @@ function CheckoutPage() {
 
             const createdOrder = await orderService.createOrder(payload);
             setOrderData(createdOrder);
-            // Đảm bảo checkout update UI đúng + dữ liệu đã lưu BE.
-            // Nếu BE trả dữ liệu normalizeOrder thì createdOrder.id sẽ tồn tại.
-            // Sau khi tạo đơn thành công, luôn sync cart để người dùng không bị kẹt ở history cũ.
-
 
             if (createdOrder.paymentMethod === ORDER_PAYMENT_METHODS.COD) {
                 await refreshCartAfterOrder();
@@ -499,10 +459,15 @@ function CheckoutPage() {
                 throw new Error("Phuong thuc thanh toan khong hop le cho luong VNPay.");
             }
 
-            const paymentUrl = createdOrder.paymentUrl || (await paymentService.createVNPay({
-                orderId: createdOrder.id,
-                orderCode: createdOrder.orderCode,
-            })).paymentUrl;
+            // BE trả payment_url ngay trong response của POST /orders khi payment_method=vnpay
+            // (orderService.createOrder đã merge field này vào createdOrder.paymentUrl).
+            // Fallback: gọi /payment/vnpay/create với order_id nếu BE chưa kèm URL.
+            let paymentUrl = createdOrder.paymentUrl;
+
+            if (!paymentUrl && createdOrder.id) {
+                const vnpayRes = await paymentService.createVNPay(createdOrder.id);
+                paymentUrl = vnpayRes?.data?.data?.payment_url ?? vnpayRes?.data?.payment_url ?? "";
+            }
 
             if (!paymentUrl) {
                 throw new Error("Khong tao duoc lien ket thanh toan VNPay.");
@@ -511,19 +476,6 @@ function CheckoutPage() {
             await refreshCartAfterOrder();
             window.location.href = paymentUrl;
         } catch (error) {
-            // If backend returns 422 (business validation) — fallback to local order flow
-            const status = error?.response?.status;
-
-            if (status === 422) {
-                // Nếu BE trả 422 thì khả năng cao không tạo được order thật.
-                // Không nên tạo local fake order vì sẽ không nằm trong DB => lịch sử đơn hàng trống.
-                // Tạm thời remove local fallback để đảm bảo order thật.
-                if (values.paymentMethod === ORDER_PAYMENT_METHODS.COD || values.paymentMethod === ORDER_PAYMENT_METHODS.BANK_TRANSFER) {
-                    throw error;
-                }
-
-            }
-
             setOrderError(
                 error?.message || error?.response?.data?.message || "Khong tao duoc don hang. Vui long thu lai."
             );
