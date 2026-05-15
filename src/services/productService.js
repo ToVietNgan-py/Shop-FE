@@ -15,6 +15,7 @@ const getProductImage = (product) => {
     const images = product.images ?? product.productImages ?? product.product_images;
     const firstImage = Array.isArray(images) ? images[0] : null;
     const rawImage = (
+        product.img ??
         product.image ??
         product.imageUrl ??
         product.image_url ??
@@ -41,15 +42,18 @@ const normalizeProduct = (product) => {
     const categoryName = product.category?.name ?? product.categoryName ?? product.category ?? "";
     const categorySlug = product.category?.slug ?? product.categorySlug ?? (categoryName ? slugify(categoryName) : "");
 
+    const inventory = Number(product.stock ?? product.quantity ?? product.availableQuantity ?? 0);
+
     return {
         id: product.id ?? product._id ?? product.productId ?? null,
         name: product.name ?? product.productName ?? "",
         price: Number(product.price ?? product.unitPrice ?? 0),
-        image: getProductImage(product),
+        img: getProductImage(product),
         description: product.description ?? product.shortDescription ?? "",
         category: categoryName,
         categorySlug,
-        stock: Number(product.stock ?? product.quantity ?? product.availableQuantity ?? 0),
+        inventory,
+        in_stock: inventory > 0,
         isHot: Boolean(product.isHot ?? product.hot ?? product.featured)
     };
 };
@@ -110,18 +114,36 @@ export const productService = {
         if (Number.isInteger(params.limit) && params.limit > 0) queryParams.per_page = params.limit;
 
         const response = await api.get("/products", { params: queryParams });
-        const data = response.data?.data ?? response.data;
-        const items = normalizeProductList(extractListPayload(data));
+        const rawData = response.data; // { data: [...], meta: {...}, links: {...} }
+        const listPayload = rawData?.data ?? rawData;
 
-        const total = Number(data?.meta?.total ?? data?.pagination?.total ?? data?.total ?? items.length);
-        const page = Number(data?.meta?.current_page ?? data?.pagination?.current_page ?? params.page ?? 1);
-        const limit = Number(data?.meta?.per_page ?? data?.pagination?.per_page ?? params.limit ?? items.length);
+        const items = normalizeProductList(extractListPayload(listPayload));
+        const total = Number(
+            rawData?.meta?.total ??
+            rawData?.pagination?.total ??
+            items.length
+        );
+        const page = Number(
+            rawData?.meta?.current_page ??
+            rawData?.pagination?.current_page ??
+            params.page ?? 1
+        );
+        const limit = Number(
+            rawData?.meta?.per_page ??
+            rawData?.pagination?.per_page ??
+            params.limit ?? items.length
+        );
+
+        const last_page = limit > 0 ? Math.ceil(total / limit) : 1;
 
         return {
-            items,
-            total,
-            page,
-            limit
+            data: items,
+            meta: {
+                total,
+                current_page: page,
+                per_page: limit,
+                last_page
+            }
         };
     },
 

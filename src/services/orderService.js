@@ -180,6 +180,7 @@ export const buildCreateOrderPayload = ({
 export const orderService = {
     async createOrder(payload) {
         try {
+            console.log("📦 Payload gửi lên:", JSON.stringify(payload, null, 2));
             const res = await api.post("/orders", payload);
             const orderData = unwrap(res.data) ?? {};
             // BE trả payment_url ở root response (sibling với `data`) khi payment_method=vnpay.
@@ -192,6 +193,7 @@ export const orderService = {
         } catch (error) {
             throwNice(error, "Khong tao duoc don hang");
         }
+
     },
 
     async getOrders() {
@@ -238,6 +240,7 @@ export const orderService = {
             throwNice(error, "Khong the mua lai don hang");
         }
     },
+
 };
 
 export const createOrder = orderService.createOrder;

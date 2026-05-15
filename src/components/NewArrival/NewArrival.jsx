@@ -20,7 +20,7 @@ function NewArrival() {
             const result = await productService.list({ sortBy: "featured", limit: 8, page: 1 });
 
             if (isMounted) {
-                setProducts(result.items);
+                setProducts(result.data);
                 setIsLoading(false);
             }
         }
@@ -73,7 +73,7 @@ function NewArrival() {
                             <div className="card">
 
                                 <div className="image">
-                                    {item.image ? <img src={item.image} alt={item.name} /> : null}
+                                    {item.img ? <img src={item.img} alt={item.name} /> : null}
                                 </div>
 
                                 <p className="name">{item.name}</p>
