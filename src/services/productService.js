@@ -163,7 +163,7 @@ export const productService = {
                 sortBy: "featured"
             });
 
-            return result.items.filter((product) => String(product.id) !== String(excludeId)).slice(0, limit);
+            return result.data.filter((product) => String(product.id) !== String(excludeId)).slice(0, limit);
         } catch (error) {
             console.error("Failed to load related products:", error);
             return [];

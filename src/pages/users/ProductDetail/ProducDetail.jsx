@@ -146,7 +146,7 @@ function ProductDetail() {
         productId: product.id,
         name: product.name,
         price: product.price,
-        image: product.image,
+        image: product.img,
         quantity,
         color: selectedColor,
         size: selectedSize
@@ -193,7 +193,7 @@ function ProductDetail() {
         <>
             <section className="product-detail" aria-label="Chi tiết sản phẩm">
                 <div className="product-media">
-                    {product.image ? <img src={product.image} alt={product.name} className="main-image" /> : null}
+                    {product.img ? <img src={product.img} alt={product.name} className="main-image" /> : null}
                 </div>
 
                 <div className="product-info">
@@ -269,7 +269,7 @@ function ProductDetail() {
                 <div className="related-products-list">
                     {relatedProducts.map((item) => (
                         <Link to={`/san-pham/${item.id}`} key={item.id} className="related-product-card">
-                            {item.image ? <img src={item.image} alt={item.name} /> : null}
+                            {item.img ? <img src={item.img} alt={item.name} /> : null}
                             <div>
                                 <strong>{item.name}</strong>
                                 <p>{formatVND(item.price)}</p>
