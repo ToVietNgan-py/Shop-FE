@@ -4,6 +4,7 @@ import { formatVND } from "../../utils/format.js";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import PageLoading from "../PageLoading/PageLoading.jsx";
+import WishlistButton from "../common/WishlistButton.jsx";
 function NewArrival() {
     const [startIndex, setStartIndex] = useState(0);
     const [products, setProducts] = useState([]);
@@ -69,20 +70,23 @@ function NewArrival() {
 
                 <div className="list">
                     {visibleProducts.map((item) => (
-                        <Link to={`/san-pham/${item.id}`} key={item.id}>
-                            <div className="card">
+                        <div key={item.id} style={{ position: "relative" }}>
+                            <WishlistButton product={item} />
+                            <Link to={`/san-pham/${item.id}`}>
+                                <div className="card">
 
-                                <div className="image">
-                                    {item.image ? <img src={item.image} alt={item.name} /> : null}
+                                    <div className="image">
+                                        {item.image ? <img src={item.image} alt={item.name} /> : null}
+                                    </div>
+
+                                    <p className="name">{item.name}</p>
+                                    <p className="price">
+                                        {formatVND(item.price)}
+                                    </p>
+
                                 </div>
-
-                                <p className="name">{item.name}</p>
-                                <p className="price">
-                                    {formatVND(item.price)}
-                                </p>
-
-                            </div>
-                        </Link>
+                            </Link>
+                        </div>
                     ))}
                 </div>
 

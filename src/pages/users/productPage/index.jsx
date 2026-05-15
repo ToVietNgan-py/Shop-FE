@@ -6,6 +6,7 @@ import "./style.scss";
 import { formatVND } from "../../../utils/format.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
 import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
+import WishlistButton from "../../../components/common/WishlistButton.jsx";
 
 // Danh sách sản phẩm hiện đi qua productService và lấy dữ liệu từ API.
 // Filter/sort/pagination đã được đẩy xuống service/backend.
@@ -306,33 +307,36 @@ const ProductPage = () => {
                     ) : (
                         <div className="product-list">
                             {filteredProducts.map((item) => (
-                                <Link to={`/san-pham/${item.id}`} key={item.id} className="product-card">
-                                    {/* TODO: Đang điều hướng bằng id local.
-                                        Khi có backend, đảm bảo id/slug route này khớp với API chi tiết sản phẩm. */}
-                                    <div className="image-box">
-                                        {item.image ? <img src={item.image} alt={item.name} /> : null}
-                                    </div>
-
-                                    <div className="product-card__content">
-                                        <div className="product-card__meta">
-                                            {/* TODO: UI đang giả định sản phẩm có `category` và `isHot`.
-                                                Khi backend thật, cần map đúng các field badge/tag từ response. */}
-                                            <span className="product-tag">{item.category}</span>
-                                            {item.isHot ? <span className="product-badge">Nổi bật</span> : null}
+                                <div key={item.id} style={{ position: "relative", height: "100%" }}>
+                                    <WishlistButton product={item} />
+                                    <Link to={`/san-pham/${item.id}`} className="product-card">
+                                        {/* TODO: Đang điều hướng bằng id local.
+                                            Khi có backend, đảm bảo id/slug route này khớp với API chi tiết sản phẩm. */}
+                                        <div className="image-box">
+                                            {item.image ? <img src={item.image} alt={item.name} /> : null}
                                         </div>
 
-                                        <h3>{item.name}</h3>
+                                        <div className="product-card__content">
+                                            <div className="product-card__meta">
+                                                {/* TODO: UI đang giả định sản phẩm có `category` và `isHot`.
+                                                    Khi backend thật, cần map đúng các field badge/tag từ response. */}
+                                                <span className="product-tag">{item.category}</span>
+                                                {item.isHot ? <span className="product-badge">Nổi bật</span> : null}
+                                            </div>
 
-                                        <div className="product-card__footer">
-                                            <p className="price">{formatVND(item.price)}</p>
-                                            {/* TODO: Trạng thái tồn kho hiện đang dựa trực tiếp vào `stock`.
-                                                Khi có backend, cần xem dùng `stock`, `inventoryStatus` hay `availableQuantity`. */}
-                                            <span className={`stock ${item.stock > 0 ? "in-stock" : "out-stock"}`}>
-                                                {item.stock > 0 ? `Còn ${item.stock}` : "Hết hàng"}
-                                            </span>
+                                            <h3>{item.name}</h3>
+
+                                            <div className="product-card__footer">
+                                                <p className="price">{formatVND(item.price)}</p>
+                                                {/* TODO: Trạng thái tồn kho hiện đang dựa trực tiếp vào `stock`.
+                                                    Khi có backend, cần xem dùng `stock`, `inventoryStatus` hay `availableQuantity`. */}
+                                                <span className={`stock ${item.stock > 0 ? "in-stock" : "out-stock"}`}>
+                                                    {item.stock > 0 ? `Còn ${item.stock}` : "Hết hàng"}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                </Link>
+                                    </Link>
+                                </div>
                             ))}
                         </div>
                     )}

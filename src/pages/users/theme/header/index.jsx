@@ -157,6 +157,9 @@ const Header = () => {
                             <Link to="/blog">BLOG</Link>
                         </li>
                         <li>
+                            <Link to="/yeu-thich">YÊU THÍCH</Link>
+                        </li>
+                        <li>
                             <Link to="/don-hang">ĐƠN HÀNG</Link>
                         </li>
                     </ul>
