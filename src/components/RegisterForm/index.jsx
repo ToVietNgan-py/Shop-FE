@@ -1,47 +1,35 @@
 import { useContext, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { register } from "../../services/authServices.js";
 import { AuthContext } from "../../context/AuthContext.jsx";
+import { registerSchema } from "../../validations/authSchema.js";
 import "./style.scss";
 
 function RegisterForm({ onClose }) {
     const { loginContext } = useContext(AuthContext);
     const navigate = useNavigate();
-    const [form, setForm] = useState({
-        name: "",
-        email: "",
-        password: ""
-    });
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const {
+        register: registerField,
+        handleSubmit,
+        formState: { errors, isSubmitting },
+    } = useForm({
+        resolver: zodResolver(registerSchema),
+        defaultValues: {
+            name: "",
+            email: "",
+            password: "",
+            password_confirmation: "",
+        },
+    });
 
-    const handleSubmit = async (event) => {
-        event.preventDefault();
+    const onSubmit = async (form) => {
         setError("");
 
-        // Validate password: min 8 chars, has letters + numbers
-        if (form.password.length < 8) {
-            setError("Mật khẩu phải có ít nhất 8 ký tự nhé!");
-            return;
-        }
-        if (!/[a-zA-Z]/.test(form.password)) {
-            setError("Mật khẩu phải chứa ít nhất một chữ cái!");
-            return;
-        }
-        if (!/\d/.test(form.password)) {
-            setError("Mật khẩu phải chứa ít nhất một chữ số!");
-            return;
-        }
-
-        setIsLoading(true);
-
         try {
-            const dataToRegister = {
-                ...form,
-                password_confirmation: form.password
-            };
-
-            const data = await register(dataToRegister);
+            const data = await register(form);
 
             loginContext(data);
             onClose?.();
@@ -52,14 +40,11 @@ function RegisterForm({ onClose }) {
                 : "";
             const message = validationMessage || err?.message || err?.error || "Đăng ký thất bại, bạn kiểm tra lại thông tin nhé!";
             setError(message);
-            console.log("Chi tiết lỗi:", err);
-        } finally {
-            setIsLoading(false);
         }
     };
 
     return (
-        <form className="auth-form auth-form--register" onSubmit={handleSubmit}>
+        <form className="auth-form auth-form--register" onSubmit={handleSubmit(onSubmit)} noValidate>
             {error && <div className="auth-error">{error}</div>}
 
             <div className="form-group">
@@ -67,11 +52,12 @@ function RegisterForm({ onClose }) {
                 <input
                     id="register-name"
                     placeholder="Nguyen Minh Anh"
-                    value={form.name}
-                    onChange={(event) => setForm({ ...form, name: event.target.value })}
-                    required
-                    disabled={isLoading}
+                    autoComplete="name"
+                    disabled={isSubmitting}
+                    aria-invalid={!!errors.name}
+                    {...registerField("name")}
                 />
+                {errors.name && <p className="form-error">{errors.name.message}</p>}
             </div>
 
             <div className="form-group">
@@ -80,11 +66,12 @@ function RegisterForm({ onClose }) {
                     id="register-email"
                     type="email"
                     placeholder="hello@dearrose.vn"
-                    value={form.email}
-                    onChange={(event) => setForm({ ...form, email: event.target.value })}
-                    required
-                    disabled={isLoading}
+                    autoComplete="email"
+                    disabled={isSubmitting}
+                    aria-invalid={!!errors.email}
+                    {...registerField("email")}
                 />
+                {errors.email && <p className="form-error">{errors.email.message}</p>}
             </div>
 
             <div className="form-group">
@@ -94,22 +81,33 @@ function RegisterForm({ onClose }) {
                     type="password"
                     placeholder="Tạo mật khẩu mới"
                     autoComplete="new-password"
-                    value={form.password}
-                    onChange={(event) => setForm({ ...form, password: event.target.value })}
-                    minLength={8}
-                    title="Mật khẩu phải có ít nhất 8 ký tự, gồm cả chữ cái và số"
-                    required
-                    disabled={isLoading}
+                    disabled={isSubmitting}
+                    aria-invalid={!!errors.password}
+                    {...registerField("password")}
                 />
+                {errors.password && <p className="form-error">{errors.password.message}</p>}
                 <small className="field-hint">Mật khẩu tối thiểu 8 ký tự, phải có chữ và số.</small>
             </div>
 
-            <button className="btn-submit" type="submit" disabled={isLoading}>
-                {isLoading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
+            <div className="form-group">
+                <label htmlFor="register-password-confirmation">Xác nhận mật khẩu</label>
+                <input
+                    id="register-password-confirmation"
+                    type="password"
+                    placeholder="Nhập lại mật khẩu"
+                    autoComplete="new-password"
+                    disabled={isSubmitting}
+                    aria-invalid={!!errors.password_confirmation}
+                    {...registerField("password_confirmation")}
+                />
+                {errors.password_confirmation && <p className="form-error">{errors.password_confirmation.message}</p>}
+            </div>
+
+            <button className="btn-submit" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
             </button>
         </form>
     );
 }
 
 export default RegisterForm;
-

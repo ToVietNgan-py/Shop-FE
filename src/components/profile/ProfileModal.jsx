@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { regionApi } from "../../apis/region";
+import { profileAddressSchema, profileFieldSchemas } from "../../validations/profileSchema";
 import "./style.scss";
 
 const fieldLabels = {
@@ -32,104 +35,150 @@ export default function ProfileModal({
     const isAddress = field === "address";
     const isAvatar = field === "avatar";
     const isLocked = field === "email";
+    const schema = useMemo(() => profileFieldSchemas[field], [field]);
 
-    // Address state
+    const {
+        register,
+        handleSubmit,
+        reset,
+        formState: { errors },
+    } = useForm({
+        resolver: schema ? zodResolver(schema) : undefined,
+        defaultValues: { value: value || "" },
+    });
+
+    const {
+        register: registerAddress,
+        handleSubmit: handleAddressSubmit,
+        reset: resetAddress,
+        setValue: setAddressValue,
+        watch: watchAddress,
+        formState: { errors: addressErrors },
+    } = useForm({
+        resolver: zodResolver(profileAddressSchema),
+        defaultValues: {
+            provinceCode: "",
+            districtCode: "",
+            wardCode: "",
+            detailAddress: "",
+        },
+    });
+
+    const selectedProvince = watchAddress("provinceCode");
+    const selectedDistrict = watchAddress("districtCode");
+
     const [provinces, setProvinces] = useState([]);
     const [districts, setDistricts] = useState([]);
     const [wards, setWards] = useState([]);
-    const [selectedProvince, setSelectedProvince] = useState("");
-    const [selectedDistrict, setSelectedDistrict] = useState("");
-    const [selectedWard, setSelectedWard] = useState("");
-    const [detailAddress, setDetailAddress] = useState("");
     const [loadingAddress, setLoadingAddress] = useState(false);
 
-    // Load provinces for address field
+    useEffect(() => {
+        reset({ value: value || "" });
+    }, [reset, value]);
+
     useEffect(() => {
         if (isAddress) {
-            loadProvinces();
+            resetAddress({
+                provinceCode: "",
+                districtCode: "",
+                wardCode: "",
+                detailAddress: "",
+            });
         }
+    }, [isAddress, resetAddress]);
+
+    useEffect(() => {
+        if (!isAddress) {
+            return;
+        }
+
+        let isMounted = true;
+        setLoadingAddress(true);
+
+        regionApi.getProvinces()
+            .then((data) => {
+                if (isMounted) setProvinces(data || []);
+            })
+            .catch((error) => console.error("Error loading provinces:", error))
+            .finally(() => {
+                if (isMounted) setLoadingAddress(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
     }, [isAddress]);
 
-    const loadProvinces = async () => {
+    useEffect(() => {
+        if (!selectedProvince) {
+            setDistricts([]);
+            setWards([]);
+            return;
+        }
+
+        let isMounted = true;
         setLoadingAddress(true);
-        try {
-            const data = await regionApi.getProvinces();
-            setProvinces(data || []);
-        } catch (error) {
-            console.error("Error loading provinces:", error);
-        } finally {
-            setLoadingAddress(false);
+        setAddressValue("districtCode", "");
+        setAddressValue("wardCode", "");
+
+        regionApi.getDistricts(selectedProvince)
+            .then((data) => {
+                if (isMounted) setDistricts(data || []);
+            })
+            .catch((error) => console.error("Error loading districts:", error))
+            .finally(() => {
+                if (isMounted) setLoadingAddress(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedProvince, setAddressValue]);
+
+    useEffect(() => {
+        if (!selectedDistrict) {
+            setWards([]);
+            return;
         }
+
+        let isMounted = true;
+        setLoadingAddress(true);
+        setAddressValue("wardCode", "");
+
+        regionApi.getWards(selectedDistrict)
+            .then((data) => {
+                if (isMounted) setWards(data || []);
+            })
+            .catch((error) => console.error("Error loading wards:", error))
+            .finally(() => {
+                if (isMounted) setLoadingAddress(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedDistrict, setAddressValue]);
+
+    const submitField = ({ value: nextValue }) => {
+        setValue(nextValue);
+        onSave(nextValue);
     };
 
-    const handleProvinceChange = async (provinceCode) => {
-        setSelectedProvince(provinceCode);
-        setSelectedDistrict("");
-        setSelectedWard("");
-        setDistricts([]);
-        setWards([]);
-
-        if (provinceCode) {
-            setLoadingAddress(true);
-            try {
-                const data = await regionApi.getDistricts(provinceCode);
-                setDistricts(data || []);
-            } catch (error) {
-                console.error("Error loading districts:", error);
-            } finally {
-                setLoadingAddress(false);
-            }
-        }
-    };
-
-    const handleDistrictChange = async (districtCode) => {
-        setSelectedDistrict(districtCode);
-        setSelectedWard("");
-        setWards([]);
-
-        if (districtCode) {
-            setLoadingAddress(true);
-            try {
-                const data = await regionApi.getWards(districtCode);
-                setWards(data || []);
-            } catch (error) {
-                console.error("Error loading wards:", error);
-            } finally {
-                setLoadingAddress(false);
-            }
-        }
-    };
-
-    const handleWardChange = (wardCode) => {
-        setSelectedWard(wardCode);
-    };
-
-    const handleAddressSave = () => {
-        // Build formatted address
-        const ward = wards.find(w => w.code === parseInt(selectedWard));
-        const district = districts.find(d => d.code === parseInt(selectedDistrict));
-        const province = provinces.find(p => p.code === parseInt(selectedProvince));
-
-        let fullAddress = "";
-        if (detailAddress) fullAddress += detailAddress + ", ";
-        if (ward) fullAddress += ward.name + ", ";
-        if (district) fullAddress += district.name + ", ";
-        if (province) fullAddress += province.name;
-
-        // Remove trailing comma
-        fullAddress = fullAddress.replace(/, $/, "");
+    const submitAddress = (form) => {
+        const ward = wards.find((item) => String(item.code) === form.wardCode);
+        const district = districts.find((item) => String(item.code) === form.districtCode);
+        const province = provinces.find((item) => String(item.code) === form.provinceCode);
+        const fullAddress = [
+            form.detailAddress,
+            ward?.name,
+            district?.name,
+            province?.name,
+        ].filter(Boolean).join(", ");
 
         setValue(fullAddress);
-        onSave();
+        onSave(fullAddress);
     };
 
-    const handleKeyDown = (e) => {
-        if (e.key === "Enter" && !saving) {
-            onSave();
-        }
-    };
-
-    // Locked field (email)
     if (isLocked) {
         return (
             <div className="modal-overlay">
@@ -137,14 +186,13 @@ export default function ProfileModal({
                     <h3>{fieldLabels[field]}</h3>
                     <p className="locked-field">Trường này không thể thay đổi</p>
                     <div className="modal-btns">
-                        <button onClick={onClose}>Đóng</button>
+                        <button type="button" onClick={onClose}>Đóng</button>
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Avatar upload
     if (isAvatar) {
         return (
             <div className="modal-overlay">
@@ -158,133 +206,106 @@ export default function ProfileModal({
                         </div>
                     </div>
                     <div className="modal-btns">
-                        <button onClick={onSave} disabled={saving}>
+                        <button type="button" onClick={() => onSave(value)} disabled={saving}>
                             {saving ? "Đang lưu..." : "Lưu"}
                         </button>
-                        <button onClick={onClose} disabled={saving}>Hủy</button>
+                        <button type="button" onClick={onClose} disabled={saving}>Hủy</button>
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Address with province/district/ward
     if (isAddress) {
         return (
             <div className="modal-overlay">
-                <div className="modal">
+                <form className="modal" onSubmit={handleAddressSubmit(submitAddress)} noValidate>
                     <h3>{fieldLabels[field]}</h3>
 
                     <div className="address-selects">
-                        {loadingAddress && (
-                            <div className="loading-address">Đang tải...</div>
-                        )}
+                        {loadingAddress && <div className="loading-address">Đang tải...</div>}
 
-                        <select
-                            value={selectedProvince}
-                            onChange={(e) => handleProvinceChange(e.target.value)}
-                            disabled={loadingAddress}
-                        >
+                        <select {...registerAddress("provinceCode")} disabled={loadingAddress}>
                             <option value="">Chọn tỉnh/thành</option>
                             {provinces.map((p) => (
-                                <option key={p.code} value={p.code}>
-                                    {p.name}
-                                </option>
+                                <option key={p.code} value={p.code}>{p.name}</option>
                             ))}
                         </select>
+                        {addressErrors.provinceCode ? <p className="form-error">{addressErrors.provinceCode.message}</p> : null}
 
-                        <select
-                            value={selectedDistrict}
-                            onChange={(e) => handleDistrictChange(e.target.value)}
-                            disabled={loadingAddress || !selectedProvince}
-                        >
+                        <select {...registerAddress("districtCode")} disabled={loadingAddress || !selectedProvince}>
                             <option value="">Chọn quận/huyện</option>
                             {districts.map((d) => (
-                                <option key={d.code} value={d.code}>
-                                    {d.name}
-                                </option>
+                                <option key={d.code} value={d.code}>{d.name}</option>
                             ))}
                         </select>
+                        {addressErrors.districtCode ? <p className="form-error">{addressErrors.districtCode.message}</p> : null}
 
-                        <select
-                            value={selectedWard}
-                            onChange={(e) => handleWardChange(e.target.value)}
-                            disabled={loadingAddress || !selectedDistrict}
-                        >
+                        <select {...registerAddress("wardCode")} disabled={loadingAddress || !selectedDistrict}>
                             <option value="">Chọn phường/xã</option>
                             {wards.map((w) => (
-                                <option key={w.code} value={w.code}>
-                                    {w.name}
-                                </option>
+                                <option key={w.code} value={w.code}>{w.name}</option>
                             ))}
                         </select>
+                        {addressErrors.wardCode ? <p className="form-error">{addressErrors.wardCode.message}</p> : null}
 
                         <input
                             type="text"
-                            value={detailAddress}
-                            onChange={(e) => setDetailAddress(e.target.value)}
                             placeholder="Số nhà, đường,..."
                             disabled={saving}
+                            {...registerAddress("detailAddress")}
                         />
+                        {addressErrors.detailAddress ? <p className="form-error">{addressErrors.detailAddress.message}</p> : null}
                     </div>
 
                     <div className="modal-btns">
-                        <button onClick={handleAddressSave} disabled={saving}>
+                        <button type="submit" disabled={saving}>
                             {saving ? "Đang lưu..." : "Lưu"}
                         </button>
-                        <button onClick={onClose} disabled={saving}>Hủy</button>
+                        <button type="button" onClick={onClose} disabled={saving}>Hủy</button>
                     </div>
-                </div>
+                </form>
             </div>
         );
     }
 
-    // Default case - gender (select), dob (date), or other inputs
     return (
         <div className="modal-overlay">
-            <div className="modal">
+            <form className="modal" onSubmit={handleSubmit(submitField)} noValidate>
                 <h3>{fieldLabels[field]}</h3>
 
                 {isGender ? (
-                    <select
-                        value={value || ""}
-                        onChange={(e) => setValue(e.target.value)}
-                        disabled={saving}
-                    >
+                    <select disabled={saving} {...register("value")}>
                         {genderOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                            </option>
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                     </select>
                 ) : isDob ? (
                     <div className="date-input-wrapper">
                         <input
                             type="date"
-                            value={value || ""}
-                            onChange={(e) => setValue(e.target.value)}
                             max={new Date().toISOString().split("T")[0]}
                             disabled={saving}
+                            {...register("value")}
                         />
                     </div>
                 ) : (
                     <input
                         type={field === "phone" ? "tel" : "text"}
-                        value={value || ""}
-                        onChange={(e) => setValue(e.target.value)}
                         placeholder={`Nhập ${fieldLabels[field]?.toLowerCase()}`}
-                        onKeyDown={handleKeyDown}
                         disabled={saving}
+                        {...register("value")}
                     />
                 )}
+                {errors.value ? <p className="form-error">{errors.value.message}</p> : null}
 
                 <div className="modal-btns">
-                    <button onClick={onSave} disabled={saving}>
+                    <button type="submit" disabled={saving}>
                         {saving ? "Đang lưu..." : "Lưu"}
                     </button>
-                    <button onClick={onClose} disabled={saving}>Hủy</button>
+                    <button type="button" onClick={onClose} disabled={saving}>Hủy</button>
                 </div>
-            </div>
+            </form>
         </div>
     );
 }

@@ -62,7 +62,7 @@ const ProductPage = () => {
     };
 
     const filteredProducts = products;
-    const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
+    const [totalPages, setTotalPages] = useState(1);
 
     useEffect(() => {
         let isMounted = true;
@@ -71,8 +71,15 @@ const ProductPage = () => {
             try {
                 const data = await categoryService.list();
 
+
                 if (isMounted && Array.isArray(data) && data.length > 0) {
-                    setCategories([{ slug: "all", name: "Tất cả sản phẩm" }, ...data]);
+                    const seen = new Set();
+                    const unique = data.filter(cat => {
+                        if (seen.has(cat.slug)) return false;
+                        seen.add(cat.slug);
+                        return true;
+                    });
+                    setCategories([{ slug: "all", name: "Tất cả sản phẩm" }, ...unique]);
                 }
             } catch {
                 if (isMounted) {
@@ -108,8 +115,9 @@ const ProductPage = () => {
                 });
 
                 if (isMounted) {
-                    setProducts(result.items);
-                    setTotalProducts(result.total);
+                    setProducts(result.data);
+                    setTotalProducts(result.meta.total);
+                    setTotalPages(result.meta.last_page);
                 }
             } catch {
                 if (isMounted) {
@@ -313,7 +321,7 @@ const ProductPage = () => {
                                         {/* TODO: Đang điều hướng bằng id local.
                                             Khi có backend, đảm bảo id/slug route này khớp với API chi tiết sản phẩm. */}
                                         <div className="image-box">
-                                            {item.image ? <img src={item.image} alt={item.name} /> : null}
+                                            {item.img ? <img src={item.img} alt={item.name} /> : null}
                                         </div>
 
                                         <div className="product-card__content">
@@ -330,8 +338,8 @@ const ProductPage = () => {
                                                 <p className="price">{formatVND(item.price)}</p>
                                                 {/* TODO: Trạng thái tồn kho hiện đang dựa trực tiếp vào `stock`.
                                                     Khi có backend, cần xem dùng `stock`, `inventoryStatus` hay `availableQuantity`. */}
-                                                <span className={`stock ${item.stock > 0 ? "in-stock" : "out-stock"}`}>
-                                                    {item.stock > 0 ? `Còn ${item.stock}` : "Hết hàng"}
+                                                <span className={`stock ${item.in_stock ? "in-stock" : "out-stock"}`}>
+                                                    {item.in_stock ? `Còn ${item.inventory}` : "Hết hàng"}
                                                 </span>
                                             </div>
                                         </div>
@@ -359,4 +367,3 @@ const ProductPage = () => {
 };
 
 export default memo(ProductPage);
-

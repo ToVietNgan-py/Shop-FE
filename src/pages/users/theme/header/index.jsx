@@ -8,7 +8,7 @@ import Cart from "../../../../components/Cart";
 import { AuthContext } from "../../../../context/AuthContext";
 import { CartContext } from "../../../../context/CartContext";
 import UserDropdown from "../../../../components/UserDropdown/UserDropdown.jsx";
-
+import NotificationBell from '../../../../components/notifications/NotificationBell';
 const categoryItems = [
     { label: "QUẦN ÁO", slug: "quan-ao", icon: FiShoppingBag },
     { label: "GIÀY DÉP", slug: "giay-dep", icon: FiTag },
@@ -79,7 +79,11 @@ const Header = () => {
                                 <span className="auth-label">Đang tải...</span>
                             </button>
                         ) : user ? (
-                            <UserDropdown user={user} onLogout={logout} />
+                            <>
+                                <NotificationBell />
+                                <UserDropdown user={user} onLogout={logout} />
+
+                            </>
                         ) : (
                             <button
                                 type="button"

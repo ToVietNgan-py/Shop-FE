@@ -1,23 +1,35 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { FaCheckCircle, FaCreditCard, FaMoneyBillWave, FaUniversity } from "react-icons/fa";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { MdContentCopy } from "react-icons/md";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { regionApi } from "../../../apis/region.js";
 import { CartContext } from "../../../context/CartContext.jsx";
 import { AuthContext } from "../../../context/AuthContext.jsx";
+import { cartService } from "../../../services/cartService.js";
 import { buildCreateOrderPayload, orderService, ORDER_PAYMENT_METHODS } from "../../../services/orderService.js";
 import { paymentService } from "../../../services/paymentService.js";
 import { productService } from "../../../services/productService.js";
 import { voucherService } from "../../../services/voucherService.js";
 import { formatVND } from "../../../utils/format.js";
+import { checkoutSchema } from "../../../validations/checkoutSchema.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
 import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
 import "./style.scss";
 
 const SHIPPING_FEE = 35000;
-const FE_ONLY_COD_BANK = true;
 // TODO: Khi backend hoan thien, lay phi ship va giam gia tu API pricing/promotion
 // thay vi hardcode o frontend de tranh lech tong tien voi backend.
+
+// Backend hiện chưa trả về bank_info trong response của POST /orders.
+// Dùng tạm thông tin tài khoản cố định để hiển thị cho người dùng chuyển khoản.
+// TODO: Bỏ fallback này khi BE trả về payment_info.bank_info.
+const DEFAULT_BANK_INFO = {
+    bankName: "Vietcombank",
+    accountName: "CONG TY TNHH DEAR ROSE",
+    accountNumber: "0123456789",
+};
 
 const toBackendPaymentMethod = (method) => {
     if (method === ORDER_PAYMENT_METHODS.BANK_TRANSFER) {
@@ -36,7 +48,7 @@ const toBackendPaymentMethod = (method) => {
 function CheckoutPage() {
     const location = useLocation();
     const [searchParams] = useSearchParams();
-    const { cartId, cartItems, syncCart, clearCart } = useContext(CartContext);
+    const { cartId, cartItems, syncCart } = useContext(CartContext);
     const { user } = useContext(AuthContext);
     const productId = Number(searchParams.get("productId"));
     const [fallbackItem, setFallbackItem] = useState(null);
@@ -95,29 +107,40 @@ function CheckoutPage() {
         return fallbackItem ? [fallbackItem] : [];
     }, [cartItems, fallbackItem, location.state]);
 
-    const [formData, setFormData] = useState({
-        country: "Vietnam",
-        fullName: "",
-        addressDetail: "",
-        city: "",
-        cityCode: "",
-        district: "",
-        districtCode: "",
-        ward: "",
-        wardCode: "",
-        phone: "",
-        note: ""
+    const {
+        register,
+        handleSubmit,
+        setValue,
+        watch,
+        formState: { errors, isSubmitting },
+    } = useForm({
+        resolver: zodResolver(checkoutSchema),
+        defaultValues: {
+            country: "Vietnam",
+            fullName: "",
+            addressDetail: "",
+            city: "",
+            cityCode: "",
+            district: "",
+            districtCode: "",
+            ward: "",
+            wardCode: "",
+            phone: "",
+            note: "",
+            voucher_code: "",
+            paymentMethod: ORDER_PAYMENT_METHODS.COD,
+        },
     });
-    const [couponCode, setCouponCode] = useState("");
+    const formData = watch();
+    const couponCode = watch("voucher_code");
+    const paymentMethod = watch("paymentMethod");
     const [appliedCoupon, setAppliedCoupon] = useState(null);
     const [couponError, setCouponError] = useState("");
     const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState(ORDER_PAYMENT_METHODS.COD);
     const [checkoutStep, setCheckoutStep] = useState("form");
     const [copiedField, setCopiedField] = useState("");
     const [orderData, setOrderData] = useState(null);
     const [orderError, setOrderError] = useState("");
-    const [isCreatingOrder, setIsCreatingOrder] = useState(false);
     const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
     const [provinces, setProvinces] = useState([]);
     const [districts, setDistricts] = useState([]);
@@ -135,18 +158,20 @@ function CheckoutPage() {
     const couponDiscount = appliedCoupon?.discount ?? 0;
     const total = subtotal + SHIPPING_FEE - couponDiscount;
 
-    const paymentInfo = orderData?.paymentInfo ?? {
-        qrCodeUrl: "",
-        transferContent: "",
-        amount: total,
-        bankInfo: {
-            bankName: "",
-            accountName: "",
-            accountNumber: ""
-        }
-    };
-    // TODO: paymentInfo dang fallback rong neu backend chua tra ve du lieu thanh toan.
-    // Khi chot contract backend, validate day du QR, amount, transferContent va bankInfo.
+    const paymentInfo = useMemo(() => {
+        const beInfo = orderData?.paymentInfo;
+        const beBank = beInfo?.bankInfo;
+        const hasBeBank = beBank && (beBank.bankName || beBank.accountNumber);
+
+        return {
+            qrCodeUrl: beInfo?.qrCodeUrl ?? "",
+            transferContent: beInfo?.transferContent
+                || (orderData?.orderCode ? `DEARROSE ${orderData.orderCode}` : ""),
+            amount: beInfo?.amount || orderData?.totalAmount || total,
+            bankInfo: hasBeBank ? beBank : DEFAULT_BANK_INFO,
+        };
+    }, [orderData, total]);
+    // TODO: Khi backend trả về payment_info.bank_info chuẩn, bỏ DEFAULT_BANK_INFO.
 
     useEffect(() => {
         let isMounted = true;
@@ -262,6 +287,15 @@ function CheckoutPage() {
     }, [copiedField]);
 
     const refreshCartAfterOrder = async () => {
+        // BE order creation đã xoá items trong server cart.
+        // Xoá luôn guest cart trong localStorage để khi VNPay redirect quay lại,
+        // CartContext không re-merge stale items lên server (gây cart cũ hiện trở lại).
+        try {
+            window.localStorage.removeItem("guest_cart");
+        } catch {
+            // Ignore localStorage errors.
+        }
+
         try {
             await syncCart();
         } catch {
@@ -270,26 +304,15 @@ function CheckoutPage() {
         }
     };
 
-    const handleInputChange = ({ target }) => {
-        const { name, value } = target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
     const handleProvinceChange = ({ target }) => {
         const selectedProvince = provinces.find((item) => String(item.code) === target.value);
 
-        setFormData((prev) => ({
-            ...prev,
-            city: selectedProvince?.name ?? "",
-            cityCode: target.value,
-            district: "",
-            districtCode: "",
-            ward: "",
-            wardCode: ""
-        }));
+        setValue("city", selectedProvince?.name ?? "", { shouldValidate: true });
+        setValue("cityCode", target.value, { shouldValidate: true });
+        setValue("district", "", { shouldValidate: true });
+        setValue("districtCode", "", { shouldValidate: true });
+        setValue("ward", "", { shouldValidate: true });
+        setValue("wardCode", "", { shouldValidate: true });
 
         setDistricts([]);
         setWards([]);
@@ -298,13 +321,10 @@ function CheckoutPage() {
     const handleDistrictChange = ({ target }) => {
         const selectedDistrict = districts.find((item) => String(item.code) === target.value);
 
-        setFormData((prev) => ({
-            ...prev,
-            district: selectedDistrict?.name ?? "",
-            districtCode: target.value,
-            ward: "",
-            wardCode: ""
-        }));
+        setValue("district", selectedDistrict?.name ?? "", { shouldValidate: true });
+        setValue("districtCode", target.value, { shouldValidate: true });
+        setValue("ward", "", { shouldValidate: true });
+        setValue("wardCode", "", { shouldValidate: true });
 
         setWards([]);
     };
@@ -312,15 +332,12 @@ function CheckoutPage() {
     const handleWardChange = ({ target }) => {
         const selectedWard = wards.find((item) => String(item.code) === target.value);
 
-        setFormData((prev) => ({
-            ...prev,
-            ward: selectedWard?.name ?? "",
-            wardCode: target.value
-        }));
+        setValue("ward", selectedWard?.name ?? "", { shouldValidate: true });
+        setValue("wardCode", target.value, { shouldValidate: true });
     };
 
     const handleApplyCoupon = async () => {
-        const normalizedCode = couponCode.trim().toUpperCase();
+        const normalizedCode = (couponCode || "").trim().toUpperCase();
 
         setCouponError("");
         setAppliedCoupon(null);
@@ -351,61 +368,14 @@ function CheckoutPage() {
         }
     };
 
-    const handleSubmit = async (event) => {
-        event.preventDefault();
+    const handlePlaceOrder = async (values) => {
         setOrderError("");
-        setIsCreatingOrder(true);
-
-        const createLocalOrder = async () => {
-            const localOrder = {
-                id: null,
-                orderCode: `LOCAL-${Date.now()}`,
-                status: "pending",
-                createdAt: new Date().toISOString(),
-                paymentMethod,
-                items: checkoutItems,
-                subtotal,
-                shippingFee: SHIPPING_FEE,
-                discount: couponDiscount,
-                totalAmount: subtotal + SHIPPING_FEE - couponDiscount,
-                itemCount: checkoutItems.reduce((sum, item) => sum + (item.quantity || 0), 0),
-                shippingAddress: {
-                    fullName: formData.fullName,
-                    phone: formData.phone,
-                    address: formData.addressDetail,
-                    city: formData.city,
-                    district: formData.district,
-                    ward: formData.ward,
-                },
-            };
-
-            // try {
-            //     const { pushLocalOrder } = await import("../../../utils/localOrders.js");
-            //     pushLocalOrder(localOrder);
-            // } catch {
-            //     // Ignore local storage failure to keep checkout flow alive.
-            // }
-
-            setOrderData(localOrder);
-
-            try {
-                await clearCart();
-            } catch {
-                // Ignore cart clear errors for local fallback orders.
-            }
-
-            if (paymentMethod === ORDER_PAYMENT_METHODS.COD) {
-                setCheckoutStep("success");
-            } else {
-                setCheckoutStep("payment");
-            }
-        };
 
         try {
             console.log('[Checkout] submit start', {
                 checkoutItemsLen: checkoutItems.length,
                 hasUserEmail: Boolean(user?.email),
-                paymentMethod,
+                paymentMethod: values.paymentMethod,
                 cartId,
             });
 
@@ -417,65 +387,54 @@ function CheckoutPage() {
                 throw new Error("Vui long dang nhap truoc khi dat hang.");
             }
 
-            // FE-only fallback for COD/bank while keeping VNPay real gateway flow.
-            if (FE_ONLY_COD_BANK && paymentMethod !== ORDER_PAYMENT_METHODS.VNPAY) {
-                await createLocalOrder();
-                return;
-            }
-
             const payload = buildCreateOrderPayload({
                 customer: {
-                    fullName: formData.fullName,
-                    phone: formData.phone,
+                    fullName: values.fullName,
+                    phone: values.phone,
                     email: user.email
                 },
                 shippingAddress: {
-                    country: formData.country,
-                    city: formData.city,
-                    cityCode: formData.cityCode,
-                    district: formData.district,
-                    districtCode: formData.districtCode,
-                    ward: formData.ward,
-                    wardCode: formData.wardCode,
-                    addressLine: formData.addressDetail
+                    country: values.country,
+                    city: values.city,
+                    cityCode: values.cityCode,
+                    district: values.district,
+                    districtCode: values.districtCode,
+                    ward: values.ward,
+                    wardCode: values.wardCode,
+                    addressLine: values.addressDetail
                 },
                 items: checkoutItems,
-                note: formData.note
+                note: values.note
             });
 
-            // Backend currently requires cart_id from server cart.
-            if (!cartId) {
-                if (paymentMethod === ORDER_PAYMENT_METHODS.VNPAY) {
-                    throw new Error("Giỏ hàng chưa đồng bộ với máy chủ, chưa thể tạo thanh toán VNPay.");
+            // CartContext hiện chỉ lưu localStorage → server cart có thể rỗng hoặc lệch.
+            // BE checkout đọc items từ cart_id, nên phải đẩy local items lên server trước
+            // bằng cách clear server cart rồi merge lại đúng list FE đang thấy.
+            let resolvedCartId = null;
+
+            try {
+                try {
+                    const cleared = await cartService.clear();
+                    resolvedCartId = cleared?.id ?? null;
+                } catch (clearErr) {
+                    console.warn("[Checkout] cartService.clear() failed (ignored):", clearErr?.message);
                 }
 
-                await createLocalOrder();
-                return;
+                const serverCart = await cartService.mergeGuestCart(checkoutItems);
+                resolvedCartId = serverCart?.id ?? resolvedCartId;
+            } catch (syncErr) {
+                throw new Error(
+                    syncErr?.message
+                    || "Khong dong bo duoc gio hang voi may chu de tao don hang."
+                );
             }
 
-            payload.cart_id = cartId;
-
-            payload.payment_method = toBackendPaymentMethod(paymentMethod);
-
-            // VNPay backend hiện báo cần chữ ký/querystring ngay khi tạo order.
-            // Tạm thời đưa thêm các field VNPay tối thiểu để BE có thể tự tạo signature/querystring.
-            // (Nếu BE yêu cầu tên field khác, mình sẽ chỉnh theo schema bạn cung cấp ở response 400/422 errors.)
-            if (payload.payment_method === "vnpay") {
-                payload.vnpay_return_url = payload.vnpay_return_url ?? window.location.origin + "/payment-result";
+            if (!resolvedCartId) {
+                throw new Error("Khong tao duoc gio hang tren may chu de tao don hang.");
             }
 
-            // Chỉ VNPay mới cần các field /return_url /signature.
-            // Với bank-transfer, BE cần payment_method khác (không phải vnpay).
-
-
-
-            // BE chỉ định rõ các trường bắt buộc cho /api/orders:
-            // { cart_id, address_id, payment_method, voucher_code?, note? }
-            // Checkout hiện đang không có address_id, nên mapping sang address_id = (server address) nếu có.
-            // Nếu BE không cần address_id khi tạo theo shippingAddress payload thì bỏ qua.
-            // Hiện tại dùng giá trị null để tránh undefined.
-            payload.address_id = payload.address_id ?? null;
-
+            payload.cart_id = resolvedCartId;
+            payload.payment_method = toBackendPaymentMethod(values.paymentMethod);
 
             if (appliedCoupon?.code) {
                 payload.voucher_code = appliedCoupon.code;
@@ -483,10 +442,6 @@ function CheckoutPage() {
 
             const createdOrder = await orderService.createOrder(payload);
             setOrderData(createdOrder);
-            // Đảm bảo checkout update UI đúng + dữ liệu đã lưu BE.
-            // Nếu BE trả dữ liệu normalizeOrder thì createdOrder.id sẽ tồn tại.
-            // Sau khi tạo đơn thành công, luôn sync cart để người dùng không bị kẹt ở history cũ.
-
 
             if (createdOrder.paymentMethod === ORDER_PAYMENT_METHODS.COD) {
                 await refreshCartAfterOrder();
@@ -504,10 +459,15 @@ function CheckoutPage() {
                 throw new Error("Phuong thuc thanh toan khong hop le cho luong VNPay.");
             }
 
-            const paymentUrl = createdOrder.paymentUrl || (await paymentService.createVNPay({
-                orderId: createdOrder.id,
-                orderCode: createdOrder.orderCode,
-            })).paymentUrl;
+            // BE trả payment_url ngay trong response của POST /orders khi payment_method=vnpay
+            // (orderService.createOrder đã merge field này vào createdOrder.paymentUrl).
+            // Fallback: gọi /payment/vnpay/create với order_id nếu BE chưa kèm URL.
+            let paymentUrl = createdOrder.paymentUrl;
+
+            if (!paymentUrl && createdOrder.id) {
+                const vnpayRes = await paymentService.createVNPay(createdOrder.id);
+                paymentUrl = vnpayRes?.data?.data?.payment_url ?? vnpayRes?.data?.payment_url ?? "";
+            }
 
             if (!paymentUrl) {
                 throw new Error("Khong tao duoc lien ket thanh toan VNPay.");
@@ -516,24 +476,9 @@ function CheckoutPage() {
             await refreshCartAfterOrder();
             window.location.href = paymentUrl;
         } catch (error) {
-            // If backend returns 422 (business validation) — fallback to local order flow
-            const status = error?.response?.status;
-
-            if (status === 422) {
-                // Nếu BE trả 422 thì khả năng cao không tạo được order thật.
-                // Không nên tạo local fake order vì sẽ không nằm trong DB => lịch sử đơn hàng trống.
-                // Tạm thời remove local fallback để đảm bảo order thật.
-                if (paymentMethod === ORDER_PAYMENT_METHODS.COD || paymentMethod === ORDER_PAYMENT_METHODS.BANK_TRANSFER) {
-                    throw error;
-                }
-
-            }
-
             setOrderError(
                 error?.message || error?.response?.data?.message || "Khong tao duoc don hang. Vui long thu lai."
             );
-        } finally {
-            setIsCreatingOrder(false);
         }
     };
 
@@ -586,7 +531,7 @@ function CheckoutPage() {
 
     return (
         <section className="checkout-page">
-            <form className="checkout-layout" onSubmit={handleSubmit}>
+            <form className="checkout-layout" onSubmit={handleSubmit(handlePlaceOrder)} noValidate>
                 <div className="checkout-main">
                     {checkoutStep === "form" ? (
                         <div className="checkout-columns">
@@ -614,41 +559,39 @@ function CheckoutPage() {
                                 ) : null}
 
                                 <div className="field-list">
-                                    <select name="country" value={formData.country} onChange={handleInputChange}>
+                                    <select {...register("country")} disabled={isSubmitting}>
                                         <option value="Vietnam">Việt Nam</option>
                                     </select>
+                                    {errors.country ? <p className="field-message error">{errors.country.message}</p> : null}
 
                                     <input
-                                        name="fullName"
                                         placeholder="Họ và tên"
-                                        value={formData.fullName}
-                                        onChange={handleInputChange}
-                                        required
+                                        aria-invalid={!!errors.fullName}
+                                        {...register("fullName")}
                                     />
+                                    {errors.fullName ? <p className="field-message error">{errors.fullName.message}</p> : null}
 
                                     <input
-                                        name="phone"
                                         placeholder="Số điện thoại"
-                                        value={formData.phone}
-                                        onChange={handleInputChange}
-                                        required
+                                        aria-invalid={!!errors.phone}
+                                        {...register("phone")}
                                     />
+                                    {errors.phone ? <p className="field-message error">{errors.phone.message}</p> : null}
 
                                     <input
-                                        name="addressDetail"
                                         placeholder="Số nhà, tên đường, tòa nhà ..."
-                                        value={formData.addressDetail}
-                                        onChange={handleInputChange}
-                                        required
+                                        aria-invalid={!!errors.addressDetail}
+                                        {...register("addressDetail")}
                                     />
+                                    {errors.addressDetail ? <p className="field-message error">{errors.addressDetail.message}</p> : null}
 
                                     <textarea
-                                        name="note"
                                         rows="4"
                                         placeholder="Ghi chú đơn hàng"
-                                        value={formData.note}
-                                        onChange={handleInputChange}
+                                        aria-invalid={!!errors.note}
+                                        {...register("note")}
                                     />
+                                    {errors.note ? <p className="field-message error">{errors.note.message}</p> : null}
                                 </div>
                             </div>
 
@@ -664,8 +607,8 @@ function CheckoutPage() {
                                             name="cityCode"
                                             value={formData.cityCode}
                                             onChange={handleProvinceChange}
-                                            required
-                                            disabled={isLoadingProvinces}
+                                            disabled={isLoadingProvinces || isSubmitting}
+                                            aria-invalid={!!errors.cityCode}
                                         >
                                             <option value="">
                                                 {isLoadingProvinces ? "Dang tai..." : "Chọn Tỉnh/Thành phố"}
@@ -676,13 +619,14 @@ function CheckoutPage() {
                                                 </option>
                                             ))}
                                         </select>
+                                        {errors.cityCode ? <p className="field-message error">{errors.cityCode.message}</p> : null}
 
                                         <select
                                             name="districtCode"
                                             value={formData.districtCode}
                                             onChange={handleDistrictChange}
-                                            required
-                                            disabled={!formData.cityCode || isLoadingDistricts}
+                                            disabled={!formData.cityCode || isLoadingDistricts || isSubmitting}
+                                            aria-invalid={!!errors.districtCode}
                                         >
                                             <option value="">
                                                 {!formData.cityCode
@@ -697,6 +641,7 @@ function CheckoutPage() {
                                                 </option>
                                             ))}
                                         </select>
+                                        {errors.districtCode ? <p className="field-message error">{errors.districtCode.message}</p> : null}
                                     </div>
 
                                     <div className="grid-two">
@@ -704,8 +649,8 @@ function CheckoutPage() {
                                             name="wardCode"
                                             value={formData.wardCode}
                                             onChange={handleWardChange}
-                                            required
                                             disabled={!formData.districtCode || isLoadingWards}
+                                            aria-invalid={!!errors.wardCode}
                                         >
                                             <option value="">
                                                 {!formData.districtCode
@@ -720,6 +665,7 @@ function CheckoutPage() {
                                                 </option>
                                             ))}
                                         </select>
+                                        {errors.wardCode ? <p className="field-message error">{errors.wardCode.message}</p> : null}
                                     </div>
 
                                     {regionError ? <p className="field-message error">{regionError}</p> : null}
@@ -735,7 +681,7 @@ function CheckoutPage() {
                                             name="paymentMethod"
                                             value={ORDER_PAYMENT_METHODS.COD}
                                             checked={paymentMethod === ORDER_PAYMENT_METHODS.COD}
-                                            onChange={(event) => setPaymentMethod(event.target.value)}
+                                            onChange={(event) => setValue("paymentMethod", event.target.value, { shouldValidate: true })}
                                         />
                                         <span className="payment-icon payment-icon-cod" aria-hidden="true">
                                             <FaMoneyBillWave />
@@ -751,7 +697,7 @@ function CheckoutPage() {
                                             name="paymentMethod"
                                             value={ORDER_PAYMENT_METHODS.BANK_TRANSFER}
                                             checked={paymentMethod === ORDER_PAYMENT_METHODS.BANK_TRANSFER}
-                                            onChange={(event) => setPaymentMethod(event.target.value)}
+                                            onChange={(event) => setValue("paymentMethod", event.target.value, { shouldValidate: true })}
                                         />
                                         <span className="payment-icon payment-icon-bank" aria-hidden="true">
                                             <FaUniversity />
@@ -767,7 +713,7 @@ function CheckoutPage() {
                                             name="paymentMethod"
                                             value={ORDER_PAYMENT_METHODS.VNPAY}
                                             checked={paymentMethod === ORDER_PAYMENT_METHODS.VNPAY}
-                                            onChange={(event) => setPaymentMethod(event.target.value)}
+                                            onChange={(event) => setValue("paymentMethod", event.target.value, { shouldValidate: true })}
                                         />
                                         <span className="payment-icon payment-icon-vnpay" aria-hidden="true">
                                             <FaCreditCard />
@@ -938,13 +884,14 @@ function CheckoutPage() {
                             <input
                                 type="text"
                                 placeholder="Nhập mã giảm giá"
-                                value={couponCode}
-                                onChange={(event) => setCouponCode(event.target.value)}
+                                value={couponCode || ""}
+                                onChange={(event) => setValue("voucher_code", event.target.value, { shouldValidate: true })}
                             />
                             <button type="button" onClick={handleApplyCoupon} disabled={isApplyingCoupon}>
                                 {isApplyingCoupon ? "Đang kiểm tra..." : "Áp dụng"}
                             </button>
                         </div>
+                        {errors.voucher_code ? <p className="field-message error">{errors.voucher_code.message}</p> : null}
 
                         {appliedCoupon ? (
                             <p className="coupon-note">Đã áp dụng mã {appliedCoupon.code}.</p>
@@ -981,8 +928,8 @@ function CheckoutPage() {
                         </div>
 
                         {checkoutStep === "form" ? (
-                            <button type="submit" className="place-order-btn" disabled={isCreatingOrder}>
-                                {isCreatingOrder ? "Đang tạo đơn..." : "Đặt hàng"}
+                            <button type="submit" className="place-order-btn" disabled={isSubmitting}>
+                                {isSubmitting ? "Đang tạo đơn..." : "Đặt hàng"}
                             </button>
                         ) : null}
                     </div>

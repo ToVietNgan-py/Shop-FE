@@ -1,0 +1,153 @@
+@charset "UTF-8";
+html,
+body {
+  margin: 0;
+  font-family: "Quicksand", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 300;
+}
+
+* {
+  font-family: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+.container {
+  max-width: 1170px;
+  width: 100%;
+  padding-left: 15px;
+  padding-right: 15px;
+  margin: 0 auto;
+}
+
+/* src/style/pages/login.scss */
+nav {
+  border: none !important;
+  /* Xóa sạch đường viền */
+  outline: none !important;
+  /* Xóa sạch viền bóng */
+  box-shadow: none;
+  /* Nếu có đổ bóng khung thì xóa luôn */
+}
+
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+.auth-overlay .auth-modal {
+  background: white;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  position: relative;
+}
+.auth-overlay .auth-modal .btn-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #999;
+  cursor: pointer;
+  line-height: 1;
+  z-index: 10;
+}
+.auth-overlay .auth-modal .btn-close:hover {
+  color: #e91e63;
+}
+.auth-overlay .auth-modal .auth-header {
+  margin-bottom: 25px;
+}
+.auth-overlay .auth-modal .auth-header h2 {
+  font-size: 22px;
+  text-transform: uppercase;
+  color: #333;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.auth-overlay .auth-modal .auth-header p {
+  font-size: 14px;
+  color: #666;
+}
+.auth-overlay .auth-modal {
+  /* Form kế thừa cho cả Login và Register */
+}
+.auth-overlay .auth-modal .auth-form .form-group {
+  margin-bottom: 16px;
+}
+.auth-overlay .auth-modal .auth-form .form-group input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.3s;
+}
+.auth-overlay .auth-modal .auth-form .form-group input:focus {
+  border-color: #e91e63;
+}
+.auth-overlay .auth-modal .auth-form .captcha-text {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.5;
+  margin: 15px 0;
+}
+.auth-overlay .auth-modal .auth-form .captcha-text a {
+  color: #1a73e8;
+  text-decoration: none;
+}
+.auth-overlay .auth-modal .auth-form .btn-submit {
+  width: 100%;
+  padding: 14px;
+  background-color: #e91e63;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.3s;
+  margin-top: 10px;
+}
+.auth-overlay .auth-modal .auth-form .btn-submit:hover {
+  background-color: #d81b60;
+  transform: translateY(-1px);
+}
+.auth-overlay .auth-modal .auth-form .btn-submit:active {
+  transform: translateY(0);
+}
+.auth-overlay .auth-modal .auth-footer {
+  margin-top: 25px;
+  font-size: 14px;
+  color: #333;
+}
+.auth-overlay .auth-modal .auth-footer p {
+  margin: 8px 0;
+}
+.auth-overlay .auth-modal .auth-footer .link-pink {
+  color: #e91e63;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 5px;
+}
+.auth-overlay .auth-modal .auth-footer .link-pink:hover {
+  text-decoration: underline;
+}/*# sourceMappingURL=style.css.map */

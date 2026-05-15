@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import PageLoading from "../PageLoading/PageLoading.jsx";
 import WishlistButton from "../common/WishlistButton.jsx";
+
 function BestSeller() {
     const [startIndex, setStartIndex] = useState(0);
     const [products, setProducts] = useState([]);
@@ -21,7 +22,7 @@ function BestSeller() {
             const result = await productService.list({ sortBy: "featured", limit: 8, page: 1 });
 
             if (isMounted) {
-                setProducts(result.items);
+                setProducts(result.data);
                 setIsLoading(false);
             }
         }
@@ -49,14 +50,10 @@ function BestSeller() {
         }
     };
 
-    const visibleProducts = products.slice(
-        startIndex,
-        startIndex + ITEMS_PER_PAGE
-    );
+    const visibleProducts = products.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
     return (
         <div className="best-seller">
-
             <div className="header">
                 <h2>BEST SELLER</h2>
                 <Link to="/san-pham">
@@ -65,7 +62,6 @@ function BestSeller() {
             </div>
 
             <div className="slider">
-
                 <button className="arrow left" onClick={prev} disabled={startIndex === 0}>‹</button>
 
                 <div className="list">
@@ -74,16 +70,12 @@ function BestSeller() {
                             <WishlistButton product={item} />
                             <Link to={`/san-pham/${item.id}`}>
                                 <div className="card">
-
                                     <div className="image">
-                                        {item.image ? <img src={item.image} alt={item.name} /> : null}
+                                        {item.img ? <img src={item.img} alt={item.name} /> : null}
                                     </div>
 
                                     <p className="name">{item.name}</p>
-                                    <p className="price">
-                                        {formatVND(item.price)}
-                                    </p>
-
+                                    <p className="price">{formatVND(item.price)}</p>
                                 </div>
                             </Link>
                         </div>
@@ -91,9 +83,9 @@ function BestSeller() {
                 </div>
 
                 <button className="arrow right" onClick={next} disabled={startIndex + ITEMS_PER_PAGE >= products.length}>›</button>
-
             </div>
         </div>
     );
 }
+
 export default BestSeller;

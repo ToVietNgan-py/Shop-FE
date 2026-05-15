@@ -1,5 +1,8 @@
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal, Form, Input, Select } from 'antd';
 import adminUserService from '../../../services/admin/adminUserService.js';
+import { accountCreateSchema } from '../../../validations/adminSchema.js';
 
 const ROLE_CREATE_OPTIONS = [
     { value: 'employee', label: 'Nhân viên' },
@@ -7,28 +10,41 @@ const ROLE_CREATE_OPTIONS = [
     { value: 'customer', label: 'Khách hàng' },
 ];
 
-/**
- * AccountModal
- * POST /api/admin/users
- * onSuccess(name) — trả về tên để parent hiện notification
- */
-export default function AccountModal({ open, onClose, onSuccess }) {
-    const [form] = Form.useForm();
+const mapServerErrors = (serverErrors, setError) => {
+    Object.entries(serverErrors || {}).forEach(([name, messages]) => {
+        setError(name, {
+            type: 'server',
+            message: Array.isArray(messages) ? messages.join(' ') : String(messages),
+        });
+    });
+};
 
-    const handleSubmit = async () => {
-        const values = await form.validateFields();
+export default function AccountModal({ open, onClose, onSuccess }) {
+    const {
+        register,
+        control,
+        handleSubmit,
+        reset,
+        setError,
+        formState: { errors, isSubmitting },
+    } = useForm({
+        resolver: zodResolver(accountCreateSchema),
+        defaultValues: {
+            name: '',
+            email: '',
+            phone: '',
+            role: 'employee',
+            password: '',
+        },
+    });
+
+    const onSubmit = async (values) => {
         try {
             await adminUserService.create(values);
-            form.resetFields();
-            onSuccess(values.name);          // ← trả tên về parent
+            reset();
+            onSuccess(values.name);
         } catch (err) {
-            const serverErrors = err.response?.data?.errors;
-            if (serverErrors) {
-                form.setFields(
-                    Object.entries(serverErrors).map(([name, errors]) => ({ name, errors }))
-                );
-            }
-            // lỗi chung: parent không nhận, không cần throw
+            mapServerErrors(err.response?.data?.errors, setError);
         }
     };
 
@@ -37,28 +53,33 @@ export default function AccountModal({ open, onClose, onSuccess }) {
             title="Tạo tài khoản mới"
             open={open}
             onCancel={onClose}
-            onOk={handleSubmit}
+            onOk={handleSubmit(onSubmit)}
             okText="Tạo tài khoản"
             cancelText="Huỷ"
-            afterClose={() => form.resetFields()}
+            okButtonProps={{ loading: isSubmitting }}
+            afterClose={() => reset()}
         >
-            <Form form={form} layout="vertical" style={{ marginTop: 16 }} initialValues={{ role: 'employee' }}>
-                <Form.Item name="name" label="Họ tên" rules={[{ required: true, min: 2, message: 'Tên tối thiểu 2 ký tự' }]}>
-                    <Input placeholder="Nguyễn Văn A" />
+            <form style={{ marginTop: 16 }} onSubmit={handleSubmit(onSubmit)} noValidate>
+                <Form.Item label="Họ tên" validateStatus={errors.name ? 'error' : ''} help={errors.name?.message}>
+                    <Input placeholder="Nguyễn Văn A" {...register('name')} />
                 </Form.Item>
-                <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email', message: 'Email không hợp lệ' }]}>
-                    <Input placeholder="nhanvien@dearrose.vn" />
+                <Form.Item label="Email" validateStatus={errors.email ? 'error' : ''} help={errors.email?.message}>
+                    <Input placeholder="nhanvien@dearrose.vn" {...register('email')} />
                 </Form.Item>
-                <Form.Item name="phone" label="Số điện thoại" rules={[{ pattern: /^0[0-9]{9}$/, message: 'SĐT không hợp lệ' }]}>
-                    <Input placeholder="0912345678" />
+                <Form.Item label="Số điện thoại" validateStatus={errors.phone ? 'error' : ''} help={errors.phone?.message}>
+                    <Input placeholder="0912345678" {...register('phone')} />
                 </Form.Item>
-                <Form.Item name="role" label="Role" rules={[{ required: true }]}>
-                    <Select options={ROLE_CREATE_OPTIONS} />
+                <Form.Item label="Role" validateStatus={errors.role ? 'error' : ''} help={errors.role?.message}>
+                    <Controller
+                        name="role"
+                        control={control}
+                        render={({ field }) => <Select {...field} options={ROLE_CREATE_OPTIONS} />}
+                    />
                 </Form.Item>
-                <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, min: 8, message: 'Mật khẩu tối thiểu 8 ký tự' }]}>
-                    <Input.Password placeholder="Tối thiểu 8 ký tự" />
+                <Form.Item label="Mật khẩu" validateStatus={errors.password ? 'error' : ''} help={errors.password?.message}>
+                    <Input.Password placeholder="Tối thiểu 8 ký tự, gồm chữ và số" {...register('password')} />
                 </Form.Item>
-            </Form>
+            </form>
         </Modal>
     );
 }

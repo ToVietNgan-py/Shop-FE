@@ -1,8 +1,8 @@
 import api from '../apis/default';
 
 const notificationService = {
-    // Lấy danh sách + unread_count
-    getAll: () => api.get('/notifications'),
+    // Lấy danh sách + unread_count (paginated)
+    getAll: ({ page = 1, limit = 20 } = {}) => api.get('/notifications', { params: { page, limit } }),
 
     // Đánh dấu 1 notification đã đọc
     markRead: (id) => api.patch(`/notifications/${id}/read`),
