@@ -7,13 +7,16 @@ import "./style/tokens.scss";
 import "./style/style.scss";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { CartProvider } from "./context/CartContext.jsx";
+import { WishlistProvider } from "./context/WishlistContext.jsx";
 
 createRoot(document.getElementById("root")).render(
     <StrictMode>
         <AuthProvider>
-            <CartProvider>
-                <App />
-            </CartProvider>
+            <WishlistProvider>
+                <CartProvider>
+                    <App />
+                </CartProvider>
+            </WishlistProvider>
         </AuthProvider>
     </StrictMode>
 );

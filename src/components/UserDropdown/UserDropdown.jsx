@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { AiOutlineCaretDown, AiOutlineLogout, AiOutlineShopping, AiOutlineUser } from "react-icons/ai";
+import { AiOutlineCaretDown, AiOutlineHeart, AiOutlineLogout, AiOutlineShopping, AiOutlineUser } from "react-icons/ai";
 import { Link, useNavigate } from "react-router-dom";
 import "./style.scss";
 
@@ -151,6 +151,18 @@ function UserDropdown({ user, onLogout }) {
                     >
                         <AiOutlineShopping />
                         <span>Đơn hàng</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        className="user-dropdown__item"
+                        onClick={() => {
+                            closeMenu();
+                            navigate("/yeu-thich");
+                        }}
+                    >
+                        <AiOutlineHeart />
+                        <span>Yêu thích</span>
                     </button>
 
                     <button

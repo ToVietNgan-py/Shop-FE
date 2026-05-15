@@ -13,6 +13,7 @@ import PaymentResult from "../pages/users/PaymentResult/index.jsx";
 import MyOrders from "../pages/users/MyOrders/index.jsx";
 import OrderDetail from "../pages/users/OrderDetail/index.jsx";
 import ProfilePage from "../pages/users/Profile/index.jsx";
+import WishlistPage from "../pages/users/Wishlist/index.jsx";
 import LoginPage from "../pages/users/auth/LoginPage.jsx";
 import RequireRole from "../pages/admin/_guard/RequireRole.jsx";
 import AdminLayout from "../pages/admin/_layout/AdminLayout.jsx";
@@ -39,6 +40,7 @@ import RequireAuth from "../components/RequireAuth/RequireAuth.jsx"; function Ap
                 <Route path="/thanh-toan" element={<RequireAuth> <CheckoutPage /> </RequireAuth>} />
                 <Route path="/thanh-toan/ket-qua" element={<PaymentResult />} />
                 <Route path="/tai-khoan" element={<ProfilePage />} />
+                <Route path="/yeu-thich" element={<RequireAuth><WishlistPage /></RequireAuth>} />
                 <Route path="/don-hang" element={<MyOrders />} />
                 <Route path="/don-hang/:id" element={<OrderDetail />} />
                 <Route path="/login" element={<LoginPage />} />

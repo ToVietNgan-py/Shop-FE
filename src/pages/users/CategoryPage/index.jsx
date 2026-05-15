@@ -5,6 +5,7 @@ import { productService } from "../../../services/productService.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
 import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
 import { formatVND } from "../../../utils/format.js";
+import WishlistButton from "../../../components/common/WishlistButton.jsx";
 
 import "./style.scss";
 
@@ -76,13 +77,16 @@ function CategoryPage() {
 
             <div className="category-page__grid">
                 {products.map((item) => (
-                    <Link to={`/san-pham/${item.id}`} key={item.id} className="category-product-card">
-                        <img src={item.image} alt={item.name} />
-                        <div>
-                            <strong>{item.name}</strong>
-                            <p>{formatVND(item.price)}</p>
-                        </div>
-                    </Link>
+                    <div key={item.id} style={{ position: "relative" }}>
+                        <WishlistButton product={item} />
+                        <Link to={`/san-pham/${item.id}`} className="category-product-card">
+                            <img src={item.image} alt={item.name} />
+                            <div>
+                                <strong>{item.name}</strong>
+                                <p>{formatVND(item.price)}</p>
+                            </div>
+                        </Link>
+                    </div>
                 ))}
             </div>
         </div>
