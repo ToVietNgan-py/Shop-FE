@@ -26,3 +26,21 @@ body {
     background: var(--color-brand-weak);
     color: var(--color-brand-strong);
 }
+
+/* dark theme overrides */
+.theme-dark {
+    --color-background: #0b1020;
+    --color-surface: #0f1724;
+    --color-surface-muted: #0b1220;
+    --color-text: #e6eef8;
+    --color-text-muted: #9aa6b2;
+    --color-border: #1f2a3a;
+    --color-brand: #ec4899;
+    --color-brand-weak: #3b0764;
+    --color-brand-strong: #ec4899;
+    --shadow-card: 0 12px 28px rgba(2, 6, 23, 0.6);
+}
+
+.theme-light {
+    /* no-op, relies on :root */
+}

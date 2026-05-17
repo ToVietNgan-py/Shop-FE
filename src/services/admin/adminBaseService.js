@@ -40,16 +40,49 @@ const createCrudService = (resourcePath) => ({
     },
 
     async create(payload) {
-        const response = await api.post(resourcePath, payload);
+        // require auth token for write operations
+        const token = localStorage.getItem("access_token");
+        if (!token) {
+            const err = new Error("Unauthorized: please login");
+            err.status = 401;
+            throw err;
+        }
+
+        const opts = {};
+        // If payload is FormData, let axios set multipart headers properly
+        if (typeof FormData !== "undefined" && payload instanceof FormData) {
+            opts.headers = { "Content-Type": "multipart/form-data" };
+        }
+
+        const response = await api.post(resourcePath, payload, opts);
         return readResponseData(response);
     },
 
     async update(id, payload) {
-        const response = await api.put(`${resourcePath}/${id}`, payload);
+        const token = localStorage.getItem("access_token");
+        if (!token) {
+            const err = new Error("Unauthorized: please login");
+            err.status = 401;
+            throw err;
+        }
+
+        const opts = {};
+        if (typeof FormData !== "undefined" && payload instanceof FormData) {
+            opts.headers = { "Content-Type": "multipart/form-data" };
+        }
+
+        const response = await api.put(`${resourcePath}/${id}`, payload, opts);
         return readResponseData(response);
     },
 
     async remove(id) {
+        const token = localStorage.getItem("access_token");
+        if (!token) {
+            const err = new Error("Unauthorized: please login");
+            err.status = 401;
+            throw err;
+        }
+
         const response = await api.delete(`${resourcePath}/${id}`);
         return readResponseData(response);
     }
