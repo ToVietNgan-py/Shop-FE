@@ -1,7 +1,7 @@
 import { memo, useState, useContext } from "react";
 import "./style.scss";
 import { Link, useNavigate } from "react-router-dom";
-import { AiOutlineSearch, AiOutlineUser, AiOutlineShoppingCart, AiOutlineMenu, AiOutlineRight } from "react-icons/ai";
+import { AiOutlineSearch, AiOutlineUser, AiOutlineShoppingCart, AiOutlineMenu, AiOutlineRight, AiOutlineMoon, AiOutlineSun } from "react-icons/ai";
 import { FiBriefcase, FiShoppingBag, FiTag } from "react-icons/fi";
 import AuthModal from "../../../../components/AuthModal/AuthModal.jsx";
 import Cart from "../../../../components/Cart";
@@ -9,6 +9,8 @@ import { AuthContext } from "../../../../context/AuthContext";
 import { CartContext } from "../../../../context/CartContext";
 import UserDropdown from "../../../../components/UserDropdown/UserDropdown.jsx";
 import NotificationBell from '../../../../components/notifications/NotificationBell';
+import { ThemeContext } from "../../../../context/ThemeContext";
+import { LocaleContext } from "../../../../context/LocaleContext";
 const categoryItems = [
     { label: "QUẦN ÁO", slug: "quan-ao", icon: FiShoppingBag },
     { label: "GIÀY DÉP", slug: "giay-dep", icon: FiTag },
@@ -23,6 +25,8 @@ const Header = () => {
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
     const [keyword, setKeyword] = useState("");
     const navigate = useNavigate();
+    const { theme, toggleTheme } = useContext(ThemeContext);
+    const { locale, setLocale, t } = useContext(LocaleContext);
 
     const handleSearch = (event) => {
         event.preventDefault();
@@ -63,7 +67,7 @@ const Header = () => {
                     <form className="search-box" onSubmit={handleSearch}>
                         <input
                             type="text"
-                            placeholder="Bạn cần tìm ..."
+                            placeholder={t("search.placeholder")}
                             value={keyword}
                             onChange={(event) => setKeyword(event.target.value)}
                         />
@@ -73,10 +77,31 @@ const Header = () => {
                     </form>
 
                     <div className="header-actions">
+                        <div className="theme-controls">
+                            <button
+                                type="button"
+                                className="theme-toggle"
+                                onClick={() => toggleTheme()}
+                                aria-label="Toggle theme"
+                                title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+                            >
+                                {theme === "dark" ? <AiOutlineSun /> : <AiOutlineMoon />}
+                            </button>
+
+                            <select
+                                className="locale-select"
+                                value={locale}
+                                onChange={(e) => setLocale(e.target.value)}
+                                aria-label="Select language"
+                            >
+                                <option value="vi">VI</option>
+                                <option value="en">EN</option>
+                            </select>
+                        </div>
                         {loading ? (
-                            <button type="button" className="user-auth-btn user-auth-btn--loading" disabled aria-label="Đang tải tài khoản">
+                            <button type="button" className="user-auth-btn user-auth-btn--loading" disabled aria-label={t("auth.loading")}>
                                 <span className="user-auth-skeleton" />
-                                <span className="auth-label">Đang tải...</span>
+                                <span className="auth-label">{t("auth.loading")}</span>
                             </button>
                         ) : user ? (
                             <>
@@ -89,10 +114,10 @@ const Header = () => {
                                 type="button"
                                 className="user-auth-btn"
                                 onClick={() => setIsAuthOpen(true)}
-                                aria-label="Đăng nhập"
+                                aria-label={t("auth.login")}
                             >
                                 <AiOutlineUser className="icon" />
-                                <span className="auth-label">Đăng nhập</span>
+                                <span className="auth-label">{t("auth.login")}</span>
                             </button>
                         )}
                         <div className="cart-icon" onClick={() => setIsCartOpen(true)}>

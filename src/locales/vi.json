@@ -1,0 +1,15 @@
+{
+    "search": {
+        "placeholder": "Bạn cần tìm ..."
+    },
+    "auth": {
+        "login": "Đăng nhập",
+        "loading": "Đang tải..."
+    },
+    "nav": {
+        "home": "TRANG CHỦ",
+        "blog": "BLOG",
+        "wishlist": "YÊU THÍCH",
+        "orders": "ĐƠN HÀNG"
+    }
+}

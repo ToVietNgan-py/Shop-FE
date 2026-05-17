@@ -53,7 +53,8 @@ function AdminDashboardPage() {
                 if (active && nextSummary) {
                     setSummary({
                         metrics: nextSummary.metrics ?? fallbackSummary.metrics,
-                        recentOrders: nextSummary.recentOrders ?? fallbackSummary.recentOrders
+                        recentOrders: nextSummary.recentOrders ?? fallbackSummary.recentOrders,
+                        revenueChart: nextSummary.revenueChart ?? []
                     });
                 }
             } finally {
@@ -111,7 +112,7 @@ function AdminDashboardPage() {
                 {/* Row 2: Chart + Recent Orders Table */}
                 <Row gutter={[16, 16]}>
                     <Col xs={24} lg={16}>
-                        <RevenueChart loading={loading} />
+                        <RevenueChart data={summary.revenueChart} loading={loading} />
                     </Col>
 
                     <Col xs={24} lg={8}>

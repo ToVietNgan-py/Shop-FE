@@ -3,6 +3,24 @@
 
 // }
 .header-container {
+
+    /* adapt to theme variables when available */
+    .theme-dark & {
+        .header-middle {
+            background: var(--color-surface);
+            color: var(--color-text);
+        }
+
+        .header-top {
+            background-color: transparent;
+            color: var(--color-text-muted);
+        }
+
+        .header-bottom {
+            background-color: var(--color-brand);
+        }
+    }
+
     width: 100%;
     position: relative;
     z-index: 1000;
@@ -162,6 +180,34 @@
             color: #333;
             align-items: center;
             flex-shrink: 0;
+
+            .theme-controls {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                .theme-toggle {
+                    background: transparent;
+                    border: 0;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 6px;
+                    border-radius: 8px;
+                    color: inherit;
+                    font-size: 18px;
+                }
+
+                .locale-select {
+                    border-radius: 8px;
+                    border: 1px solid #e5e7eb;
+                    padding: 6px 8px;
+                    background: white;
+                    font-size: 13px;
+                    color: #111827;
+                }
+            }
 
             .user-auth-btn {
                 border: 0;

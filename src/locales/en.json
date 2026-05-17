@@ -1,0 +1,15 @@
+{
+    "search": {
+        "placeholder": "Search products..."
+    },
+    "auth": {
+        "login": "Login",
+        "loading": "Loading..."
+    },
+    "nav": {
+        "home": "Home",
+        "blog": "Blog",
+        "wishlist": "Wishlist",
+        "orders": "Orders"
+    }
+}
