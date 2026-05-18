@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { AiOutlinePlus } from "react-icons/ai";
 import ProductTable from "./ProductTable.jsx";
 import ProductForm from "./ProductForm.jsx";
-import { adminProductService } from "../../../services/admin/adminProductService.js";
+import { adminProductService } from "../../../services/admin/adminProductService.js"; // đặt file adminProductService.js vào đây
 import { adminCategoryService } from "../../../services/admin/adminCategoryService.js";
 import "../_shared/admin-page.scss";
 
@@ -24,11 +24,7 @@ function AdminProductsPage() {
     const loadProducts = async (page = 1, pageSize = 10) => {
         setLoading(true);
         try {
-            const result = await adminProductService.list({
-                page,
-                per_page: pageSize
-            });
-
+            const result = await adminProductService.list({ page, per_page: pageSize });
             setProducts(result.items || []);
             setMeta(result.meta || { current_page: page, per_page: pageSize, total: 0 });
         } catch (error) {

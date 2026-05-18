@@ -37,10 +37,9 @@ function ProductTable({ data, meta, loading, onEdit, onDelete, onChange }) {
         },
         {
             title: "Danh mục",
-            dataIndex: ["category_name", "category", "categoryName"],
             key: "category",
             width: 120,
-            render: (text) => text || "—"
+            render: (_, row) => row.category?.name ?? row.category_name ?? "—"
         },
         {
             title: "Giá",

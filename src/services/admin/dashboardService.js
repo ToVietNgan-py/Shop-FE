@@ -26,8 +26,8 @@ export const dashboardService = {
             id: o.id ?? o.code,
             code: o.id ? `#${o.id}` : o.code ?? "",
             customer: o.user?.name ?? o.customer_name ?? o.customer ?? "—",
-            total: o.total ?? o.amount ?? 0,
-            status: o.status ? (typeof o.status === 'string' ? (o.status.charAt(0).toUpperCase() + o.status.slice(1)) : o.status) : "",
+            total: parseFloat(o.total) ?? parseFloat(o.amount) ?? 0,
+            status: o.status ? (typeof o.status === 'string' ? (o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()) : o.status) : "",
             payment_status: o.payment_status ?? o.paymentStatus ?? "",
             payment_method: o.payment_method ?? o.paymentMethod ?? "",
             created_at: o.created_at ?? o.createdAt ?? ""

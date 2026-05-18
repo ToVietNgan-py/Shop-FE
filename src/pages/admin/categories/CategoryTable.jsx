@@ -1,52 +1,26 @@
-import { Button, Space, Tag } from "antd";
+import { Button, Space } from "antd";
 import { AiOutlineDelete, AiOutlineEdit } from "react-icons/ai";
 import DataTable from "../../../components/admin/DataTable.jsx";
+import dayjs from "dayjs";
 
-/**
- * CategoryTable — Bảng hiển thị danh sách danh mục
- * 
- * Props:
- *   data       — array categories
- *   meta       — { current_page, per_page, total }
- *   loading    — boolean
- *   onEdit     — (category) => void
- *   onDelete   — (categoryId) => void
- *   onChange   — (page, pageSize) => void
- */
 function CategoryTable({ data, meta, loading, onEdit, onDelete, onChange }) {
     const columns = [
         {
             title: "Tên danh mục",
             dataIndex: "name",
             key: "name",
-            flex: 1
         },
         {
-            title: "Slug",
-            dataIndex: "slug",
-            key: "slug",
-            width: 150,
-            ellipsis: true
-        },
-        {
-            title: "Mô tả",
-            dataIndex: "description",
-            key: "description",
-            flex: 1,
-            ellipsis: true,
-            render: (text) => text || "—"
-        },
-        {
-            title: "Trạng thái",
-            dataIndex: "is_active",
-            key: "is_active",
-            width: 80,
-            render: (value) => <Tag color={value ? "green" : "red"}>{value ? "Hoạt động" : "Tắt"}</Tag>
+            title: "Ngày tạo",
+            dataIndex: "created_at",
+            key: "created_at",
+            width: 160,
+            render: (d) => d ? dayjs(d).format("DD/MM/YYYY HH:mm") : "—",
         },
         {
             title: "Hành động",
             key: "action",
-            width: 100,
+            width: 120,
             render: (_, category) => (
                 <Space size="small">
                     <Button
@@ -66,8 +40,8 @@ function CategoryTable({ data, meta, loading, onEdit, onDelete, onChange }) {
                         Xóa
                     </Button>
                 </Space>
-            )
-        }
+            ),
+        },
     ];
 
     return (
@@ -78,7 +52,6 @@ function CategoryTable({ data, meta, loading, onEdit, onDelete, onChange }) {
             loading={loading}
             onChange={onChange}
             rowKey="id"
-            scroll={{ x: 900 }}
         />
     );
 }
