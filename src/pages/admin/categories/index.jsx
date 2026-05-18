@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { AiOutlinePlus } from "react-icons/ai";
 import CategoryTable from "./CategoryTable.jsx";
 import CategoryForm from "./CategoryForm.jsx";
-import { adminCategoryService } from "../../../services/admin/adminCategoryService.js";
+import adminCategoryService from "../../../services/admin/adminCategoryService.js";
+import admninProductService from "../../../services/admin/adminProductService.js";
 import "../_shared/admin-page.scss";
 
 function AdminCategoriesPage() {
