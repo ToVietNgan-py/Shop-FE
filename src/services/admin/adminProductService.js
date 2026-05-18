@@ -2,8 +2,7 @@ import api from "../../apis/default.js";
 import { createCrudService, readResponseData } from "./adminBaseService.js";
 
 const productService = createCrudService("/admin/products");
-
-export const adminProductService = {
+const adminProductService = {
     ...productService,
 
     // Override list để map pagination đúng từ Laravel
@@ -46,3 +45,4 @@ export const adminProductService = {
         return readResponseData(response);
     },
 };
+export default adminProductService;

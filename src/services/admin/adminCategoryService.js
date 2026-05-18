@@ -3,7 +3,7 @@ import api from "../../apis/default.js";
 
 const crudService = createCrudService("/admin/categories");
 
-export const adminCategoryService = {
+const adminCategoryService = {
     ...crudService,
 
     async list(params = {}) {
@@ -74,3 +74,4 @@ export const adminCategoryService = {
         return readResponseData(response);
     },
 };
+export default adminCategoryService;
