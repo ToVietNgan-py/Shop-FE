@@ -1,18 +1,15 @@
-import { Button, Modal, message } from "antd";
+import { App, Button } from "antd";
 import { useEffect, useState } from "react";
 import { AiOutlinePlus } from "react-icons/ai";
 import ProductTable from "./ProductTable.jsx";
 import ProductForm from "./ProductForm.jsx";
-import { adminProductService } from "../../../services/admin/adminProductService.js"; // đặt file adminProductService.js vào đây
+import { adminProductService } from "../../../services/admin/adminProductService.js";
 import { adminCategoryService } from "../../../services/admin/adminCategoryService.js";
 import "../_shared/admin-page.scss";
 
-/**
- * Admin Products Page — Quản lý sản phẩm
- * - Hiển thị danh sách sản phẩm
- * - Thêm/Sửa/Xóa sản phẩm
- */
 function AdminProductsPage() {
+    const { modal, message } = App.useApp();
+
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [meta, setMeta] = useState({ current_page: 1, per_page: 10, total: 0 });
@@ -20,7 +17,6 @@ function AdminProductsPage() {
     const [formVisible, setFormVisible] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
 
-    // Load danh sách sản phẩm
     const loadProducts = async (page = 1, pageSize = 10) => {
         setLoading(true);
         try {
@@ -35,7 +31,6 @@ function AdminProductsPage() {
         }
     };
 
-    // Load danh mục
     const loadCategories = async () => {
         try {
             const result = await adminCategoryService.list();
@@ -45,40 +40,33 @@ function AdminProductsPage() {
         }
     };
 
-    // Load dữ liệu khi component mount
     useEffect(() => {
         loadProducts();
         loadCategories();
     }, []);
 
-    // Xử lý thêm/sửa sản phẩm
     const handleSaveProduct = async (formData) => {
         try {
             if (selectedProduct) {
-                // Sửa sản phẩm
                 await adminProductService.update(selectedProduct.id, formData);
             } else {
-                // Tạo sản phẩm mới
                 await adminProductService.create(formData);
             }
-
+            message.success(selectedProduct ? "Cập nhật sản phẩm thành công" : "Tạo sản phẩm thành công");
+            handleCloseForm();
             loadProducts(meta.current_page);
-            setFormVisible(false);
-            setSelectedProduct(null);
         } catch (error) {
             throw new Error(error.response?.data?.message || "Có lỗi khi lưu sản phẩm");
         }
     };
 
-    // Xử lý mở form sửa
     const handleEditProduct = (product) => {
         setSelectedProduct(product);
         setFormVisible(true);
     };
 
-    // Xử lý xóa sản phẩm
     const handleDeleteProduct = (productId) => {
-        Modal.confirm({
+        modal.confirm({
             title: "Xóa sản phẩm?",
             content: "Hành động này không thể hoàn tác. Bạn có chắc chắn?",
             okText: "Xóa",
@@ -92,23 +80,20 @@ function AdminProductsPage() {
                 } catch (error) {
                     message.error(error.response?.data?.message || "Không thể xóa sản phẩm");
                 }
-            }
+            },
         });
     };
 
-    // Xử lý mở form tạo mới
     const handleAddProduct = () => {
         setSelectedProduct(null);
         setFormVisible(true);
     };
 
-    // Xử lý đóng form
     const handleCloseForm = () => {
         setFormVisible(false);
         setSelectedProduct(null);
     };
 
-    // Xử lý thay đổi trang/pageSize
     const handleTableChange = (page, pageSize) => {
         loadProducts(page, pageSize);
     };
