@@ -1,7 +1,7 @@
 // src/__tests__/AuthContext.test.jsx
 import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { AuthProvider, useAuth } from '@/context/AuthContext'
+import { AuthProvider, AuthContext } from '@/context/AuthContext'
 import * as authService from '@/services/authService'
 // Mock service
 vi.mock('@/services/authService')
