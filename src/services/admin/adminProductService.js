@@ -5,19 +5,27 @@ const productService = createCrudService("/admin/products");
 const adminProductService = {
     ...productService,
 
-    // Override list để map pagination đúng từ Laravel
     async list(params = {}) {
         const response = await api.get("/admin/products", { params });
-        const payload = readResponseData(response);
-
-        // Laravel paginate trả: { current_page, data: [...], total, per_page, last_page }
+        const payload = response?.data ?? {};
+        const normalizeImg = (url) => {
+            if (!url) return null;
+            return url.replace("http://127.0.0.1:8000", "").replace("http://localhost:8000", "");
+        };
+        // BE trả { data: [...], meta: { current_page, per_page, total, last_page } }
         return {
-            items: Array.isArray(payload.data) ? payload.data : [],
+            items: Array.isArray(payload.data)
+                ? payload.data.map((p) => ({
+                    ...p,
+                    thumbnail: normalizeImg(p.thumbnail),
+                    img: normalizeImg(p.img),
+                }))
+                : [],
             meta: {
-                current_page: payload.current_page ?? 1,
-                per_page: payload.per_page ?? 10,
-                total: payload.total ?? 0,
-                last_page: payload.last_page ?? 1,
+                current_page: payload.meta?.current_page ?? 1,
+                per_page: payload.meta?.per_page ?? 10,
+                total: payload.meta?.total ?? 0,
+                last_page: payload.meta?.last_page ?? 1,
             },
         };
     },

@@ -2,7 +2,7 @@ import { useContext, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
-import { register } from "../../services/authServices.js";
+import { register } from "../../services/authService.js";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import { registerSchema } from "../../validations/authSchema.js";
 import "./style.scss";

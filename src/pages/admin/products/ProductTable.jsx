@@ -17,7 +17,7 @@ function ProductTable({ data, meta, loading, onEdit, onDelete, onChange }) {
     const columns = [
         {
             title: "Ảnh",
-            dataIndex: "img",
+            dataIndex: "thumbnail",
             key: "img",
             width: 60,
             render: (img) => (

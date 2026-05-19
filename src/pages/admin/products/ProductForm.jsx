@@ -30,8 +30,8 @@ function ProductForm({ visible = false, product = null, categories = [], onSave,
                 category_id: product.category_id ?? undefined,
             });
             setImages(
-                product.img
-                    ? [{ uid: "existing", name: "image", status: "done", url: product.img }]
+                product.thumbnail
+                    ? [{ uid: "existing", name: "image", status: "done", url: product.thumbnail }]
                     : []
             );
         } else if (visible) {
