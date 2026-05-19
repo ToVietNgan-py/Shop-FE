@@ -53,32 +53,6 @@ const getQrImageSrc = (qrCode) => {
     return `https://quickchart.io/qr?size=220&text=${encodeURIComponent(qrCode)}`;
 };
 
-//             price: 200000,
-//             quantity: 1,
-//             color: "Trắng",
-//             size: "M",
-//         },
-//         {
-//             id: 2,
-//             name: "Quần Jean Skinny",
-//             image: "https://via.placeholder.com/80",
-//             price: 250000,
-//             quantity: 1,
-//             color: "Xanh đen",
-//             size: "30",
-//         },
-//     ],
-//     shippingAddress: {
-//         fullName: "Ngân Việt",
-//         phone: "0123456789",
-//         address: "123 Đường Nguyễn Trãi, Quận 1",
-//         ward: "Phường Bến Nghé",
-//         district: "Quận 1",
-//         city: "TP. Hồ Chí Minh",
-//     },
-//     paymentMethod: "Tiền mặt",
-//     note: "",
-// };
 
 // Format datetime
 const formatDateTime = (dateString) => {
@@ -214,13 +188,7 @@ const OrderDetail = () => {
                 <ProfileSidebar user={sidebarUser} activeMenu="orders" onMenuChange={handleMenuChange} />
 
                 <div className="detail-content">
-                    {/* Header */}
-                    <div className="page-header">
-                        <button className="back-link" onClick={handleBack}>
-                            ← Quay lại danh sách đơn hàng
-                        </button>
-                        <h1>Chi tiết đơn hàng</h1>
-                    </div>
+
 
                     {/* Order Info Card */}
                     <div className="order-info-card">

@@ -73,7 +73,7 @@ import AppRoutes from "./routes/default.jsx";
 import Header from "./pages/users/theme/header/index.jsx";
 import Footer from "./pages/users/theme/footer/index.jsx";
 import CheckoutHeader from "./pages/users/Checkout/CheckoutHeader.jsx";
-
+import AccountHeader from "./pages/users/Checkout/AccountHeader.jsx";
 // Ant Design theme config — brand color: Dear Rose (rose/pink)
 const antdTheme = {
   token: {
@@ -103,8 +103,8 @@ function AppShell() {
 
   const isAdminPage = location.pathname.startsWith("/admin");
 
-  const isCheckoutPage =
-    location.pathname.startsWith("/thanh-toan") ||
+  const isCheckoutPage = location.pathname.startsWith("/thanh-toan");
+  const isAccountPage =
     location.pathname.startsWith("/tai-khoan") ||
     location.pathname.startsWith("/don-hang");
 
@@ -118,7 +118,7 @@ function AppShell() {
 
   return (
     <div className="app-shell">
-      {isCheckoutPage ? <CheckoutHeader /> : <Header />}
+      {isCheckoutPage ? <CheckoutHeader /> : isAccountPage ? <AccountHeader /> : <Header />}
 
       <main className="app-content">
         <AppRoutes />

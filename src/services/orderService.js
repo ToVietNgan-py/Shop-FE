@@ -3,6 +3,7 @@ import api from "../apis/default.js";
 export const ORDER_PAYMENT_METHODS = {
     COD: "cod",
     BANK_TRANSFER: "bank_transfer",
+    BANK: "bank",
     VNPAY: "vnpay",
 };
 
@@ -22,11 +23,11 @@ const normalizePaymentMethod = (value) => {
         || normalized === "transfer"
         || normalized === "qr"
     ) {
-        return ORDER_PAYMENT_METHODS.BANK_TRANSFER;
+        return "bank";
     }
 
     if (normalized === ORDER_PAYMENT_METHODS.VNPAY || normalized === "vn_pay") {
-        return ORDER_PAYMENT_METHODS.VNPAY;
+        return "vnpay";
     }
 
     return normalized ? normalized : ORDER_PAYMENT_METHODS.COD;

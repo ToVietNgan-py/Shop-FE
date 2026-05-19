@@ -4,45 +4,59 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    border-bottom: 1px solid #eee;
+    border-bottom: 2px solid #e8c4c4;
 }
 
 .checkout-header__inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 16px 28px;
+    position: relative;
 }
 
 .checkout-header__back {
     display: inline-flex;
-    gap: 8px;
     align-items: center;
-    color: #1f1812;
+    gap: 6px;
+    color: #b07070;
     text-decoration: none;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1;
+
+    &:hover {
+        color: #993556;
+    }
 }
 
 .checkout-header__brand {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     display: inline-flex;
-    justify-content: center;
-}
+    align-items: center;
 
-.checkout-header__brand img {
-    height: 28px;
-    width: auto;
+    img {
+        height: 44px;
+        width: auto;
+    }
 }
 
 .checkout-header__meta {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #b07070;
+    z-index: 1;
 }
 
-.checkout-header__pill {
-    background: #f3f3f3;
-    color: #1f1812;
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-size: 12px;
-    font-weight: 700;
+.checkout-header__badge {
+    font-size: 11px;
+    font-weight: 500;
+    background: #fbeaf0;
+    color: #993556;
+    padding: 3px 10px;
+    border-radius: 99px;
 }
