@@ -1,17 +1,17 @@
-// src/__tests__/AuthContext.test.jsx
-import { render, screen, act } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthProvider, AuthContext } from '@/context/AuthContext'
 import * as authService from '@/services/authService'
-// Mock service
+import { useContext } from 'react'
+
 vi.mock('@/services/authService')
 
 function TestComponent() {
-    const { user, login, logout } = useAuth()
+    const { user, loginContext, logout } = useContext(AuthContext) // ← dùng useContext
     return (
         <div>
             <span data-testid="user">{user?.name ?? 'guest'}</span>
-            <button onClick={() => login({ email: 'a@a.com', password: '123456' })}>Login</button>
+            <button onClick={() => loginContext({ user: { name: 'Việt Ngân' }, access_token: 'abc' })}>Login</button>
             <button onClick={logout}>Logout</button>
         </div>
     )
@@ -24,7 +24,7 @@ describe('AuthContext', () => {
     })
 
     it('login thành công cập nhật user', async () => {
-        authService.login.mockResolvedValue({ user: { name: 'Việt Ngân' }, token: 'abc' })
+        authService.getProfile.mockResolvedValue({ user: null })
         const user = userEvent.setup()
         render(<AuthProvider><TestComponent /></AuthProvider>)
         await user.click(screen.getByText('Login'))
@@ -32,7 +32,6 @@ describe('AuthContext', () => {
     })
 
     it('logout xoá user', async () => {
-        // setup user đã login...
         const user = userEvent.setup()
         render(<AuthProvider><TestComponent /></AuthProvider>)
         await user.click(screen.getByText('Logout'))
