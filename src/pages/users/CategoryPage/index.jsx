@@ -31,7 +31,7 @@ function CategoryPage() {
                 }
 
                 const productResult = await productService.list({
-                    category: categoryData.slug || slug,
+                    category: categoryData.id ?? slug,
                     page: 1,
                     limit: 24
                 });
@@ -80,7 +80,7 @@ function CategoryPage() {
                     <div key={item.id} style={{ position: "relative" }}>
                         <WishlistButton product={item} />
                         <Link to={`/san-pham/${item.id}`} className="category-product-card">
-                            <img src={item.image} alt={item.name} />
+                            <img src={item.img} alt={item.name} />
                             <div>
                                 <strong>{item.name}</strong>
                                 <p>{formatVND(item.price)}</p>

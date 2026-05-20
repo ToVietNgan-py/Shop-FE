@@ -115,8 +115,18 @@ const ProductPage = () => {
                 });
 
                 if (isMounted) {
-                    setProducts(result.data);
-                    setTotalProducts(result.meta.total);
+                    let nextItems = [...result.data];
+
+                    if (showHotOnly) {
+                        nextItems = nextItems.filter((item) => item.isHot);
+                    }
+
+                    if (sortBy === "stock-desc") {
+                        nextItems.sort((left, right) => Number(right.inventory ?? 0) - Number(left.inventory ?? 0));
+                    }
+
+                    setProducts(nextItems);
+                    setTotalProducts(showHotOnly ? nextItems.length : result.meta.total);
                     setTotalPages(result.meta.last_page);
                 }
             } catch {
@@ -189,11 +199,11 @@ const ProductPage = () => {
                         <div className="filter-stack">
                             {categories.map((category) => (
                                 <button
-                                    key={category.slug}
+                                    key={category.id ?? category.slug}
                                     type="button"
-                                    className={`sidebar-option ${selectedCategory === category.slug ? "active" : ""}`}
+                                    className={`sidebar-option ${selectedCategory === (category.id ?? category.slug) ? "active" : ""}`}
                                     onClick={() => {
-                                        setSelectedCategory(category.slug);
+                                        setSelectedCategory(category.id ?? category.slug);
                                         updatePageQuery(1);
                                     }}
                                 >

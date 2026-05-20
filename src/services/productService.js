@@ -42,7 +42,7 @@ const normalizeProduct = (product) => {
     const categoryName = product.category?.name ?? product.categoryName ?? product.category ?? "";
     const categorySlug = product.category?.slug ?? product.categorySlug ?? (categoryName ? slugify(categoryName) : "");
 
-    const inventory = Number(product.stock ?? product.quantity ?? product.availableQuantity ?? 0);
+    const inventory = Number(product.inventory ?? product.stock ?? product.quantity ?? product.availableQuantity ?? 0);
 
     return {
         id: product.id ?? product._id ?? product.productId ?? null,
@@ -100,13 +100,28 @@ export const productService = {
         if (params.category && params.category !== "all") queryParams.category_id = params.category;
         if (params.priceMin) queryParams.price_min = params.priceMin;
         if (params.priceMax) queryParams.price_max = params.priceMax;
+        if (params.priceRange && params.priceRange !== "all") {
+            const rangeMap = {
+                "under-200": { price_max: 200000 },
+                "200-400": { price_min: 200000, price_max: 400000 },
+                "400-600": { price_min: 400000, price_max: 600000 },
+                "over-600": { price_min: 600000 },
+            };
+            Object.assign(queryParams, rangeMap[params.priceRange] ?? {});
+        }
         if (params.inStockOnly) queryParams.in_stock = 1;
         if (params.sortBy) {
             const sortMap = {
                 newest: "newest",
+                featured: "best_seller",
                 priceAsc: "price_asc",
                 priceDesc: "price_desc",
                 bestSeller: "best_seller",
+                "price-asc": "price_asc",
+                "price-desc": "price_desc",
+                "name-asc": "name_asc",
+                "name-desc": "name_desc",
+                "stock-desc": "newest",
             };
             queryParams.sort = sortMap[params.sortBy] ?? params.sortBy;
         }
