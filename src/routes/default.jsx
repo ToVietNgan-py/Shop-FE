@@ -23,6 +23,7 @@ import AdminCategoriesPage from "../pages/admin/categories/index.jsx";
 import AdminModulePage from "../pages/admin/_shared/AdminModulePage.jsx";
 import OrdersAdminPage from "../pages/admin/orders/index.jsx";
 import VouchersPage from "../pages/admin/vouchers/index.jsx";
+import PromotionsPage from "../pages/admin/promotions/index.jsx";
 import AdminAccount from "../pages/admin/accounts/index.jsx";
 import RequireAuth from "../components/RequireAuth/RequireAuth.jsx"; function AppRoutes() {
     return (
@@ -69,6 +70,10 @@ import RequireAuth from "../components/RequireAuth/RequireAuth.jsx"; function Ap
                     <Route
                         path="khuyen-mai"
                         element={<VouchersPage />}
+                    />
+                    <Route
+                        path="promotions"
+                        element={<PromotionsPage />}
                     />
                     <Route
                         path="tai-khoan"

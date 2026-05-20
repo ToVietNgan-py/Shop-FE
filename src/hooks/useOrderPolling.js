@@ -40,7 +40,7 @@ export function useOrderPolling(apiUrl) {
         } catch (err) {
             // If unauthorized, stop polling to avoid noisy 401s
             const status = err?.response?.status;
-            if (status === 401 || status === 403 || status === 422) {
+            if (status === 401 || status === 403) {
                 stoppedRef.current = true;
                 console.warn("Order polling stopped due to auth error (401/403)");
                 return;

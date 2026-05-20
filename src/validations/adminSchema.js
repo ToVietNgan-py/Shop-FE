@@ -44,3 +44,32 @@ export const voucherSchema = z.object({
         });
     }
 });
+
+export const promotionSchema = z.object({
+    name: z.string().trim().min(2, 'Tên tối thiểu 2 ký tự').max(150, 'Tên tối đa 150 ký tự'),
+    description: z.string().trim().max(255, 'Mô tả tối đa 255 ký tự').optional().nullable(),
+    type: z.enum(['percent', 'amount'], { message: 'Vui lòng chọn loại giảm' }),
+    value: z.coerce.number().min(0, 'Giá trị phải >= 0'),
+    min_order_total: z.coerce.number().min(0, 'Đơn hàng tối thiểu không được âm').optional().nullable(),
+    max_discount: z.coerce.number().min(0, 'Giá trị tối đa phải >= 0').optional().nullable(),
+    priority: z.coerce.number().int().min(0).optional().default(0),
+    starts_at: z.any().optional().nullable(),
+    expires_at: z.any().optional().nullable(),
+    usage_limit: z.coerce.number().int().min(1).optional().nullable(),
+    is_active: z.boolean().default(true),
+    product_ids: z.array(z.string().or(z.number())).optional().nullable(),
+    category_ids: z.array(z.string().or(z.number())).optional().nullable(),
+}).superRefine((data, ctx) => {
+    if (data.type === 'percent' && data.value > 100) {
+        ctx.addIssue({ code: 'custom', path: ['value'], message: 'Giảm theo phần trăm không được vượt quá 100%' });
+    }
+    if (data.starts_at && data.expires_at) {
+        try {
+            const s = new Date(data.starts_at);
+            const e = new Date(data.expires_at);
+            if (s > e) {
+                ctx.addIssue({ code: 'custom', path: ['expires_at'], message: 'Thời gian kết thúc phải sau thời gian bắt đầu' });
+            }
+        } catch (e) { }
+    }
+});

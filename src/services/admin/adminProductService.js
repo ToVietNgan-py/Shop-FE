@@ -8,9 +8,22 @@ const adminProductService = {
     async list(params = {}) {
         const response = await api.get("/admin/products", { params });
         const payload = response?.data ?? {};
+        // const normalizeImg = (url) => {
+        //     if (!url) return null;
+        //     return url.replace("http://127.0.0.1:8000", "").replace("http://localhost:8000", "");
+        // };
+        const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
         const normalizeImg = (url) => {
             if (!url) return null;
-            return url.replace("http://127.0.0.1:8000", "").replace("http://localhost:8000", "");
+
+            // Nếu đã là full URL thì strip domain về relative
+            const relative = url
+                .replace("http://127.0.0.1:8000/storage/", "")
+                .replace("http://localhost:8000/storage/", "");
+
+            // Trả về full URL để dùng trong <img src>
+            return `${BASE_URL}/storage/${relative}`;
         };
         // BE trả { data: [...], meta: { current_page, per_page, total, last_page } }
         return {
@@ -47,7 +60,7 @@ const adminProductService = {
 
     // Upload ảnh riêng nếu cần
     async uploadImage(id, formData) {
-        const response = await api.post(`/admin/products/${id}/image`, formData, {
+        const response = await api.post(`/admin/products/${id}/images`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
         });
         return readResponseData(response);
