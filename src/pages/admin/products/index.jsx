@@ -1,5 +1,5 @@
-import { App, Button } from "antd";
-import { useEffect, useState } from "react";
+import { App, Button, Input } from "antd";
+import { useEffect, useState, useMemo } from "react";
 import { AiOutlinePlus } from "react-icons/ai";
 import ProductTable from "./ProductTable.jsx";
 import ProductForm from "./ProductForm.jsx";
@@ -10,20 +10,27 @@ import "../_shared/admin-page.scss";
 function AdminProductsPage() {
     const { modal, message } = App.useApp();
 
-    const [products, setProducts] = useState([]);
+    // ─── Master list (tải 1 lần, không bao giờ thay đổi trừ khi CRUD) ───
+    const [allProducts, setAllProducts] = useState([]);
+
     const [categories, setCategories] = useState([]);
-    const [meta, setMeta] = useState({ current_page: 1, per_page: 10, total: 0 });
     const [loading, setLoading] = useState(false);
     const [formVisible, setFormVisible] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
 
-    const loadProducts = async (page = 1, pageSize = 10) => {
+    // ─── Filter state ────────────────────────────────────────────────────
+    const [searchText, setSearchText] = useState("");
+
+    // ─── Pagination state (FE-side) ──────────────────────────────────────
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+
+    // ─── Load toàn bộ sản phẩm 1 lần ────────────────────────────────────
+    const loadProducts = async () => {
         setLoading(true);
         try {
-            const result = await adminProductService.list({ page, per_page: pageSize });
-            console.log("products result:", result);
-            setProducts(result.items || []);
-            setMeta(result.meta || { current_page: page, per_page: pageSize, total: 0 });
+            const result = await adminProductService.list({ page: 1, per_page: 10000 });
+            setAllProducts(result.items || []);
         } catch (error) {
             message.error("Không thể tải danh sách sản phẩm");
             console.error(error);
@@ -46,6 +53,37 @@ function AdminProductsPage() {
         loadCategories();
     }, []);
 
+    // ─── Filter thuần FE — chạy lại mỗi khi searchText / allProducts đổi ─
+    const filteredProducts = useMemo(() => {
+        const keyword = searchText.trim().toLowerCase();
+        if (!keyword) return allProducts;
+
+        return allProducts.filter((p) =>
+            p.name?.toLowerCase().includes(keyword) ||
+            p.sku?.toLowerCase().includes(keyword) ||
+            p.category?.name?.toLowerCase().includes(keyword)
+        );
+    }, [searchText, allProducts]);
+
+    // ─── Reset về trang 1 khi kết quả lọc thay đổi ───────────────────────
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filteredProducts]);
+
+    // ─── Meta object cho DataTable / ProductTable ─────────────────────────
+    const meta = {
+        current_page: currentPage,
+        per_page: pageSize,
+        total: filteredProducts.length,
+    };
+
+    // ─── Slice data cho trang hiện tại ───────────────────────────────────
+    const pagedProducts = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filteredProducts.slice(start, start + pageSize);
+    }, [filteredProducts, currentPage, pageSize]);
+
+    // ─── CRUD handlers ────────────────────────────────────────────────────
     const handleSaveProduct = async (formData) => {
         try {
             if (selectedProduct) {
@@ -53,9 +91,11 @@ function AdminProductsPage() {
             } else {
                 await adminProductService.create(formData);
             }
-            message.success(selectedProduct ? "Cập nhật sản phẩm thành công" : "Tạo sản phẩm thành công");
+            message.success(
+                selectedProduct ? "Cập nhật sản phẩm thành công" : "Tạo sản phẩm thành công"
+            );
             handleCloseForm();
-            loadProducts(meta.current_page);
+            await loadProducts(); // reload master list
         } catch (error) {
             throw new Error(error.response?.data?.message || "Có lỗi khi lưu sản phẩm");
         }
@@ -77,9 +117,11 @@ function AdminProductsPage() {
                 try {
                     await adminProductService.remove(productId);
                     message.success("Xóa sản phẩm thành công");
-                    loadProducts(meta.current_page);
+                    await loadProducts(); // reload master list
                 } catch (error) {
-                    message.error(error.response?.data?.message || "Không thể xóa sản phẩm");
+                    message.error(
+                        error.response?.data?.message || "Không thể xóa sản phẩm"
+                    );
                 }
             },
         });
@@ -95,8 +137,10 @@ function AdminProductsPage() {
         setSelectedProduct(null);
     };
 
-    const handleTableChange = (page, pageSize) => {
-        loadProducts(page, pageSize);
+    // ─── Pagination callback từ ProductTable / DataTable ─────────────────
+    const handleTableChange = (page, size) => {
+        setCurrentPage(page);
+        setPageSize(size);
     };
 
     return (
@@ -104,16 +148,28 @@ function AdminProductsPage() {
             <div className="admin-page__toolbar">
                 <div>
                     <h2 className="admin-page__title">Sản phẩm</h2>
-                    <div className="admin-page__subtitle">Quản lý danh sách sản phẩm và thông tin tồn kho.</div>
+                    <div className="admin-page__subtitle">
+                        Quản lý danh sách sản phẩm và thông tin tồn kho.
+                    </div>
                 </div>
                 <Button type="primary" icon={<AiOutlinePlus />} onClick={handleAddProduct}>
                     Thêm sản phẩm
                 </Button>
             </div>
 
+            <Input.Search
+                placeholder="Tìm theo tên, SKU, danh mục..."
+                allowClear
+                style={{ width: 300, marginBottom: 16 }}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                // Hỗ trợ cả nhấn nút kính lúp
+                onSearch={(value) => setSearchText(value)}
+            />
+
             <div className="admin-page__card">
                 <ProductTable
-                    data={products}
+                    data={pagedProducts}
                     meta={meta}
                     loading={loading}
                     onEdit={handleEditProduct}

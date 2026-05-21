@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Layout, Space, Button, Tag, Avatar, Badge, Dropdown, Typography } from "antd";
 import { AiOutlineSearch, AiOutlineSetting, AiOutlineLogout, AiOutlineBell, AiOutlineUser } from "react-icons/ai";
-
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { MdCreditCard, MdTune } from "react-icons/md";
 import AdminBreadcrumb from "./AdminBreadcrumb.jsx";
 import { useOrderPolling } from "../../hooks/useOrderPolling";
@@ -17,7 +17,10 @@ const STATUS_MAP = {
     cancelled: "Đã hủy",
 };
 
+
 export default function AdminHeader({ roleLabel, displayName, logout }) {
+    const navigate = useNavigate();
+    const location = useLocation();
     const { orders, unread, markAllRead } = useOrderPolling("/admin/dashboard/summary");
 
     // ── Notification items ─────────────────────────────────────────────
@@ -83,7 +86,6 @@ export default function AdminHeader({ roleLabel, displayName, logout }) {
             <AdminBreadcrumb />
 
             <Space size={16} align="center">
-                <Button type="text" icon={<AiOutlineSearch />} size="small" />
 
                 {/* Thông báo đơn hàng */}
                 <Dropdown

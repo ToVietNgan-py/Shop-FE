@@ -38,7 +38,9 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
         try {
             await cartService.clear().catch(() => { });
             if (cartSnapshotRef.current.length > 0) {
-                await cartService.mergeGuestCart(cartSnapshotRef.current);
+                for (const item of cartSnapshotRef.current) {
+                    await cartService.add(item).catch(() => { });
+                }
             }
         } catch (e) {
             console.warn("[Checkout] restore buy-now cart failed:", e?.message);
@@ -132,6 +134,7 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
         try {
             // 1. Sync cart trước để lấy resolvedCartId
             let resolvedCartId = null;
+            // ✅ Mới - clear rồi add từng item
             try {
                 const cleared = await cartService.clear().catch((e) => {
                     console.warn("[Checkout] cartService.clear() failed (ignored):", e?.message);
@@ -139,8 +142,17 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
                 });
                 resolvedCartId = cleared?.id ?? null;
 
-                const serverCart = await cartService.mergeGuestCart(checkoutItems);
-                resolvedCartId = serverCart?.id ?? resolvedCartId;
+                // Add tuần tự từng item vào server cart
+                let lastCart = null;
+                for (const item of checkoutItems) {
+                    lastCart = await cartService.add(item);
+                }
+                if (lastCart) {
+                    resolvedCartId = lastCart.id ?? resolvedCartId;
+                }
+
+                if (!resolvedCartId) throw new Error("Không tạo được giỏ hàng trên máy chủ.");
+                console.log("🛒 Cart sau khi add items:", JSON.stringify(lastCart, null, 2));
             } catch (syncErr) {
                 throw new Error(syncErr?.message || "Không đồng bộ được giỏ hàng với máy chủ.");
             }

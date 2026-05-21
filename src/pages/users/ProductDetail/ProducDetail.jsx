@@ -1,4 +1,4 @@
-import { useMemo, useState, useContext, useEffect } from "react";
+import { useMemo, useState, useContext, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { CartContext } from "../../../context/CartContext";
 import { AuthContext } from "../../../context/AuthContext.jsx";
@@ -14,21 +14,65 @@ import WishlistButton from "../../../components/common/WishlistButton.jsx";
 
 import "./ProductDetail.scss";
 
+// ─── Variant helpers ──────────────────────────────────────────────────────────
+
+const normalizeVariant = (v = {}) => ({
+    id: v.id ?? null,
+    sku: v.sku ?? "",
+    color: v.color ?? "",
+    size: v.size ?? "",
+    price: Number(v.price ?? 0),
+    inventory: Number(v.inventory ?? v.stock ?? 0),
+});
+
+/** Màu unique từ variants */
+const getColors = (variants) =>
+    [...new Set(variants.map((v) => v.color).filter(Boolean))];
+
+/** Size khả dụng cho màu đang chọn */
+const getSizesForColor = (variants, color) =>
+    [...new Set(
+        variants
+            .filter((v) => !color || v.color === color)
+            .map((v) => v.size)
+            .filter(Boolean)
+    )];
+
+/** Tìm variant khớp màu + size */
+const findVariant = (variants, color, size) =>
+    variants.find((v) => v.color === color && v.size === size) ?? null;
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 function ProductDetail() {
     const { id } = useParams();
     const productId = Number(id);
-    const [selectedColor, setSelectedColor] = useState("Cream");
-    const [selectedSize, setSelectedSize] = useState("S");
+    const navigate = useNavigate();
+
+    const { addToCart } = useContext(CartContext);
+    const { user } = useContext(AuthContext) ?? {};
+
+    // ── Product & variants ──────────────────────────────────────────────────
+    const [product, setProduct] = useState(null);
+    const [variants, setVariants] = useState([]);
+    const [variantsLoading, setVariantsLoading] = useState(true);
+    const [relatedProducts, setRelatedProducts] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    // ── Variant selection ───────────────────────────────────────────────────
+    const [selectedColor, setSelectedColor] = useState("");
+    const [selectedSize, setSelectedSize] = useState("");
     const [quantity, setQuantity] = useState(1);
+
+    // ── Cart / buy-now ──────────────────────────────────────────────────────
     const [addedSuccess, setAddedSuccess] = useState(false);
     const [cartActionError, setCartActionError] = useState("");
     const [isAuthOpen, setIsAuthOpen] = useState(false);
     const [pendingCartItem, setPendingCartItem] = useState(null);
     const [pendingAction, setPendingAction] = useState("");
-    const [product, setProduct] = useState(null);
-    const [relatedProducts, setRelatedProducts] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState("");
+
+    // ── Reviews ─────────────────────────────────────────────────────────────
     const [reviews, setReviews] = useState([]);
     const [reviewSummary, setReviewSummary] = useState({ total: 0, averageRating: 0, ratingBreakdown: [] });
     const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -38,93 +82,110 @@ function ProductDetail() {
     const [reviewSubmitting, setReviewSubmitting] = useState(false);
     const [reviewFeedback, setReviewFeedback] = useState("");
     const [reviewFeedbackType, setReviewFeedbackType] = useState("success");
+
+    // ── Eligible orders for review ──────────────────────────────────────────
     const [eligibleOrders, setEligibleOrders] = useState([]);
     const [selectedOrderId, setSelectedOrderId] = useState("");
     const [ordersLoading, setOrdersLoading] = useState(true);
     const [ordersError, setOrdersError] = useState("");
 
-    const navigate = useNavigate();
-    const { addToCart } = useContext(CartContext);
-    const { user } = useContext(AuthContext) ?? {};
+    // ─── Derived from variants ────────────────────────────────────────────────
+    const colors = useMemo(() => getColors(variants), [variants]);
+    const sizes = useMemo(() => getSizesForColor(variants, selectedColor), [variants, selectedColor]);
 
-    const colors = useMemo(() => ["Cream", "Sky Blue", "Black"], []);
-    const sizes = useMemo(() => ["S", "M", "L", "XL"], []);
+    // variant đang chọn — dùng để lấy giá / tồn kho chính xác
+    const activeVariant = useMemo(
+        () => findVariant(variants, selectedColor, selectedSize),
+        [variants, selectedColor, selectedSize]
+    );
 
-    const averageRating = useMemo(() => {
-        if (reviews.length > 0) {
-            const total = reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0);
-            return total / reviews.length;
-        }
+    // Giá hiển thị: ưu tiên variant, fallback về giá sản phẩm
+    const displayPrice = activeVariant?.price || product?.price || 0;
 
-        return Number(reviewSummary.averageRating || 0);
-    }, [reviews, reviewSummary.averageRating]);
+    // Tồn kho của variant đang chọn
+    const variantInventory = activeVariant?.inventory ?? 0;
+    const isVariantSelected = variants.length === 0 || Boolean(activeVariant);
 
-    const totalReviewCount = reviews.length > 0 ? reviews.length : reviewSummary.total;
-
-    const decreaseQuantity = () => {
-        setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
-    };
-
-    const increaseQuantity = () => {
-        setQuantity((prev) => prev + 1);
-    };
-
+    // ─── Load product + variants ──────────────────────────────────────────────
     useEffect(() => {
-        let isMounted = true;
+        let mounted = true;
 
-        async function loadProductDetail() {
+        async function load() {
             setIsLoading(true);
             setError("");
+            setVariantsLoading(true);
 
             try {
+                // 1. Chi tiết sản phẩm
                 const detail = await productService.detail(id);
+                if (!detail) throw new Error("Không tìm thấy sản phẩm");
 
-                if (!detail) {
-                    throw new Error("Không tìm thấy sản phẩm");
+                // 2. Variants & related song song
+                const [rawVariants, related] = await Promise.allSettled([
+                    productService.variants(id),
+                    productService.related({
+                        category: detail.categorySlug || detail.category,
+                        excludeId: detail.id,
+                        limit: 4,
+                    }),
+                ]);
+
+                if (!mounted) return;
+
+                setProduct(detail);
+
+                const variantList = rawVariants.status === "fulfilled"
+                    ? (rawVariants.value ?? []).map(normalizeVariant)
+                    : [];
+                setVariants(variantList);
+
+                // Chọn mặc định: màu đầu tiên → size đầu tiên của màu đó
+                if (variantList.length > 0) {
+                    const firstColor = variantList[0].color;
+                    const firstSize = variantList.find((v) => v.color === firstColor)?.size ?? "";
+                    setSelectedColor(firstColor);
+                    setSelectedSize(firstSize);
                 }
 
-                const related = await productService.related({
-                    category: detail.categorySlug || detail.category,
-                    excludeId: detail.id,
-                    limit: 4,
-                });
-
-                if (isMounted) {
-                    setProduct(detail);
-                    setRelatedProducts(related);
-                }
-            } catch (loadError) {
-                if (isMounted) {
-                    setError(loadError?.message || "Không tải được chi tiết sản phẩm.");
+                setRelatedProducts(
+                    related.status === "fulfilled" ? (related.value ?? []) : []
+                );
+            } catch (err) {
+                if (mounted) {
+                    setError(err?.message || "Không tải được chi tiết sản phẩm.");
                     setProduct(null);
                     setRelatedProducts([]);
                 }
             } finally {
-                if (isMounted) {
+                if (mounted) {
                     setIsLoading(false);
+                    setVariantsLoading(false);
                 }
             }
         }
 
-        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-        loadProductDetail();
-
-        return () => {
-            isMounted = false;
-        };
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        load();
+        return () => { mounted = false; };
     }, [id]);
 
+    // Khi đổi màu → reset size về size đầu tiên còn available của màu mới
+    const handleColorChange = useCallback((color) => {
+        setSelectedColor(color);
+        const firstSize = variants.find((v) => v.color === color)?.size ?? "";
+        setSelectedSize(firstSize);
+    }, [variants]);
+
+    // ─── Load reviews ─────────────────────────────────────────────────────────
     useEffect(() => {
-        let isMounted = true;
+        let mounted = true;
 
         async function loadReviews() {
             setReviewsLoading(true);
             setReviewsError("");
-
             try {
                 const result = await reviewService.list(id, { perPage: 10, page: 1 });
-
-                if (isMounted) {
+                if (mounted) {
                     setReviews(result.items ?? []);
                     setReviewSummary({
                         total: Number(result.total ?? 0),
@@ -132,167 +193,143 @@ function ProductDetail() {
                         ratingBreakdown: Array.isArray(result.ratingBreakdown) ? result.ratingBreakdown : [],
                     });
                 }
-            } catch (loadError) {
-                if (isMounted) {
+            } catch (err) {
+                if (mounted) {
                     setReviews([]);
                     setReviewSummary({ total: 0, averageRating: 0, ratingBreakdown: [] });
-                    setReviewsError(loadError?.message || "Không tải được đánh giá.");
+                    setReviewsError(err?.message || "Không tải được đánh giá.");
                 }
             } finally {
-                if (isMounted) {
-                    setReviewsLoading(false);
-                }
+                if (mounted) setReviewsLoading(false);
             }
         }
 
         loadReviews();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { mounted = false; };
     }, [id]);
 
+    // ─── Load eligible orders ─────────────────────────────────────────────────
     useEffect(() => {
-        let isMounted = true;
+        let mounted = true;
 
         async function loadEligibleOrders() {
             if (!user || !productId) {
-                if (isMounted) {
-                    setEligibleOrders([]);
-                    setSelectedOrderId("");
-                    setOrdersLoading(false);
-                }
+                setEligibleOrders([]);
+                setSelectedOrderId("");
+                setOrdersLoading(false);
                 return;
             }
-
             setOrdersLoading(true);
             setOrdersError("");
-
             try {
                 const response = await getOrders();
                 const orders = Array.isArray(response.data) ? response.data : [];
-                const matchedOrders = orders.filter((order) => {
-                    if (order.status !== "completed") {
-                        return false;
-                    }
-
-                    return Array.isArray(order.items) && order.items.some((item) => String(item.productId ?? item.id) === String(productId));
-                });
-
-                if (isMounted) {
-                    setEligibleOrders(matchedOrders);
-                    setSelectedOrderId(matchedOrders[0]?.id ? String(matchedOrders[0].id) : "");
+                const matched = orders.filter((order) =>
+                    order.status === "completed" &&
+                    Array.isArray(order.items) &&
+                    order.items.some((item) => String(item.productId ?? item.id) === String(productId))
+                );
+                if (mounted) {
+                    setEligibleOrders(matched);
+                    setSelectedOrderId(matched[0]?.id ? String(matched[0].id) : "");
                 }
-            } catch (loadError) {
-                if (isMounted) {
+            } catch (err) {
+                if (mounted) {
                     setEligibleOrders([]);
                     setSelectedOrderId("");
-                    setOrdersError(loadError?.message || "Không tải được danh sách đơn hàng đủ điều kiện.");
+                    setOrdersError(err?.message || "Không tải được danh sách đơn hàng.");
                 }
             } finally {
-                if (isMounted) {
-                    setOrdersLoading(false);
-                }
+                if (mounted) setOrdersLoading(false);
             }
         }
 
         loadEligibleOrders();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { mounted = false; };
     }, [user, productId]);
 
+    // ─── Timers ───────────────────────────────────────────────────────────────
     useEffect(() => {
-        if (addedSuccess) {
-            const timer = setTimeout(() => setAddedSuccess(false), 2000);
-            return () => clearTimeout(timer);
-        }
+        if (!addedSuccess) return;
+        const t = setTimeout(() => setAddedSuccess(false), 2000);
+        return () => clearTimeout(t);
     }, [addedSuccess]);
 
     useEffect(() => {
-        if (reviewFeedback) {
-            const timer = setTimeout(() => setReviewFeedback(""), 2500);
-            return () => clearTimeout(timer);
-        }
+        if (!reviewFeedback) return;
+        const t = setTimeout(() => setReviewFeedback(""), 2500);
+        return () => clearTimeout(t);
     }, [reviewFeedback]);
 
+    // ─── Pending cart item sau khi đăng nhập ─────────────────────────────────
     useEffect(() => {
-        if (!user || !pendingCartItem) {
-            return;
-        }
-
-        let isMounted = true;
+        if (!user || !pendingCartItem) return;
+        let mounted = true;
 
         (async () => {
             try {
-                // Buy-now sau khi đăng nhập: đi thẳng tới checkout riêng, không thêm vào giỏ.
                 if (pendingAction === "buy-now") {
-                    if (isMounted) {
-                        const item = pendingCartItem;
-                        setPendingCartItem(null);
-                        setPendingAction("");
-                        navigate("/thanh-toan", { state: { checkoutItem: item, buyNow: true } });
-                    }
+                    const item = pendingCartItem;
+                    setPendingCartItem(null);
+                    setPendingAction("");
+                    navigate("/thanh-toan", { state: { checkoutItem: item, buyNow: true } });
                     return;
                 }
-
                 await addToCart(pendingCartItem);
-
-                if (isMounted) {
+                if (mounted) {
                     setAddedSuccess(true);
                     setPendingCartItem(null);
                     setPendingAction("");
                 }
-            } catch (addError) {
-                if (isMounted) {
-                    setCartActionError(addError?.message || "Khong the them san pham vao gio.");
+            } catch (err) {
+                if (mounted) {
+                    setCartActionError(err?.message || "Không thể thêm sản phẩm vào giỏ.");
                     setPendingCartItem(null);
                     setPendingAction("");
                 }
             }
         })();
 
-        return () => {
-            isMounted = false;
-        };
+        return () => { mounted = false; };
     }, [user, pendingCartItem, pendingAction, addToCart, navigate]);
 
-    if (isLoading) {
-        return <PageLoading title="Đang tải chi tiết sản phẩm" description="Đợi một chút, mình đang lấy dữ liệu từ API." />;
-    }
-
-    if (error) {
-        return <ErrorState title="Không tải được sản phẩm" description={error} />;
-    }
-
-    const cartItem = {
+    // ─── Cart item builder ────────────────────────────────────────────────────
+    const buildCartItem = () => ({
         id: product.id,
         productId: product.id,
         name: product.name,
-        price: product.price,
+        price: displayPrice,
         image: product.img,
         quantity,
         color: selectedColor,
         size: selectedSize,
-    };
+    });
 
     const handleAddToCart = async () => {
         setAddedSuccess(false);
         setCartActionError("");
         setPendingAction("add-to-cart");
 
-        if (!user) {
-            setPendingCartItem(cartItem);
-            setIsAuthOpen(true);
+        if (!isVariantSelected) {
+            setCartActionError("Vui lòng chọn màu sắc và size.");
+            return;
+        }
+        if (variants.length > 0 && variantInventory === 0) {
+            setCartActionError("Biến thể này đã hết hàng.");
             return;
         }
 
+        const item = buildCartItem();
+        if (!user) {
+            setPendingCartItem(item);
+            setIsAuthOpen(true);
+            return;
+        }
         try {
-            await addToCart(cartItem);
+            await addToCart(item);
             setAddedSuccess(true);
-        } catch (addError) {
-            setCartActionError(addError?.message || "Khong the them san pham vao gio.");
+        } catch (err) {
+            setCartActionError(err?.message || "Không thể thêm sản phẩm vào giỏ.");
         }
     };
 
@@ -300,34 +337,35 @@ function ProductDetail() {
         setCartActionError("");
         setPendingAction("buy-now");
 
-        if (!user) {
-            setPendingCartItem(cartItem);
-            setIsAuthOpen(true);
+        if (!isVariantSelected) {
+            setCartActionError("Vui lòng chọn màu sắc và size.");
+            return;
+        }
+        if (variants.length > 0 && variantInventory === 0) {
+            setCartActionError("Biến thể này đã hết hàng.");
             return;
         }
 
-        // Mua ngay = luồng thanh toán riêng cho duy nhất sản phẩm này.
-        // Không addToCart để tránh trộn vào giỏ hàng hiện tại; truyền item qua route state.
-        navigate("/thanh-toan", { state: { checkoutItem: cartItem, buyNow: true } });
+        const item = buildCartItem();
+        if (!user) {
+            setPendingCartItem(item);
+            setIsAuthOpen(true);
+            return;
+        }
+        navigate("/thanh-toan", { state: { checkoutItem: item, buyNow: true } });
     };
 
+    // ─── Review submit ────────────────────────────────────────────────────────
     const handleReviewSubmit = async (event) => {
         event.preventDefault();
         setReviewFeedback("");
 
-        if (!user) {
-            setIsAuthOpen(true);
-            setReviewFeedbackType("error");
-            setReviewFeedback("Vui lòng đăng nhập để viết đánh giá.");
-            return;
-        }
-
+        if (!user) { setIsAuthOpen(true); return; }
         if (!selectedOrderId) {
             setReviewFeedbackType("error");
             setReviewFeedback("Hãy chọn một đơn hàng đã hoàn thành để đánh giá.");
             return;
         }
-
         if (!reviewComment.trim()) {
             setReviewFeedbackType("error");
             setReviewFeedback("Vui lòng nhập nội dung đánh giá.");
@@ -335,39 +373,49 @@ function ProductDetail() {
         }
 
         setReviewSubmitting(true);
-
         try {
-            const createdReview = await reviewService.create(id, {
+            const created = await reviewService.create(id, {
                 orderId: selectedOrderId,
                 rating: reviewRating,
                 comment: reviewComment,
             });
-
-            setReviews((current) => {
-                const next = [createdReview, ...current];
-                const nextAverage = next.reduce((sum, review) => sum + Number(review.rating || 0), 0) / next.length;
-
-                setReviewSummary((currentSummary) => ({
-                    ...currentSummary,
-                    total: next.length,
-                    averageRating: nextAverage,
-                }));
-
+            setReviews((cur) => {
+                const next = [created, ...cur];
+                const avg = next.reduce((s, r) => s + Number(r.rating || 0), 0) / next.length;
+                setReviewSummary((s) => ({ ...s, total: next.length, averageRating: avg }));
                 return next;
             });
-
             setReviewRating(5);
             setReviewComment("");
             setReviewFeedbackType("success");
             setReviewFeedback("Đã gửi đánh giá thành công.");
-        } catch (submitError) {
+        } catch (err) {
             setReviewFeedbackType("error");
-            setReviewFeedback(submitError?.message || "Không thể gửi đánh giá.");
+            setReviewFeedback(err?.message || "Không thể gửi đánh giá.");
         } finally {
             setReviewSubmitting(false);
         }
     };
 
+    // ─── Computed ─────────────────────────────────────────────────────────────
+    const averageRating = useMemo(() => {
+        if (reviews.length > 0) {
+            return reviews.reduce((s, r) => s + Number(r.rating || 0), 0) / reviews.length;
+        }
+        return Number(reviewSummary.averageRating || 0);
+    }, [reviews, reviewSummary.averageRating]);
+
+    const totalReviewCount = reviews.length > 0 ? reviews.length : reviewSummary.total;
+
+    // ─── Early returns ────────────────────────────────────────────────────────
+    if (isLoading) {
+        return <PageLoading title="Đang tải chi tiết sản phẩm" description="Đợi một chút, mình đang lấy dữ liệu từ API." />;
+    }
+    if (error) {
+        return <ErrorState title="Không tải được sản phẩm" description={error} />;
+    }
+
+    // ─── Sub-renders ──────────────────────────────────────────────────────────
     const renderReviewForm = () => {
         if (!user) {
             return (
@@ -380,7 +428,6 @@ function ProductDetail() {
                 </div>
             );
         }
-
         if (ordersLoading) {
             return (
                 <div className="review-form review-form--locked">
@@ -389,7 +436,6 @@ function ProductDetail() {
                 </div>
             );
         }
-
         if (ordersError) {
             return (
                 <div className="review-form review-form--locked">
@@ -398,23 +444,20 @@ function ProductDetail() {
                 </div>
             );
         }
-
         if (eligibleOrders.length === 0) {
             return (
                 <div className="review-form review-form--locked">
                     <h3>Chưa thể đánh giá sản phẩm này</h3>
-                    <p>Bạn cần có ít nhất một đơn hàng đã hoàn thành chứa sản phẩm này thì mới gửi review được.</p>
+                    <p>Bạn cần có ít nhất một đơn hàng đã hoàn thành chứa sản phẩm này.</p>
                 </div>
             );
         }
-
         return (
             <form className="review-form" onSubmit={handleReviewSubmit}>
                 <h3>Viết đánh giá của bạn</h3>
-
                 <label className="review-select-field">
                     <span>Chọn đơn hàng đã hoàn thành</span>
-                    <select value={selectedOrderId} onChange={(event) => setSelectedOrderId(event.target.value)}>
+                    <select value={selectedOrderId} onChange={(e) => setSelectedOrderId(e.target.value)}>
                         {eligibleOrders.map((order) => (
                             <option key={order.id} value={String(order.id)}>
                                 {order.orderCode} - {order.createdAt}
@@ -422,26 +465,22 @@ function ProductDetail() {
                         ))}
                     </select>
                 </label>
-
                 <div className="review-rating-field">
                     <span>Đánh giá</span>
                     <StarRating value={reviewRating} onChange={setReviewRating} />
                 </div>
-
                 <label className="review-comment-field">
                     <span>Nội dung</span>
                     <textarea
                         rows="5"
                         value={reviewComment}
-                        onChange={(event) => setReviewComment(event.target.value)}
+                        onChange={(e) => setReviewComment(e.target.value)}
                         placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
                     />
                 </label>
-
-                {reviewFeedback ? (
+                {reviewFeedback && (
                     <p className={`review-feedback ${reviewFeedbackType}`}>{reviewFeedback}</p>
-                ) : null}
-
+                )}
                 <button type="submit" className="review-submit-btn" disabled={reviewSubmitting}>
                     {reviewSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
                 </button>
@@ -450,14 +489,8 @@ function ProductDetail() {
     };
 
     const renderReviewItems = () => {
-        if (reviewsLoading) {
-            return <p className="review-empty">Đang tải đánh giá...</p>;
-        }
-
-        if (reviewsError) {
-            return <p className="review-empty error">{reviewsError}</p>;
-        }
-
+        if (reviewsLoading) return <p className="review-empty">Đang tải đánh giá...</p>;
+        if (reviewsError) return <p className="review-empty error">{reviewsError}</p>;
         if (reviews.length === 0) {
             return (
                 <div className="review-empty">
@@ -466,7 +499,6 @@ function ProductDetail() {
                 </div>
             );
         }
-
         return (
             <div className="review-list">
                 {reviews.map((review) => (
@@ -484,77 +516,126 @@ function ProductDetail() {
                             </div>
                         </div>
                         <p className="review-item__comment">{review.comment}</p>
-                        {Array.isArray(review.images) && review.images.length > 0 ? (
+                        {Array.isArray(review.images) && review.images.length > 0 && (
                             <div className="review-images">
-                                {review.images.map((image, index) => (
-                                    <img key={`${review.id}-image-${index}`} src={image} alt={`Review ${index + 1}`} />
+                                {review.images.map((img, idx) => (
+                                    <img key={`${review.id}-${idx}`} src={img} alt={`Review ${idx + 1}`} />
                                 ))}
                             </div>
-                        ) : null}
+                        )}
                     </article>
                 ))}
             </div>
         );
     };
 
+    // ─── Render ───────────────────────────────────────────────────────────────
     return (
         <>
             <section className="product-detail" aria-label="Chi tiết sản phẩm">
                 <div className="product-media">
-                    {product.img ? <img src={product.img} alt={product.name} className="main-image" /> : null}
+                    {product.img && (
+                        <img src={product.img} alt={product.name} className="main-image" />
+                    )}
                 </div>
 
                 <div className="product-info">
-                    <p className="brand">Dear Róse</p>
+                    <p className="brand">{product.brand ?? "Dear Rose"}</p>
                     <h1>{product.name}</h1>
-                    <p className="price">{formatVND(product.price)}</p>
+                    <p className="price">{formatVND(displayPrice)}</p>
 
-                    <div className="option-group">
-                        <span className="option-label">Màu sắc</span>
-                        <div className="chip-list">
-                            {colors.map((color) => (
-                                <button
-                                    key={color}
-                                    type="button"
-                                    className={`chip ${selectedColor === color ? "active" : ""}`}
-                                    onClick={() => setSelectedColor(color)}
-                                >
-                                    {color}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    {/* ── Màu sắc ── */}
+                    {variantsLoading ? (
+                        <p className="variants-loading">Đang tải biến thể...</p>
+                    ) : (
+                        <>
+                            {colors.length > 0 && (
+                                <div className="option-group">
+                                    <span className="option-label">Màu sắc</span>
+                                    <div className="chip-list">
+                                        {colors.map((color) => (
+                                            <button
+                                                key={color}
+                                                type="button"
+                                                className={`chip ${selectedColor === color ? "active" : ""}`}
+                                                onClick={() => handleColorChange(color)}
+                                            >
+                                                {color}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
-                    <div className="option-group">
-                        <span className="option-label">Size</span>
-                        <div className="chip-list size-list">
-                            {sizes.map((size) => (
-                                <button
-                                    key={size}
-                                    type="button"
-                                    className={`chip ${selectedSize === size ? "active" : ""}`}
-                                    onClick={() => setSelectedSize(size)}
-                                >
-                                    {size}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                            {/* ── Size ── */}
+                            {sizes.length > 0 && (
+                                <div className="option-group">
+                                    <span className="option-label">Size</span>
+                                    <div className="chip-list size-list">
+                                        {sizes.map((size) => {
+                                            const v = findVariant(variants, selectedColor, size);
+                                            const outOfStock = v ? v.inventory === 0 : false;
+                                            return (
+                                                <button
+                                                    key={size}
+                                                    type="button"
+                                                    className={`chip ${selectedSize === size ? "active" : ""} ${outOfStock ? "out-of-stock" : ""}`}
+                                                    onClick={() => !outOfStock && setSelectedSize(size)}
+                                                    disabled={outOfStock}
+                                                    title={outOfStock ? "Hết hàng" : ""}
+                                                >
+                                                    {size}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
+                            {/* Tồn kho của variant đang chọn */}
+                            {activeVariant && (
+                                <p className={`variant-stock ${variantInventory === 0 ? "out" : "in"}`}>
+                                    {variantInventory === 0
+                                        ? "Hết hàng"
+                                        : `Còn ${variantInventory} sản phẩm`}
+                                </p>
+                            )}
+                        </>
+                    )}
+
+                    {/* ── Số lượng ── */}
                     <div className="qty-row">
                         <span className="option-label">Số lượng</span>
                         <div className="qty-control">
-                            <button type="button" onClick={decreaseQuantity} aria-label="Giảm số lượng">-</button>
+                            <button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))} aria-label="Giảm số lượng">-</button>
                             <span>{quantity}</span>
-                            <button type="button" onClick={increaseQuantity} aria-label="Tăng số lượng">+</button>
+                            <button
+                                type="button"
+                                onClick={() => setQuantity((q) => (variantInventory > 0 ? Math.min(q + 1, variantInventory) : q + 1))}
+                                aria-label="Tăng số lượng"
+                            >+</button>
                         </div>
                     </div>
 
                     <div className="action-list">
-                        <button type="button" className={`btn secondary ${addedSuccess ? "added-success" : ""}`} onClick={handleAddToCart}>Thêm vào giỏ</button>
-                        <button type="button" className="btn primary" onClick={handleBuyNow}>Mua ngay</button>
+                        <button
+                            type="button"
+                            className={`btn secondary ${addedSuccess ? "added-success" : ""}`}
+                            onClick={handleAddToCart}
+                            disabled={variants.length > 0 && variantInventory === 0}
+                        >
+                            {addedSuccess ? "Đã thêm vào giỏ ✓" : "Thêm vào giỏ"}
+                        </button>
+                        <button
+                            type="button"
+                            className="btn primary"
+                            onClick={handleBuyNow}
+                            disabled={variants.length > 0 && variantInventory === 0}
+                        >
+                            Mua ngay
+                        </button>
                     </div>
-                    {cartActionError ? <p className="field-message error">{cartActionError}</p> : null}
+                    {cartActionError && <p className="field-message error">{cartActionError}</p>}
 
                     <div className="meta-list">
                         <div className="meta-item">
@@ -573,26 +654,33 @@ function ProductDetail() {
                 </div>
             </section>
 
-            <section className="product-reviews-section" aria-label="Đánh giá sản phẩm">
-                <div className="reviews-header">
-                    <div>
-                        <p className="reviews-kicker">Đánh giá từ khách hàng</p>
-                        <h2>{totalReviewCount} đánh giá cho sản phẩm này</h2>
+            {/* ── Reviews ── */}
+            <section className="dr-reviews-section" aria-label="Đánh giá sản phẩm">
+                <div className="dr-reviews-header">
+                    <div className="dr-header-title">
+                        <span className="dr-kicker">Phản hồi khách hàng</span>
+                        <h2>Đánh giá sản phẩm</h2>
                     </div>
-                    <div className="reviews-summary">
-                        <StarRating value={Math.round(averageRating)} readonly size={18} />
-                        <strong>{averageRating.toFixed(1)}</strong>
+                    <div className="dr-score-badge">
+                        <span className="dr-big-num">{averageRating.toFixed(1)}</span>
+                        <div className="dr-score-meta">
+                            <StarRating value={Math.round(averageRating)} readonly size={15} />
+                            <span className="dr-total-text">Dựa trên {totalReviewCount} nhận xét</span>
+                        </div>
                     </div>
                 </div>
-
-                <div className="reviews-layout">
-                    {renderReviewForm()}
-                    <div className="reviews-panel">
+                <div className="dr-reviews-body">
+                    <aside className="dr-reviews-sidebar">{renderReviewForm()}</aside>
+                    <main className="dr-reviews-main">
+                        <div className="dr-list-title">
+                            <h3>Nhận xét thực tế ({reviews.length})</h3>
+                        </div>
                         {renderReviewItems()}
-                    </div>
+                    </main>
                 </div>
             </section>
 
+            {/* ── Related products ── */}
             <div className="related-products-section">
                 <h2>Sản phẩm cùng danh mục</h2>
                 <div className="related-products-list">
@@ -600,7 +688,7 @@ function ProductDetail() {
                         <div key={item.id} className="related-product-shell">
                             <WishlistButton product={item} />
                             <Link to={`/san-pham/${item.id}`} className="related-product-card">
-                                {item.img ? <img src={item.img} alt={item.name} /> : null}
+                                {item.img && <img src={item.img} alt={item.name} />}
                                 <div>
                                     <strong>{item.name}</strong>
                                     <p>{formatVND(item.price)}</p>
@@ -611,7 +699,7 @@ function ProductDetail() {
                 </div>
             </div>
 
-            {isAuthOpen ? <AuthModal onClose={() => setIsAuthOpen(false)} /> : null}
+            {isAuthOpen && <AuthModal onClose={() => setIsAuthOpen(false)} />}
         </>
     );
 }

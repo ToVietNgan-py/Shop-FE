@@ -168,6 +168,16 @@ export const productService = {
         return normalizeProduct(data);
     },
 
+    async variants(productId) {
+        try {
+            const response = await api.get(`/products/${productId}/variants`);
+            const data = response.data?.data ?? response.data;
+            return Array.isArray(data) ? data : [];
+        } catch {
+            return [];
+        }
+    },
+
     async related({ category, excludeId, limit = 4 } = {}) {
         try {
             const result = await this.list({

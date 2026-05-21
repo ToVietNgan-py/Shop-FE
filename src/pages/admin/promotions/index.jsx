@@ -11,11 +11,13 @@ export default function PromotionsPage() {
     const [promotions, setPromotions] = useState([]);
     const [meta, setMeta] = useState({});
 
-    const [filters, setFilters] = useState({ page: 1, per_page: 10, search: '' });
-
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedPromotion, setSelectedPromotion] = useState(null);
-
+    const [filters, setFilters] = useState({
+        page: 1,
+        per_page: 10,
+        search: '',
+    });
     const normalizeResponse = (res, fallbackFilters) => {
         const payload = res?.data ?? {};
         const nestedData = payload?.data;
