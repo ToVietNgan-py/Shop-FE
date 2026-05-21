@@ -949,7 +949,7 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { CartContext } from "../../../context/CartContext.jsx";
 import { productService } from "../../../services/productService.js";
 import { ORDER_PAYMENT_METHODS } from "../../../services/orderService.js";
-import { formatVND } from "../../../utils/format.js";
+import { formatVND, buildVietQrUrl } from "../../../utils/format.js";
 import { checkoutSchema } from "../../../validations/checkoutSchema.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
 import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
@@ -964,6 +964,7 @@ const SHIPPING_FEE = 35000;
 
 const DEFAULT_BANK_INFO = {
     bankName: "Vietcombank",
+    bin: "970436", // mã BIN Napas của Vietcombank, dùng để dựng VietQR
     accountName: "CONG TY TNHH DEAR ROSE",
     accountNumber: "0123456789",
 };
@@ -1012,6 +1013,8 @@ function CheckoutPage() {
         return () => { isMounted = false; };
     }, [productId]);
     const [frozenItems, setFrozenItems] = useState(null);
+    // Buy-now: chỉ thanh toán riêng sản phẩm này, không đụng vào giỏ hàng hiện có.
+    const isBuyNow = Boolean(location.state?.buyNow);
     // --- Danh sách sản phẩm checkout ---
     const checkoutItems = useMemo(() => {
         if (frozenItems) return frozenItems;
@@ -1020,7 +1023,7 @@ function CheckoutPage() {
         if (location.state?.checkoutItem) return [location.state.checkoutItem];
         if (cartItems.length > 0) return cartItems;
         return fallbackItem ? [fallbackItem] : [];
-    }, [cartItems, fallbackItem, location.state]);
+    }, [cartItems, fallbackItem, location.state, frozenItems]);
 
     // --- Form ---
     const {
@@ -1067,7 +1070,7 @@ function CheckoutPage() {
         orderData, orderError, checkoutStep, setCheckoutStep,
         isConfirmingPayment, appliedCoupon, couponError, isApplyingCoupon, couponDiscount,
         handleApplyCoupon, handlePlaceOrder, handleConfirmTransfer,
-    } = useCheckoutOrder({ checkoutItems, subtotal, cartId, total: subtotal + SHIPPING_FEE - 0, onFreezeItems: setFrozenItems });
+    } = useCheckoutOrder({ checkoutItems, subtotal, cartId, total: subtotal + SHIPPING_FEE - 0, onFreezeItems: setFrozenItems, buyNow: isBuyNow });
 
     const total = subtotal + SHIPPING_FEE - couponDiscount;
 
@@ -1076,11 +1079,15 @@ function CheckoutPage() {
         const beInfo = orderData?.paymentInfo;
         const beBank = beInfo?.bankInfo;
         const hasBeBank = beBank && (beBank.bankName || beBank.accountNumber);
+        const bankInfo = hasBeBank ? beBank : DEFAULT_BANK_INFO;
+        const transferContent = beInfo?.transferContent || (orderData?.orderCode ? `DEARROSE ${orderData.orderCode}` : "");
+        const amount = beInfo?.amount || orderData?.totalAmount || total;
         return {
-            qrCodeUrl: beInfo?.qrCodeUrl ?? "",
-            transferContent: beInfo?.transferContent || (orderData?.orderCode ? `DEARROSE ${orderData.orderCode}` : ""),
-            amount: beInfo?.amount || orderData?.totalAmount || total,
-            bankInfo: hasBeBank ? beBank : DEFAULT_BANK_INFO,
+            // BE chưa trả ảnh QR → tự dựng VietQR từ thông tin ngân hàng để khách quét chuyển khoản.
+            qrCodeUrl: beInfo?.qrCodeUrl || buildVietQrUrl(bankInfo, amount, transferContent),
+            transferContent,
+            amount,
+            bankInfo,
         };
     }, [orderData, total]);
 

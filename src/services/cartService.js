@@ -1,4 +1,5 @@
 import api from "../apis/default.js";
+import { buildImageUrl } from "../utils/format.js";
 
 const SESSION_TOKEN_KEY = "cart_session_token";
 
@@ -48,7 +49,8 @@ const getImage = (item) => {
     const images = product.images ?? item.images;
     const firstImage = Array.isArray(images) ? images[0] : null;
 
-    return (
+    const rawImage = (
+        product.img ??
         product.image_url ??
         product.imageUrl ??
         product.thumbnail_url ??
@@ -58,6 +60,7 @@ const getImage = (item) => {
         firstImage?.url ??
         firstImage?.image_url ??
         firstImage ??
+        item.img ??
         item.image_url ??
         item.imageUrl ??
         item.thumbnail_url ??
@@ -66,6 +69,8 @@ const getImage = (item) => {
         item.thumbnail ??
         ""
     );
+
+    return buildImageUrl(typeof rawImage === "string" ? rawImage.trim() : rawImage);
 };
 
 export const normalizeCartItem = (item = {}) => {

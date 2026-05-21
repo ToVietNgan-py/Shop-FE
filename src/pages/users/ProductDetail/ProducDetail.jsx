@@ -226,17 +226,23 @@ function ProductDetail() {
 
         (async () => {
             try {
+                // Buy-now sau khi đăng nhập: đi thẳng tới checkout riêng, không thêm vào giỏ.
+                if (pendingAction === "buy-now") {
+                    if (isMounted) {
+                        const item = pendingCartItem;
+                        setPendingCartItem(null);
+                        setPendingAction("");
+                        navigate("/thanh-toan", { state: { checkoutItem: item, buyNow: true } });
+                    }
+                    return;
+                }
+
                 await addToCart(pendingCartItem);
 
                 if (isMounted) {
                     setAddedSuccess(true);
                     setPendingCartItem(null);
-                    const action = pendingAction;
                     setPendingAction("");
-
-                    if (action === "buy-now") {
-                        navigate("/thanh-toan");
-                    }
                 }
             } catch (addError) {
                 if (isMounted) {
@@ -290,7 +296,7 @@ function ProductDetail() {
         }
     };
 
-    const handleBuyNow = async () => {
+    const handleBuyNow = () => {
         setCartActionError("");
         setPendingAction("buy-now");
 
@@ -300,12 +306,9 @@ function ProductDetail() {
             return;
         }
 
-        try {
-            await addToCart(cartItem);
-            navigate("/thanh-toan");
-        } catch (addError) {
-            setCartActionError(addError?.message || "Khong the them san pham vao gio.");
-        }
+        // Mua ngay = luồng thanh toán riêng cho duy nhất sản phẩm này.
+        // Không addToCart để tránh trộn vào giỏ hàng hiện tại; truyền item qua route state.
+        navigate("/thanh-toan", { state: { checkoutItem: cartItem, buyNow: true } });
     };
 
     const handleReviewSubmit = async (event) => {

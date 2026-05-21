@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useRef, useState } from "react";
 import { CartContext } from "../context/CartContext.jsx";
 import { AuthContext } from "../context/AuthContext.jsx";
 import { cartService } from "../services/cartService.js";
@@ -10,8 +10,8 @@ import { voucherService } from "../services/voucherService.js";
  * Gom toàn bộ state + logic đặt hàng vào hook này,
  * tách khỏi CheckoutPage để component chỉ lo render.
  */
-export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems }) {
-    const { cartId, syncCart } = useContext(CartContext);
+export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems, buyNow = false }) {
+    const { cartId, syncCart, cartItems } = useContext(CartContext);
     const { user } = useContext(AuthContext);
 
     const [orderData, setOrderData] = useState(null);
@@ -24,10 +24,29 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
 
     const couponDiscount = appliedCoupon?.discount ?? 0;
 
+    // Buy-now buộc phải tạm clear giỏ server (BE đặt hàng theo cart_id, mỗi user 1 giỏ).
+    // Lưu lại giỏ gốc để khôi phục sau khi đặt xong → giỏ hàng của user không bị mất.
+    const cartSnapshotRef = useRef([]);
+
+    const restoreBuyNowCart = async () => {
+        try {
+            await cartService.clear().catch(() => { });
+            if (cartSnapshotRef.current.length > 0) {
+                await cartService.mergeGuestCart(cartSnapshotRef.current);
+            }
+        } catch (e) {
+            console.warn("[Checkout] restore buy-now cart failed:", e?.message);
+        }
+    };
+
     // --- Sync + clear cart sau khi đặt hàng xong ---
     const refreshCartAfterOrder = async () => {
         onFreezeItems(checkoutItems); // ← freeze trước khi clear cart
-        try { window.localStorage.removeItem("guest_cart"); } catch { }
+        if (buyNow) {
+            await restoreBuyNowCart(); // trả lại giỏ hàng gốc đã tạm xoá
+        } else {
+            try { window.localStorage.removeItem("guest_cart"); } catch { }
+        }
         try { await syncCart(); } catch { }
     };
 
@@ -66,6 +85,11 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
         if (!user?.email) {
             setOrderError("Vui lòng đăng nhập trước khi đặt hàng.");
             return;
+        }
+
+        // Buy-now: chụp lại giỏ hàng gốc để khôi phục sau khi đặt (giỏ server sắp bị tạm xoá).
+        if (buyNow) {
+            cartSnapshotRef.current = cartItems.map((item) => ({ ...item }));
         }
 
         try {
@@ -133,6 +157,11 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
             window.location.href = paymentUrl;
 
         } catch (error) {
+            // Đặt hàng lỗi: nếu là buy-now, giỏ server đã bị clear → khôi phục lại giỏ gốc.
+            if (buyNow) {
+                await restoreBuyNowCart();
+                try { await syncCart(); } catch { /* lần load giỏ kế tiếp sẽ tự resync */ }
+            }
             setOrderError(
                 error?.message || error?.response?.data?.message || "Không tạo được đơn hàng. Vui lòng thử lại."
             );
