@@ -1069,6 +1069,7 @@ function CheckoutPage() {
     const {
         orderData, orderError, checkoutStep, setCheckoutStep,
         isConfirmingPayment, appliedCoupon, couponError, isApplyingCoupon, couponDiscount,
+        promoDiscount, appliedPromotions, promotionGifts, isLoadingPromotions,
         handleApplyCoupon, handlePlaceOrder, handleConfirmTransfer,
     } = useCheckoutOrder({ checkoutItems, subtotal, cartId, total: subtotal + SHIPPING_FEE - 0, onFreezeItems: setFrozenItems, buyNow: isBuyNow });
 
@@ -1314,6 +1315,22 @@ function CheckoutPage() {
                         <FieldError error={errors.voucher_code} />
                         {appliedCoupon && <p className="coupon-note">Đã áp dụng mã {appliedCoupon.code}.</p>}
                         {couponError && <p className="coupon-note">{couponError}</p>}
+                        {appliedPromotions && appliedPromotions.length > 0 && (
+                            <div style={{ marginTop: 8 }}>
+                                <strong>Khuyến mãi áp dụng:</strong>
+                                <ul style={{ margin: '6px 0 0 18px' }}>
+                                    {appliedPromotions.map((p) => (<li key={p.id}>{p.name} {p.amount ? `(- ${formatVND(Math.round(p.amount))})` : ''}</li>))}
+                                </ul>
+                            </div>
+                        )}
+                        {promotionGifts && promotionGifts.length > 0 && (
+                            <div style={{ marginTop: 8 }}>
+                                <strong>Quà tặng:</strong>
+                                <ul style={{ margin: '6px 0 0 18px' }}>
+                                    {promotionGifts.map((g, idx) => (<li key={idx}>Sản phẩm ID {g.giftProductId} x{g.quantity} (Ước tính giảm {formatVND(Math.round(g.estimatedDiscount || 0))})</li>))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
 
                     <div className="price-list">
@@ -1321,6 +1338,7 @@ function CheckoutPage() {
                         <PriceRow label="Phí vận chuyển" value={formatVND(SHIPPING_FEE)} />
                         <PriceRow label="Giảm giá thành viên" value="0 đ" muted />
                         <PriceRow label="Giảm giá coupon" value={`- ${formatVND(couponDiscount)}`} muted />
+                        <PriceRow label="Giảm giá khuyến mãi" value={`- ${formatVND(promoDiscount || 0)}`} muted />
                     </div>
 
                     <div className="summary-footer">

@@ -48,8 +48,8 @@ export const voucherSchema = z.object({
 export const promotionSchema = z.object({
     name: z.string().trim().min(2, 'Tên tối thiểu 2 ký tự').max(150, 'Tên tối đa 150 ký tự'),
     description: z.string().trim().max(255, 'Mô tả tối đa 255 ký tự').optional().nullable(),
-    type: z.enum(['percent', 'amount'], { message: 'Vui lòng chọn loại giảm' }),
-    value: z.coerce.number().min(0, 'Giá trị phải >= 0'),
+    type: z.enum(['percent', 'amount', 'bogo'], { message: 'Vui lòng chọn loại giảm' }),
+    value: z.coerce.number().min(0, 'Giá trị phải >= 0').optional().nullable(),
     min_order_total: z.coerce.number().min(0, 'Đơn hàng tối thiểu không được âm').optional().nullable(),
     max_discount: z.coerce.number().min(0, 'Giá trị tối đa phải >= 0').optional().nullable(),
     priority: z.coerce.number().int().min(0).optional().default(0),
@@ -59,8 +59,15 @@ export const promotionSchema = z.object({
     is_active: z.boolean().default(true),
     product_ids: z.array(z.string().or(z.number())).optional().nullable(),
     category_ids: z.array(z.string().or(z.number())).optional().nullable(),
+    bogo_rules: z.array(z.object({
+        buy_product_id: z.coerce.number().int().min(1),
+        buy_quantity: z.coerce.number().int().min(1),
+        gift_product_id: z.coerce.number().int().min(1),
+        gift_quantity: z.coerce.number().int().min(1),
+        gift_discount_percent: z.coerce.number().int().min(0).max(100),
+    })).optional().nullable(),
 }).superRefine((data, ctx) => {
-    if (data.type === 'percent' && data.value > 100) {
+    if (data.type === 'percent' && (data.value ?? 0) > 100) {
         ctx.addIssue({ code: 'custom', path: ['value'], message: 'Giảm theo phần trăm không được vượt quá 100%' });
     }
     if (data.starts_at && data.expires_at) {
@@ -71,5 +78,16 @@ export const promotionSchema = z.object({
                 ctx.addIssue({ code: 'custom', path: ['expires_at'], message: 'Thời gian kết thúc phải sau thời gian bắt đầu' });
             }
         } catch (e) { }
+        // BOGO specific checks
+        if (data.type === 'bogo') {
+            if (!data.bogo_rules || !Array.isArray(data.bogo_rules) || data.bogo_rules.length === 0) {
+                ctx.addIssue({ code: 'custom', path: ['bogo_rules'], message: 'Vui lòng thêm ít nhất 1 rule BOGO' });
+            }
+        } else {
+            // Non-bogo must have a value
+            if (data.value === null || data.value === undefined) {
+                ctx.addIssue({ code: 'custom', path: ['value'], message: 'Vui lòng nhập giá trị cho khuyến mãi' });
+            }
+        }
     }
 });

@@ -4,6 +4,7 @@ import { AiOutlineClose } from "react-icons/ai";
 import { MdCheckCircle } from "react-icons/md";
 import { CartContext } from "../context/CartContext.jsx";
 import { voucherService } from "../services/voucherService.js";
+import { promotionService } from "../services/promotionService.js";
 import { formatVND } from "../utils/format.js";
 import "./style.scss";
 
@@ -24,6 +25,9 @@ const Cart = ({ onClose }) => {
     const [appliedVoucher, setAppliedVoucher] = useState(null);
     const [voucherLoading, setVoucherLoading] = useState(false);
     const [voucherError, setVoucherError] = useState(null);
+    const [appliedPromotions, setAppliedPromotions] = useState([]);
+    const [promotionGifts, setPromotionGifts] = useState([]);
+    const [promotionLoading, setPromotionLoading] = useState(false);
 
     useEffect(() => {
         const originalOverflow = document.body.style.overflow;
@@ -33,6 +37,39 @@ const Cart = ({ onClose }) => {
             document.body.style.overflow = originalOverflow;
         };
     }, []);
+
+    useEffect(() => {
+        let alive = true;
+
+        const compute = async () => {
+            if (!cartItems?.length) {
+                setAppliedPromotions([]);
+                setPromotionGifts([]);
+                setPromotionLoading(false);
+                return;
+            }
+
+            setPromotionLoading(true);
+            try {
+                const res = await promotionService.applyToCart(cartItems, cartSubtotal);
+                if (!alive) return;
+                setAppliedPromotions(res.applied ?? []);
+                setPromotionGifts(res.giftItems ?? []);
+            } catch (error) {
+                if (!alive) return;
+                setAppliedPromotions([]);
+                setPromotionGifts([]);
+            } finally {
+                if (alive) setPromotionLoading(false);
+            }
+        };
+
+        compute();
+
+        return () => {
+            alive = false;
+        };
+    }, [cartItems, cartSubtotal]);
 
     // ===== Voucher handlers =====
     const handleApplyVoucher = async () => {
@@ -77,7 +114,8 @@ const Cart = ({ onClose }) => {
 
     // ===== Calculate total =====
     const discountAmount = appliedVoucher?.discount ?? 0;
-    const finalTotal = Math.max(0, cartSubtotal - discountAmount);
+    const promotionDiscount = appliedPromotions.reduce((sum, promo) => sum + Number(promo.amount ?? promo.discount ?? 0), 0);
+    const finalTotal = Math.max(0, cartSubtotal - promotionDiscount - discountAmount);
 
     const handleCheckout = () => {
         if (!cartItems?.length) {
@@ -151,6 +189,42 @@ const Cart = ({ onClose }) => {
 
                 {cartItems?.length > 0 ? (
                     <div className="cart-footer">
+                        {(appliedPromotions.length > 0 || promotionGifts.length > 0) && (
+                            <div className="voucher-section" style={{ marginBottom: 12 }}>
+                                {promotionLoading ? (
+                                    <div className="voucher-error">Đang tính khuyến mãi tự động...</div>
+                                ) : null}
+
+                                {appliedPromotions.length > 0 && (
+                                    <div style={{ marginBottom: 8 }}>
+                                        <strong>Khuyến mãi tự động:</strong>
+                                        <ul style={{ margin: '6px 0 0 18px' }}>
+                                            {appliedPromotions.map((promo) => (
+                                                <li key={promo.id}>
+                                                    {promo.name}
+                                                    {promo.amount || promo.discount ? ` (- ${formatVND(Math.round(promo.amount ?? promo.discount ?? 0))})` : ''}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {promotionGifts.length > 0 && (
+                                    <div>
+                                        <strong>Quà tặng kèm:</strong>
+                                        <ul style={{ margin: '6px 0 0 18px' }}>
+                                            {promotionGifts.map((gift, index) => (
+                                                <li key={`${gift.giftProductId || 'gift'}-${index}`}>
+                                                    Sản phẩm ID {gift.giftProductId} x{gift.quantity}
+                                                    {gift.estimatedDiscount ? ` (ước tính giảm ${formatVND(Math.round(gift.estimatedDiscount))})` : ''}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* ===== Voucher Section ===== */}
                         <div className="voucher-section">
                             {!appliedVoucher ? (
@@ -208,6 +282,13 @@ const Cart = ({ onClose }) => {
                             <span>Tạm tính</span>
                             <strong>{formatVND(cartSubtotal)}</strong>
                         </div>
+
+                        {promotionDiscount > 0 && (
+                            <div className="cart-summary-row discount-row">
+                                <span>Giảm giá khuyến mãi</span>
+                                <strong className="discount-amount">-{formatVND(promotionDiscount)}</strong>
+                            </div>
+                        )}
 
                         {appliedVoucher && (
                             <>

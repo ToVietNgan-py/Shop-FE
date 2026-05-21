@@ -14,20 +14,37 @@ export function useOrderPolling(apiUrl) {
 
         try {
             // Normalize apiUrl to avoid double-prefixing the base URL (e.g. /api/api/...)
-            const base = import.meta.env.VITE_API_URL || "/api";
+            const defaultBase = import.meta.env.VITE_API_URL || "/api";
             let requestUrl = apiUrl;
 
             if (!/^https?:\/\//.test(apiUrl)) {
-                // If apiUrl already contains the base prefix, strip it
-                if (apiUrl.startsWith(base)) {
-                    requestUrl = apiUrl.slice(base.length);
+                // Attempt to determine the base path from axios instance or env
+                const axiosBase = api.defaults?.baseURL || defaultBase;
+
+                // compute base path (handles full URL or simple '/api')
+                let basePath = "/api";
+                try {
+                    basePath = new URL(axiosBase).pathname || basePath;
+                } catch (e) {
+                    if (typeof axiosBase === "string" && axiosBase.startsWith("/")) basePath = axiosBase;
+                }
+
+                if (requestUrl.startsWith(basePath)) {
+                    requestUrl = requestUrl.slice(basePath.length);
                 }
 
                 if (!requestUrl.startsWith("/")) requestUrl = "/" + requestUrl;
             }
 
             const response = await api.get(requestUrl, { params: { after_id: lastIdRef.current } });
-            const data = response.data?.data ?? response.data;
+            // Support different response shapes:
+            // - Paginated or array: response.data or response.data.data (array)
+            // - Admin dashboard summary: response.data.data.recent_orders
+            let data = response.data?.data ?? response.data;
+
+            if (data && data.recent_orders) {
+                data = data.recent_orders;
+            }
 
             if (!Array.isArray(data) || data.length === 0) return;
 

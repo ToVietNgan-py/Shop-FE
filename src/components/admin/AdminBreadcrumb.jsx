@@ -8,6 +8,7 @@ const ROUTE_LABELS = {
     'danh-muc': 'Danh mục',
     'don-hang': 'Đơn hàng',
     'khuyen-mai': 'Khuyến mãi',
+    'promotions': 'Chiến dịch Khuyến mãi',
     'tai-khoan': 'Tài khoản',
 };
 
