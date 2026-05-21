@@ -1,7 +1,7 @@
 .profile-page {
-    background: #f5f6fa;
+    background: linear-gradient(180deg, #f8fafc 0%, #f3f4f6 100%);
     min-height: 100vh;
-    padding: 28px;
+    padding: 24px 20px 40px;
 
     .loading {
         display: flex;
@@ -15,16 +15,16 @@
             width: 44px;
             height: 44px;
             border: 3px solid #e0e0e0;
-            border-top-color: #0a6ed1;
+            border-top-color: #111827;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
 
         p {
             margin: 0;
-            font-size: 17px;
+            font-size: 15px;
             color: #666;
-            font-weight: 600;
+            font-weight: 500;
         }
     }
 
@@ -40,14 +40,31 @@
         left: 50%;
         transform: translateX(-50%);
         padding: 14px 28px;
-        background: linear-gradient(135deg, #ff5252 0%, #d32f2f 100%);
+        background: #b91c1c;
         color: white;
-        border-radius: 10px;
+        border-radius: 8px;
         cursor: pointer;
         z-index: 1000;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
         font-size: 15px;
-        font-weight: 700;
+        font-weight: 500;
+        animation: slideDown 0.3s ease;
+    }
+
+    .success-message {
+        position: fixed;
+        top: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 14px 28px;
+        background: #047857;
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        z-index: 1000;
+        box-shadow: 0 12px 26px rgba(17, 24, 39, 0.18);
+        font-size: 15px;
+        font-weight: 500;
         animation: slideDown 0.3s ease;
     }
 
@@ -65,8 +82,9 @@
 
     .profile-container {
         display: flex;
-        gap: 28px;
-        max-width: 1200px;
+        align-items: flex-start;
+        gap: 20px;
+        max-width: 1120px;
         margin: 0 auto;
     }
 

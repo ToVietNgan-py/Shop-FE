@@ -1,5 +1,6 @@
 import { useContext, useState, useEffect, memo } from "react";
 import { useNavigate } from "react-router-dom";
+import { FiCalendar, FiPackage, FiSearch, FiX } from "react-icons/fi";
 import { getOrders, cancelOrder } from "../../../services/orderService";
 import { formatVND } from "../../../utils/format";
 import ProfileSidebar from "../../../components/profile/ProfileSidebar.jsx";
@@ -16,16 +17,6 @@ const STATUS_LABELS = {
     cancelled: "Đã hủy",
 };
 
-// Status colors
-const STATUS_COLORS = {
-    pending: "#ff9800",
-    confirmed: "#2196f3",
-    shipping: "#9c27b0",
-    delivered: "#4caf50",
-    cancelled: "#f44336",
-};
-
-
 // Format datetime
 const formatDateTime = (dateString) => {
     const date = new Date(dateString);
@@ -40,10 +31,7 @@ const formatDateTime = (dateString) => {
 
 // Status Badge Component
 const StatusBadge = ({ status }) => (
-    <span
-        className="status-badge"
-        style={{ backgroundColor: STATUS_COLORS[status] }}
-    >
+    <span className={`status-badge status-badge--${status}`}>
         {STATUS_LABELS[status]}
     </span>
 );
@@ -55,7 +43,7 @@ const OrderItem = ({ item }) => (
         <div className="item-info">
             <h4 className="item-name">{item.name}</h4>
             <p className="item-variant">
-                {item.color} / {item.size} | SL: {item.quantity}
+                {item.color} / {item.size} · SL: {item.quantity}
             </p>
         </div>
         <div className="item-price">{formatVND(item.price * (item.quantity || 1))}</div>
@@ -70,10 +58,15 @@ const OrderCard = ({ order, onViewDetail, onCancel, onReview, cancelling }) => {
     return (
         <div className="order-card">
             <div className="order-header">
-                <div className="order-code">Mã đơn: {order.orderCode}</div>
+                <div>
+                    <div className="order-code">Mã đơn: {order.orderCode}</div>
+                    <div className="order-date">
+                        <FiCalendar aria-hidden="true" />
+                        {formatDateTime(order.createdAt)}
+                    </div>
+                </div>
                 <StatusBadge status={order.status} />
             </div>
-            <div className="order-date">{formatDateTime(order.createdAt)}</div>
 
             <div className="order-items">
                 {order.items.map((item, index) => (
@@ -83,7 +76,7 @@ const OrderCard = ({ order, onViewDetail, onCancel, onReview, cancelling }) => {
 
             <div className="order-footer">
                 <div className="order-total">
-                    <span className="label">Tổng tiền:</span>
+                    <span className="label">Tổng tiền</span>
                     <span className="amount">{formatVND(order.totalAmount)}</span>
                     <span className="item-count">({order.items.reduce((s, it) => s + (it.quantity || 0), 0)} sản phẩm)</span>
                 </div>
@@ -161,7 +154,7 @@ const MyOrders = () => {
                     const filteredServer = serverOrders.filter(s => !local.some(l => l.orderCode === s.orderCode));
                     merged = [...local, ...filteredServer];
                 }
-            } catch (_e) {
+            } catch {
                 // ignore local storage errors
             }
 
@@ -273,51 +266,60 @@ const MyOrders = () => {
 
                 <div className="orders-content">
                     <div className="page-header">
-                        <h1>Lịch sử đơn hàng</h1>
+                        <div>
+                            <span className="page-eyebrow">Tài khoản của tôi</span>
+                            <h1>Lịch sử đơn hàng</h1>
+                            <p className="subtitle">Theo dõi trạng thái và quản lý các đơn mua gần đây.</p>
+                        </div>
                     </div>
 
-                    {/* Search Bar */}
-                    <div className="search-bar">
-                        <span className="search-icon">🔍</span>
-                        <input
-                            type="text"
-                            placeholder="Tìm kiếm theo mã đơn hoặc tên sản phẩm..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        {searchQuery && (
-                            <button
-                                className="clear-search"
-                                onClick={() => setSearchQuery("")}
-                            >
-                                ✕
-                            </button>
-                        )}
-                    </div>
+                    <div className="orders-toolbar">
+                        {/* Search Bar */}
+                        <div className="search-bar">
+                            <FiSearch className="search-icon" aria-hidden="true" />
+                            <input
+                                type="text"
+                                placeholder="Tìm kiếm mã đơn hoặc tên sản phẩm..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                                <button
+                                    className="clear-search"
+                                    onClick={() => setSearchQuery("")}
+                                    aria-label="Xóa tìm kiếm"
+                                >
+                                    <FiX aria-hidden="true" />
+                                </button>
+                            )}
+                        </div>
 
-                    {/* Status Tabs */}
-                    <div className="status-tabs">
-                        {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                            <button
-                                key={key}
-                                className={`tab ${activeTab === key ? "active" : ""}`}
-                                onClick={() => setActiveTab(key)}
-                            >
-                                {label}
-                                {key !== "all" && (
-                                    <span className="tab-count">
-                                        {orders.filter((o) => o.status === key).length}
-                                    </span>
-                                )}
-                            </button>
-                        ))}
+                        {/* Status Tabs */}
+                        <div className="status-tabs">
+                            {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                                <button
+                                    key={key}
+                                    className={`tab ${activeTab === key ? "active" : ""}`}
+                                    onClick={() => setActiveTab(key)}
+                                >
+                                    {label}
+                                    {key !== "all" && (
+                                        <span className="tab-count">
+                                            {orders.filter((o) => o.status === key).length}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Orders List */}
                     <div className="orders-list">
                         {filteredOrders.length === 0 ? (
                             <div className="empty-state">
-                                <div className="empty-icon">📦</div>
+                                <div className="empty-icon">
+                                    <FiPackage aria-hidden="true" />
+                                </div>
                                 <h3>Không tìm thấy đơn hàng</h3>
                                 <p>
                                     {searchQuery

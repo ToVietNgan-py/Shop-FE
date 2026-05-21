@@ -45,14 +45,25 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
         (async () => {
             try {
                 const p = await productService.list({ page: 1, limit: 200 });
-                setProducts(p.data ?? []);
+
+                setProducts(
+                    p?.data?.data ??
+                    p?.data ??
+                    []
+                );
             } catch (e) {
                 setProducts([]);
             }
 
             try {
                 const c = await categoryService.list();
-                setCategories(c ?? []);
+
+                setCategories(
+                    c?.data?.data ??
+                    c?.data ??
+                    c ??
+                    []
+                );
             } catch (e) {
                 setCategories([]);
             }
@@ -77,6 +88,10 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
             product_ids: values.product_ids || [],
             category_ids: values.category_ids || [],
         };
+
+        if (values.type !== 'bogo') {
+            delete payload.bogo_rules;
+        }
 
         try {
             if (isEdit) {

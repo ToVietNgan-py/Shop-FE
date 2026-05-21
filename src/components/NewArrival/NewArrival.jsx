@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import PageLoading from "../PageLoading/PageLoading.jsx";
 import WishlistButton from "../common/WishlistButton.jsx";
+import ProductQuickActions from "../common/ProductQuickActions.jsx";
 
 function NewArrival() {
     const [startIndex, setStartIndex] = useState(0);
@@ -68,16 +69,17 @@ function NewArrival() {
                     {visibleProducts.map((item) => (
                         <div key={item.id} style={{ position: "relative" }}>
                             <WishlistButton product={item} />
-                            <Link to={`/san-pham/${item.id}`}>
-                                <div className="card">
+                            <div className="card">
+                                <Link to={`/san-pham/${item.id}`} className="card-main">
                                     <div className="image">
                                         {item.img ? <img src={item.img} alt={item.name} /> : null}
                                     </div>
 
                                     <p className="name">{item.name}</p>
                                     <p className="price">{formatVND(item.price)}</p>
-                                </div>
-                            </Link>
+                                </Link>
+                                <ProductQuickActions product={item} />
+                            </div>
                         </div>
                     ))}
                 </div>

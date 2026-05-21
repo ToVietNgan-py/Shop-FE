@@ -79,6 +79,13 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const updateUserContext = useCallback((nextUser) => {
+        setUser(nextUser);
+        if (nextUser) {
+            localStorage.setItem("user", JSON.stringify(nextUser));
+        }
+    }, []);
+
     return (
         <AuthContext.Provider
             value={{
@@ -86,6 +93,7 @@ export const AuthProvider = ({ children }) => {
                 loading,
                 loginContext,
                 logout,
+                updateUserContext,
             }}
         >
             {!loading && children}

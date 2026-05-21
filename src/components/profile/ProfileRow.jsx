@@ -1,12 +1,24 @@
 import "./style.scss";
-export default function ProfileRow({ label, value, locked, onClick }) {
-    return (
-        <div className="row" onClick={!locked ? onClick : null}>
-            <span>{label}</span>
+import { FiChevronRight, FiLock } from "react-icons/fi";
 
-            <span className={value ? "value" : "empty"}>
-                {value || "Thêm thông tin"} {locked ? "🔒" : ">"}
-            </span>
+export default function ProfileRow({ label, value, locked, onClick, icon: Icon }) {
+    return (
+        <div className={`row ${locked ? "locked" : ""}`} onClick={!locked ? onClick : undefined}>
+            <div className="row-label">
+                {Icon ? (
+                    <span className="row-icon" aria-hidden="true">
+                        <Icon />
+                    </span>
+                ) : null}
+                <span>{label}</span>
+            </div>
+
+            <div className="row-value">
+                <span className={value ? "value" : "empty"}>
+                    {value || "Thêm thông tin"}
+                </span>
+                {locked ? <FiLock className="row-action-icon" aria-hidden="true" /> : <FiChevronRight className="row-action-icon" aria-hidden="true" />}
+            </div>
         </div>
     );
 }

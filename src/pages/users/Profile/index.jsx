@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "react-router-dom";
@@ -8,10 +8,17 @@ import { changePasswordSchema } from "../../../validations/profileSchema.js";
 import ProfileSidebar from "../../../components/profile/ProfileSidebar.jsx";
 import ProfileInfo from "../../../components/profile/ProfileInfo.jsx";
 import ProfileModal from "../../../components/profile/ProfileModal.jsx";
+import { AuthContext } from "../../../context/AuthContext.jsx";
 import "./style.scss";
+
+const getProfilePayload = (payload) => {
+    if (!payload || typeof payload !== "object") return {};
+    return payload.user ?? payload.profile ?? payload.data?.user ?? payload.data?.profile ?? payload.data ?? payload;
+};
 
 export default function ProfilePage() {
     const location = useLocation();
+    const { updateUserContext } = useContext(AuthContext);
 
     const [user, setUser] = useState(null);
     const [field, setField] = useState(null);
@@ -19,6 +26,7 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
     const {
         register,
         handleSubmit,
@@ -33,16 +41,13 @@ export default function ProfilePage() {
         },
     });
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
-
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
             const res = await getProfile();
             setUser(res);
+            updateUserContext?.(res);
         } catch (err) {
             console.error("Error fetching profile:", err);
             setError(err?.message || "Không thể tải thông tin profile");
@@ -50,7 +55,11 @@ export default function ProfilePage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [updateUserContext]);
+
+    useEffect(() => {
+        fetchProfile();
+    }, [fetchProfile]);
 
     const openModal = (nextField) => {
         if (nextField === "password") {
@@ -69,16 +78,17 @@ export default function ProfilePage() {
 
     const handleSavePassword = async ({ currentPassword, newPassword }) => {
         try {
-
+            setSaving(true);
             setError(null);
+            setSuccess(null);
             await changePassword({
                 current_password: currentPassword,
                 new_password: newPassword,
             });
 
             setField(null);
-            setError("Đổi mật khẩu thành công!");
-            window.setTimeout(() => setError(null), 3000);
+            setSuccess("Đổi mật khẩu thành công!");
+            window.setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             console.error("Error changing password:", err);
             setError(err.response?.data?.message || "Không thể đổi mật khẩu. Vui lòng thử lại.");
@@ -99,18 +109,27 @@ export default function ProfilePage() {
         try {
             setSaving(true);
             setError(null);
+            setSuccess(null);
 
-            await updateProfile({ [field]: nextValue });
+            const updatedProfile = await updateProfile({ [field]: nextValue });
+            const profilePayload = getProfilePayload(updatedProfile);
 
-            setUser((prev) => ({
-                ...prev,
-                [field]: nextValue,
-            }));
+            setUser((prev) => {
+                const nextUser = {
+                    ...prev,
+                    ...profilePayload,
+                    [field]: nextValue,
+                };
+                updateUserContext?.(nextUser);
+                return nextUser;
+            });
 
             setField(null);
+            setSuccess("Cập nhật thông tin thành công!");
+            window.setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             console.error("Error updating profile:", err);
-            setError("Không thể cập nhật thông tin. Vui lòng thử lại.");
+            setError(err?.message || "Không thể cập nhật thông tin. Vui lòng thử lại.");
         } finally {
             setSaving(false);
         }
@@ -151,6 +170,11 @@ export default function ProfilePage() {
             {error && (
                 <div className="error-message" onClick={() => setError(null)}>
                     {error}
+                </div>
+            )}
+            {success && (
+                <div className="success-message" onClick={() => setSuccess(null)}>
+                    {success}
                 </div>
             )}
 
@@ -200,7 +224,7 @@ export default function ProfilePage() {
 
                         <div className="modal-btns">
                             <button type="submit" disabled={isSavingPassword}>
-                                {saving ? "Đang lưu..." : "Lưu"}
+                                {isSavingPassword || saving ? "Đang lưu..." : "Lưu"}
                             </button>
                             <button type="button" onClick={() => setField(null)} disabled={isSavingPassword}>
                                 Hủy

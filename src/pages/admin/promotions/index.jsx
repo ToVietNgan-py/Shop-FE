@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Space, Typography, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-
 import DataTable from '../../../components/admin/DataTable.jsx';
 import adminPromotionService from '../../../services/admin/adminPromotionService.js';
-
+import { Button, Input, Space, Typography, message, Tag, Modal } from 'antd';
 import PromotionModal from './PromotionModal.jsx';
 import '../_shared/admin-page.scss';
 
@@ -68,13 +66,72 @@ export default function PromotionsPage() {
         { title: 'Loại', dataIndex: 'type', render: (t) => (t === 'percent' ? 'Phần trăm' : t === 'amount' ? 'Số tiền' : t) },
         { title: 'Giá trị', dataIndex: 'value', render: (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN') : v) },
         { title: 'Hạn', dataIndex: 'expires_at', render: (d) => (d ? new Date(d).toLocaleString() : '-') },
-        { title: 'Trạng thái', dataIndex: 'is_active', render: (a) => (a ? 'Đang hoạt động' : 'Tạm khóa') },
+        {
+            title: 'Trạng thái',
+            key: 'status',
+            render: (_, record) => {
+                if (!record.is_active) {
+                    return <Tag>Tắt</Tag>;
+                }
+
+                if (record.is_running) {
+                    return <Tag color="green">Đang chạy</Tag>;
+                }
+
+                return <Tag color="red">Hết hạn</Tag>;
+            }
+        },
         {
             title: 'Hành động', key: 'actions', render: (_, record) => (
                 <Space>
-                    <Button size="small" onClick={() => { setSelectedPromotion(record); setModalOpen(true); }}>Sửa</Button>
+                    <Button
+                        size="small"
+                        onClick={async () => {
+                            try {
+                                setLoading(true);
+
+                                const res = await adminPromotionService.getById(record.id);
+
+                                const promotionDetail = res?.data?.data || res?.data;
+
+                                if (!promotionDetail) {
+                                    message.error('Không có dữ liệu promotion');
+                                    return;
+                                }
+
+                                setSelectedPromotion({
+                                    ...promotionDetail,
+                                    products: promotionDetail.products || [],
+                                    categories: promotionDetail.categories || [],
+                                    bogo_rules: promotionDetail.bogo_rules || [],
+                                });
+                                setModalOpen(true);
+                            } catch (error) {
+                                message.error('Không tải được chi tiết khuyến mãi');
+                            } finally {
+                                setLoading(false);
+                            }
+                        }}
+                    >
+                        Sửa
+                    </Button>
                     <Button size="small" danger onClick={async () => {
-                        if (!confirm('Xoá khuyến mãi này?')) return;
+                        Modal.confirm({
+                            title: 'Xoá khuyến mãi',
+                            content: 'Bạn có chắc muốn xoá khuyến mãi này?',
+                            okText: 'Xoá',
+                            okType: 'danger',
+                            cancelText: 'Huỷ',
+                            async onOk() {
+                                try {
+                                    await adminPromotionService.remove(record.id);
+                                    message.success('Đã xoá');
+                                    fetchPromotions();
+                                } catch (e) {
+                                    message.error('Không thể xoá');
+                                }
+                            }
+                        });
                         try { await adminPromotionService.remove(record.id); message.success('Đã xoá'); fetchPromotions(); } catch (e) { message.error('Không thể xoá'); }
                     }}>Xoá</Button>
                 </Space>

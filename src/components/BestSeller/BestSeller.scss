@@ -1,166 +1,231 @@
-// Best Seller Styles
 .best-seller {
     padding: 40px 20px;
     background-color: #f9f9f9;
     text-align: center;
+}
 
-    .header {
-        margin-bottom: 30px;
+.best-seller .header {
+    margin-bottom: 30px;
+}
 
-        h2 {
-            font-size: 2.5rem;
-            color: #e91e63;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
+.best-seller .header h2 {
+    font-size: 2.5rem;
+    color: #e91e63;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
 
-        button {
-            background-color: #e91e63;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s ease;
+.best-seller .header button {
+    background-color: #e91e63;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s ease;
+}
 
-            &:hover {
-                background-color: darken(#e91e63, 10%);
-            }
-        }
+.best-seller .header button:hover {
+    background-color: #c2195a;
+}
+
+/* ── Slider ── */
+.best-seller .slider {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.best-seller .list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 0 56px;
+}
+
+.best-seller .list a {
+    text-decoration: none;
+    color: inherit;
+}
+
+@media (max-width: 1024px) {
+    .best-seller .list {
+        grid-template-columns: repeat(3, 1fr);
+        margin: 0 50px;
     }
+}
 
-    .slider {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+@media (max-width: 768px) {
+    .best-seller .list {
+        grid-template-columns: repeat(2, 1fr);
+        margin: 0 40px;
     }
+}
 
-    .list {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-        margin: 0 60px; // Space for arrows
-
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
-
-        @media (max-width: 1024px) {
-            grid-template-columns: repeat(3, 1fr);
-            margin: 0 50px;
-        }
-
-        @media (max-width: 768px) {
-            grid-template-columns: repeat(2, 1fr);
-            margin: 0 40px;
-        }
-
-        @media (max-width: 480px) {
-            grid-template-columns: 1fr;
-            margin: 0 20px;
-        }
+@media (max-width: 480px) {
+    .best-seller .list {
+        grid-template-columns: 1fr;
+        margin: 0 20px;
     }
+}
 
-    .card {
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        text-decoration: none;
-        color: inherit;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        min-height: 420px;
+/* wrapper > div */
+.best-seller .list>div {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
 
-        &:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-        }
+/* ── Card ── */
+.best-seller .card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
 
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
+.best-seller .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.13);
+}
 
-        .image {
-            height: 250px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
+/* link wrap */
+.best-seller .card-main {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
 
-            img {
-                max-width: 100%;
-                max-height: 100%;
-                object-fit: contain;
-                transition: transform 0.3s ease;
+/* ── Ảnh: kiểu Shopee/Shein — vuông, fill hết, không đệm ── */
+.best-seller .card .image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    /* vuông như Shopee */
+    flex-shrink: 0;
+    overflow: hidden;
+    background: #f5f5f5;
+    position: relative;
+}
 
-                &:hover {
-                    transform: scale(1.05);
-                }
-            }
-        }
+.best-seller .card .image img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* fill hết khung, không đệm */
+    object-position: center top;
+    transition: transform 0.3s ease;
+}
 
-        .name {
-            font-size: 1.1rem;
-            font-weight: 500;
-            margin: 15px 10px 5px;
-            color: #333;
-            text-decoration: none;
-            min-height: 3.3rem;
-            line-height: 1.4rem;
-            word-break: break-word;
-        }
+.best-seller .card .image img:hover {
+    transform: scale(1.05);
+}
 
-        .price {
-            font-size: 1rem;
-            color: #e91e63;
-            font-weight: bold;
-            margin: 0 10px 15px;
-            text-decoration: none;
-            margin-top: auto;
-        }
-    }
+/* ── Tên ── */
+.best-seller .card .name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin: 8px 8px 4px;
+    color: #333;
+    min-height: 2.4rem;
+    line-height: 1.35rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: left;
+}
 
-    .arrow {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 2rem;
-        background-color: rgba(233, 30, 99, 0.8);
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        cursor: pointer;
-        transition: background-color 0.3s ease, transform 0.2s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10;
+/* ── Giá: căn giữa ── */
+.best-seller .card .price {
+    font-size: 0.95rem;
+    color: #e91e63;
+    font-weight: bold;
+    margin: 0 0 6px;
+    text-align: center;
+}
 
-        &:hover {
-            background-color: #e91e63;
-            transform: translateY(-50%) scale(1.1);
-        }
+/* ── Quick actions: dùng đúng class thật ── */
+.best-seller .product-quick-actions {
+    width: 100%;
+    padding: 0 8px 10px;
+}
 
-        &:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-    }
+.best-seller .product-quick-actions__buttons {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+    width: 100%;
+}
 
-    .left {
-        left: 10px;
-    }
+.best-seller .quick-action-btn {
+    width: 100% !important;
+    padding: 8px 4px !important;
+    border-radius: 8px !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    transition: opacity 0.2s ease, transform 0.15s ease !important;
+}
 
-    .right {
-        right: 10px;
-    }
+.best-seller .quick-action-btn:hover:not(:disabled) {
+    opacity: 0.88 !important;
+    transform: translateY(-1px) !important;
+}
+
+.best-seller .quick-action-btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+}
+
+/* ── Arrows ── */
+.best-seller .arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 2rem;
+    background-color: rgba(233, 30, 99, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.best-seller .arrow:hover {
+    background-color: #e91e63;
+    transform: translateY(-50%) scale(1.1);
+}
+
+.best-seller .arrow:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.best-seller .left {
+    left: 6px;
+}
+
+.best-seller .right {
+    right: 6px;
 }
