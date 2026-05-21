@@ -2,6 +2,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { productService } from "../../../services/productService.js";
 import { categoryService } from "../../../services/categoryService.js";
+import { promotionService } from "../../../services/promotionService.js";
 import "./style.scss";
 import { formatVND } from "../../../utils/format.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
@@ -44,6 +45,35 @@ const ProductPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [pageError, setPageError] = useState("");
     const pageSize = 12;
+    const [promoMap, setPromoMap] = useState(new Map());
+    const [globalPromos, setGlobalPromos] = useState([]);
+
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            try {
+                const list = await promotionService.fetchActive().catch(() => []);
+                if (!alive) return;
+                const map = new Map();
+                const globals = [];
+                for (const p of list) {
+                    if (p.products && p.products.length > 0) {
+                        for (const pr of p.products) {
+                            const id = Number(pr.id ?? pr.product_id ?? pr);
+                            if (!isNaN(id)) map.set(id, p);
+                        }
+                    } else {
+                        globals.push(p);
+                    }
+                }
+                setPromoMap(map);
+                setGlobalPromos(globals);
+            } catch (e) {
+                // ignore
+            }
+        })();
+        return () => { alive = false; };
+    }, []);
     // Các state filter/sort vẫn nằm ở UI, nhưng dữ liệu đã được lấy qua service/API.
     // Query params page/keyword tiếp tục được sync qua URL để share link được.
 
@@ -332,6 +362,15 @@ const ProductPage = () => {
                                             Khi có backend, đảm bảo id/slug route này khớp với API chi tiết sản phẩm. */}
                                         <div className="image-box">
                                             {item.img ? <img src={item.img} alt={item.name} /> : null}
+                                            {promoMap.has(item.id) ? (
+                                                <span className="product-promo" style={{ position: 'absolute', top: 8, left: 8, background: '#db2777', color: '#fff', padding: '4px 8px', borderRadius: 6, fontSize: 12 }}>
+                                                    {promoMap.get(item.id).type === 'percent' ? `-${promoMap.get(item.id).value}%` : promoMap.get(item.id).type === 'amount' ? `Giảm ${Number(promoMap.get(item.id).value).toLocaleString('vi-VN')} đ` : 'KM'}
+                                                </span>
+                                            ) : globalPromos.length > 0 ? (
+                                                <span className="product-promo" style={{ position: 'absolute', top: 8, left: 8, background: '#f59e0b', color: '#111', padding: '4px 8px', borderRadius: 6, fontSize: 12 }}>
+                                                    KM
+                                                </span>
+                                            ) : null}
                                         </div>
 
                                         <div className="product-card__content">

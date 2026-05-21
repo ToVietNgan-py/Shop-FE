@@ -1,10 +1,11 @@
-import { useContext, useRef, useState } from "react";
+import { useContext, useRef, useState, useEffect } from "react";
 import { CartContext } from "../context/CartContext.jsx";
 import { AuthContext } from "../context/AuthContext.jsx";
 import { cartService } from "../services/cartService.js";
 import { buildCreateOrderPayload, orderService, ORDER_PAYMENT_METHODS } from "../services/orderService.js";
 import { paymentService } from "../services/paymentService.js";
 import { voucherService } from "../services/voucherService.js";
+import { promotionService } from "../services/promotionService.js";
 
 /**
  * Gom toàn bộ state + logic đặt hàng vào hook này,
@@ -21,8 +22,13 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
     const [appliedCoupon, setAppliedCoupon] = useState(null);
     const [couponError, setCouponError] = useState("");
     const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+    const [appliedPromotions, setAppliedPromotions] = useState([]);
+    const [promotionDiscount, setPromotionDiscount] = useState(0);
+    const [promotionGifts, setPromotionGifts] = useState([]);
+    const [isLoadingPromotions, setIsLoadingPromotions] = useState(false);
 
     const couponDiscount = appliedCoupon?.discount ?? 0;
+    const promoDiscount = promotionDiscount ?? 0;
 
     // Buy-now buộc phải tạm clear giỏ server (BE đặt hàng theo cart_id, mỗi user 1 giỏ).
     // Lưu lại giỏ gốc để khôi phục sau khi đặt xong → giỏ hàng của user không bị mất.
@@ -72,6 +78,37 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
             setIsApplyingCoupon(false);
         }
     };
+
+    // --- Áp promotional rules (percent/amount/bogo) client-side ---
+    const computePromotions = async (items, subtotalValue) => {
+        setIsLoadingPromotions(true);
+        try {
+            const res = await promotionService.applyToCart(items, subtotalValue);
+            setPromotionDiscount(res.discount ?? 0);
+            setAppliedPromotions(res.applied ?? []);
+            setPromotionGifts(res.giftItems ?? []);
+        } catch (e) {
+            setPromotionDiscount(0);
+            setAppliedPromotions([]);
+            setPromotionGifts([]);
+        } finally {
+            setIsLoadingPromotions(false);
+        }
+    };
+
+    // Auto compute promotions when cart items or subtotal change
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            if (!mounted) return;
+            try {
+                await computePromotions(checkoutItems, subtotal);
+            } catch (e) {
+                // ignore
+            }
+        })();
+        return () => { mounted = false; };
+    }, [checkoutItems, subtotal]);
 
     // --- Đặt hàng ---
     const handlePlaceOrder = async (values) => {
@@ -131,6 +168,7 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
                 paymentMethod: values.paymentMethod,
                 note: values.note,
                 voucherCode: appliedCoupon?.code,
+                promotion_ids: appliedPromotions.map(p => p.id),
             });
 
             // 3. Tạo đơn hàng
@@ -196,6 +234,10 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
         couponError,
         isApplyingCoupon,
         couponDiscount,
+        promoDiscount: promoDiscount,
+        appliedPromotions,
+        promotionGifts,
+        isLoadingPromotions,
         handleApplyCoupon,
         handlePlaceOrder,
         handleConfirmTransfer,

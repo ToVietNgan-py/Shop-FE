@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Modal, Form, Input, Select, InputNumber, DatePicker, Switch, message } from 'antd';
+import { Modal, Form, Input, Select, InputNumber, DatePicker, Switch, Button, message } from 'antd';
 import dayjs from 'dayjs';
 import adminPromotionService from '../../../services/admin/adminPromotionService.js';
 import { promotionSchema } from '../../../validations/adminSchema.js';
@@ -13,7 +13,9 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
 
-    const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
+    const { register, control, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm({
+        mode: 'onChange',
+        reValidateMode: 'onChange',
         resolver: zodResolver(promotionSchema),
         defaultValues: {
             name: '',
@@ -29,8 +31,12 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
             is_active: true,
             product_ids: [],
             category_ids: [],
+            bogo_rules: [],
         }
     });
+
+    const typeValue = watch('type');
+    const { fields: bogoFields, append: bogoAppend, remove: bogoRemove } = useFieldArray({ control, name: 'bogo_rules' });
 
     useEffect(() => {
         if (!open) return;
@@ -58,6 +64,7 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
             expires_at: promotion.expires_at ? dayjs(promotion.expires_at) : null,
             product_ids: promotion.products?.map(p => p.id) ?? [],
             category_ids: promotion.categories?.map(c => c.id) ?? [],
+            bogo_rules: promotion.bogo_rules ?? [],
             is_active: promotion.is_active ?? true,
         } : undefined);
     }, [open, promotion, reset]);
@@ -98,22 +105,28 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
         >
             <form style={{ marginTop: 16 }} onSubmit={handleSubmit(onSubmit)} noValidate>
                 <Form.Item label="Tên" validateStatus={errors.name ? 'error' : ''} help={errors.name?.message}>
-                    <Input placeholder="Tên khuyến mãi" {...register('name')} />
+                    <Controller name="name" control={control} render={({ field }) => (
+                        <Input {...field} value={field.value ?? ''} placeholder="Tên khuyến mãi" />
+                    )} />
                 </Form.Item>
 
                 <Form.Item label="Mô tả" validateStatus={errors.description ? 'error' : ''} help={errors.description?.message}>
-                    <Input.TextArea rows={2} placeholder="Mô tả ngắn" {...register('description')} />
+                    <Controller name="description" control={control} render={({ field }) => (
+                        <Input.TextArea {...field} value={field.value ?? ''} rows={2} placeholder="Mô tả ngắn" />
+                    )} />
                 </Form.Item>
 
                 <Form.Item label="Loại" validateStatus={errors.type ? 'error' : ''} help={errors.type?.message}>
                     <Controller name="type" control={control} render={({ field }) => (
-                        <Select {...field} options={[{ value: 'percent', label: 'Phần trăm (%)' }, { value: 'amount', label: 'Số tiền (₫)' }]} />
+                        <Select {...field} options={[{ value: 'percent', label: 'Phần trăm (%)' }, { value: 'amount', label: 'Số tiền (₫)' }, { value: 'bogo', label: 'Mua X tặng Y (BOGO)' }]} />
                     )} />
                 </Form.Item>
 
-                <Form.Item label="Giá trị" validateStatus={errors.value ? 'error' : ''} help={errors.value?.message}>
-                    <Controller name="value" control={control} render={({ field }) => <InputNumber {...field} style={{ width: '100%' }} min={0} />} />
-                </Form.Item>
+                {typeValue !== 'bogo' && (
+                    <Form.Item label="Giá trị" validateStatus={errors.value ? 'error' : ''} help={errors.value?.message}>
+                        <Controller name="value" control={control} render={({ field }) => <InputNumber {...field} style={{ width: '100%' }} min={0} />} />
+                    </Form.Item>
+                )}
 
                 <Form.Item label="Đơn hàng tối thiểu (₫)" validateStatus={errors.min_order_total ? 'error' : ''} help={errors.min_order_total?.message}>
                     <Controller name="min_order_total" control={control} render={({ field }) => <InputNumber {...field} style={{ width: '100%' }} min={0} />} />
@@ -154,6 +167,38 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
                         <Select {...field} mode="multiple" options={categories.map(c => ({ value: c.id, label: c.name }))} placeholder="Chọn danh mục (để trống = toàn shop)" />
                     )} />
                 </Form.Item>
+
+                {typeValue === 'bogo' && (
+                    <Form.Item label="BOGO Rules" help={errors.bogo_rules?.message}>
+                        {bogoFields.map((f, idx) => (
+                            <div key={f.id} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                                <Controller name={`bogo_rules.${idx}.buy_product_id`} control={control} render={({ field }) => (
+                                    <Select {...field} showSearch options={products.map(p => ({ value: p.id, label: p.name }))} placeholder="Sản phẩm mua" style={{ minWidth: 180 }} />
+                                )} />
+
+                                <Controller name={`bogo_rules.${idx}.buy_quantity`} control={control} render={({ field }) => (
+                                    <InputNumber {...field} min={1} placeholder="Số lượng mua" />
+                                )} />
+
+                                <Controller name={`bogo_rules.${idx}.gift_product_id`} control={control} render={({ field }) => (
+                                    <Select {...field} showSearch options={products.map(p => ({ value: p.id, label: p.name }))} placeholder="Sản phẩm quà" style={{ minWidth: 180 }} />
+                                )} />
+
+                                <Controller name={`bogo_rules.${idx}.gift_quantity`} control={control} render={({ field }) => (
+                                    <InputNumber {...field} min={1} placeholder="Số lượng quà" />
+                                )} />
+
+                                <Controller name={`bogo_rules.${idx}.gift_discount_percent`} control={control} render={({ field }) => (
+                                    <InputNumber {...field} min={0} max={100} placeholder="% giảm quà" />
+                                )} />
+
+                                <Button danger onClick={() => bogoRemove(idx)}>Xóa</Button>
+                            </div>
+                        ))}
+
+                        <Button type="dashed" onClick={() => bogoAppend({ buy_product_id: null, buy_quantity: 1, gift_product_id: null, gift_quantity: 1, gift_discount_percent: 100 })}>Thêm rule</Button>
+                    </Form.Item>
+                )}
 
                 <Form.Item label="Kích hoạt">
                     <Controller name="is_active" control={control} render={({ field }) => <Switch checked={field.value} onChange={field.onChange} />} />

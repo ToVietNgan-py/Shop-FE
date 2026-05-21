@@ -18,7 +18,7 @@ const STATUS_MAP = {
 };
 
 export default function AdminHeader({ roleLabel, displayName, logout }) {
-    const { orders, unread, markAllRead } = useOrderPolling("/api/orders/recent");
+    const { orders, unread, markAllRead } = useOrderPolling("/admin/dashboard/summary");
 
     // ── Notification items ─────────────────────────────────────────────
     const notifItems = orders.length

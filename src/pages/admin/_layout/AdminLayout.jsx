@@ -49,7 +49,15 @@ const menuItems = [
     { key: "/admin/san-pham", icon: <AiOutlineShopping />, label: <Link to="/admin/san-pham">Sản phẩm</Link> },
     { key: "/admin/loai-san-pham", icon: <AiOutlineTags />, label: <Link to="/admin/loai-san-pham">Danh mục</Link> },
     { key: "/admin/don-hang", icon: <AiOutlineAppstore />, label: <Link to="/admin/don-hang">Đơn hàng</Link> },
-    { key: "/admin/khuyen-mai", icon: <AiOutlineSetting />, label: <Link to="/admin/khuyen-mai">Khuyến mãi</Link> },
+    {
+        key: "/admin/khuyen-mai-group",
+        icon: <AiOutlineSetting />,
+        label: <span>Khuyến mãi</span>,
+        children: [
+            { key: "/admin/khuyen-mai", icon: <AiOutlineSetting />, label: <Link to="/admin/khuyen-mai">Voucher</Link> },
+            { key: "/admin/promotions", icon: <AiOutlineTags />, label: <Link to="/admin/promotions">Chiến dịch</Link> }
+        ]
+    },
     { key: "/admin/tai-khoan", icon: <AiOutlineTeam />, label: <Link to="/admin/tai-khoan">Tài khoản</Link> }
 ];
 

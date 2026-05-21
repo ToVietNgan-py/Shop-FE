@@ -13,7 +13,7 @@ const STATUS_MAP = {
 const fmt = (n) => Number(n).toLocaleString("vi-VN") + "đ";
 
 export default function OrderNotification() {
-    const { orders, unread, markAllRead } = useOrderPolling("/api/orders/recent");
+    const { orders, unread, markAllRead } = useOrderPolling("/admin/dashboard/summary");
     const prevUnread = useRef(0);
 
     // Hiện toast khi có đơn mới
