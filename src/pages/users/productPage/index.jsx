@@ -1,5 +1,4 @@
-﻿
-// import { memo, useEffect, useRef, useState } from "react";
+﻿// import { memo, useEffect, useRef, useState } from "react";
 // import { Link, useSearchParams } from "react-router-dom";
 // import { productService } from "../../../services/productService.js";
 // import { categoryService } from "../../../services/categoryService.js";
@@ -342,6 +341,7 @@ import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
 import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
 import WishlistButton from "../../../components/common/WishlistButton.jsx";
 import ProductQuickActions from "../../../components/common/ProductQuickActions.jsx";
+import QuickShopModal from "../../../components/QuickShopModal/QuickShopModal.jsx";
 
 const PRICE_RANGES = [
     { value: "all", label: "Tất cả mức giá" },
@@ -363,7 +363,8 @@ const ProductPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const keyword = (searchParams.get("tu-khoa") || "").trim().toLowerCase();
     const currentPage = Math.max(Number(searchParams.get("page") || 1), 1);
-
+    const [quickShopProduct, setQuickShopProduct] = useState(null);
+    const [quickActionType, setQuickActionType] = useState("cart");
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [selectedPriceRange, setSelectedPriceRange] = useState("all");
     const [showHotOnly, setShowHotOnly] = useState(false);
@@ -651,27 +652,44 @@ const ProductPage = () => {
                                                 ) : null}
                                             </div>
 
+                                            {/* nút mua / giỏ hàng — ngay dưới hình ảnh */}
+
+
                                             <div className="product-card__content">
                                                 <div className="product-card__meta">
                                                     {item.category && <span className="product-tag">{item.category}</span>}
                                                     {item.isHot && <span className="product-badge">Nổi bật</span>}
                                                 </div>
-                                                <h3>{item.name}</h3>
+                                                {/* footer: giá + tồn kho — nằm ngoài Link để không trigger navigation */}
+                                                <div className="product-card__footer">
+                                                    <p className="price">{formatVND(item.price)}</p>
+                                                    <span className={`stock ${item.in_stock ? "in-stock" : "out-stock"}`}>
+                                                        {item.in_stock ? `Còn ${item.inventory}` : "Hết hàng"}
+                                                    </span>
+                                                </div>
+
+                                                <div className="product-card__title-row">
+                                                    <h3>{item.name}</h3>
+
+                                                    <div onClick={(e) => e.preventDefault()}>
+                                                        <ProductQuickActions
+                                                            product={item}
+                                                            onAddToCart={(product) => {
+                                                                setQuickActionType("cart");
+                                                                setQuickShopProduct(product);
+                                                            }}
+                                                            onBuyNow={(product) => {
+                                                                setQuickActionType("buy");
+                                                                setQuickShopProduct(product);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </Link>
 
-                                        {/* footer: giá + tồn kho — nằm ngoài Link để không trigger navigation */}
-                                        <div className="product-card__footer">
-                                            <p className="price">{formatVND(item.price)}</p>
-                                            <span className={`stock ${item.in_stock ? "in-stock" : "out-stock"}`}>
-                                                {item.in_stock ? `Còn ${item.inventory}` : "Hết hàng"}
-                                            </span>
-                                        </div>
 
-                                        {/* nút mua / giỏ hàng */}
-                                        <div className="product-card__quick-actions">
-                                            <ProductQuickActions product={item} />
-                                        </div>
+
                                     </div>
                                 </div>
                             ))}
@@ -698,6 +716,14 @@ const ProductPage = () => {
                     </div>
                 </div>
             </div>
+
+            {quickShopProduct && (
+                <QuickShopModal
+                    product={quickShopProduct}
+                    actionType={quickActionType}
+                    onClose={() => setQuickShopProduct(null)}
+                />
+            )}
         </div>
     );
 };

@@ -165,17 +165,27 @@ export const productService = {
     async detail(id) {
         const response = await api.get(`/products/${id}`);
         const data = response.data?.data ?? response.data;
-        return normalizeProduct(data);
-    },
+        const product = normalizeProduct(data);
+        if (!product) return null;
 
-    async variants(productId) {
-        try {
-            const response = await api.get(`/products/${productId}/variants`);
-            const data = response.data?.data ?? response.data;
-            return Array.isArray(data) ? data : [];
-        } catch {
-            return [];
-        }
+        // BE nhung variants[] trong response GET /products/{id}
+        const rawVariants = Array.isArray(data?.variants) ? data.variants : [];
+        product.variants = rawVariants.map((v) => ({
+            id: v.id ?? null,
+            sku: v.sku ?? "",
+            color: v.color ?? "",
+            size: v.size ?? "",
+            price: Number(v.effective_price ?? v.price ?? 0),
+            inventory: Number(v.inventory ?? 0),
+            in_stock: Boolean(v.in_stock ?? (v.inventory > 0)),
+        }));
+
+        // BE tra available_colors / available_sizes san
+        product.availableColors = Array.isArray(data?.available_colors) ? data.available_colors : [];
+        product.availableSizes = Array.isArray(data?.available_sizes) ? data.available_sizes : [];
+        product.hasVariants = Boolean(data?.has_variants);
+
+        return product;
     },
 
     async related({ category, excludeId, limit = 4 } = {}) {

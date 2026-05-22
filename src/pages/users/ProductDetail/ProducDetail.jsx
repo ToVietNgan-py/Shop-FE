@@ -16,27 +16,36 @@ import "./ProductDetail.scss";
 
 // ─── Variant helpers ──────────────────────────────────────────────────────────
 
-const normalizeVariant = (v = {}) => ({
-    id: v.id ?? null,
-    sku: v.sku ?? "",
-    color: v.color ?? "",
-    size: v.size ?? "",
-    price: Number(v.price ?? 0),
-    inventory: Number(v.inventory ?? v.stock ?? 0),
-});
-
 /** Màu unique từ variants */
 const getColors = (variants) =>
     [...new Set(variants.map((v) => v.color).filter(Boolean))];
 
+/** Sắp xếp size: quần áo (XS,S,M,L,XL,XXL,...) hoặc số (35,36,...) */
+const CLOTH_SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "2XL", "3XL"];
+
+const sortSizes = (sizes) => {
+    const allNumeric = sizes.every((s) => /^\d+(\.\d+)?$/.test(s.trim()));
+    if (allNumeric) {
+        return [...sizes].sort((a, b) => Number(a) - Number(b));
+    }
+    return [...sizes].sort((a, b) => {
+        const ai = CLOTH_SIZE_ORDER.indexOf(a.toUpperCase());
+        const bi = CLOTH_SIZE_ORDER.indexOf(b.toUpperCase());
+        if (ai !== -1 && bi !== -1) return ai - bi;
+        if (ai !== -1) return -1;
+        if (bi !== -1) return 1;
+        return a.localeCompare(b);
+    });
+};
+
 /** Size khả dụng cho màu đang chọn */
 const getSizesForColor = (variants, color) =>
-    [...new Set(
+    sortSizes([...new Set(
         variants
             .filter((v) => !color || v.color === color)
             .map((v) => v.size)
             .filter(Boolean)
-    )];
+    )]);
 
 /** Tìm variant khớp màu + size */
 const findVariant = (variants, color, size) =>
@@ -106,38 +115,34 @@ function ProductDetail() {
     const variantInventory = activeVariant?.inventory ?? 0;
     const isVariantSelected = variants.length === 0 || Boolean(activeVariant);
 
-    // ─── Load product + variants ──────────────────────────────────────────────
+    // ─── Load product (variants sudah include dalam response) ────────────────
     useEffect(() => {
         let mounted = true;
 
         async function load() {
             setIsLoading(true);
-            setError("");
             setVariantsLoading(true);
+            setError("");
 
             try {
-                // 1. Chi tiết sản phẩm
-                const detail = await productService.detail(id);
-                if (!detail) throw new Error("Không tìm thấy sản phẩm");
-
-                // 2. Variants & related song song
-                const [rawVariants, related] = await Promise.allSettled([
-                    productService.variants(id),
-                    productService.related({
-                        category: detail.categorySlug || detail.category,
-                        excludeId: detail.id,
-                        limit: 4,
-                    }),
+                // GET /products/{id} tra ve ca variants[], available_colors, available_sizes
+                const [detailResult, relatedTemp] = await Promise.allSettled([
+                    productService.detail(id),
+                    // related load sau khi co detail
+                    Promise.resolve(null),
                 ]);
 
                 if (!mounted) return;
 
+                const detail = detailResult.status === "fulfilled" ? detailResult.value : null;
+                if (!detail) throw new Error("Không tìm thấy sản phẩm");
+
                 setProduct(detail);
 
-                const variantList = rawVariants.status === "fulfilled"
-                    ? (rawVariants.value ?? []).map(normalizeVariant)
-                    : [];
+                // Variants đã được normalize sẵn trong productService.detail()
+                const variantList = Array.isArray(detail.variants) ? detail.variants : [];
                 setVariants(variantList);
+                setVariantsLoading(false);
 
                 // Chọn mặc định: màu đầu tiên → size đầu tiên của màu đó
                 if (variantList.length > 0) {
@@ -147,13 +152,19 @@ function ProductDetail() {
                     setSelectedSize(firstSize);
                 }
 
-                setRelatedProducts(
-                    related.status === "fulfilled" ? (related.value ?? []) : []
-                );
+                // Load related sau (non-blocking)
+                const related = await productService.related({
+                    category: detail.categorySlug || detail.category,
+                    excludeId: detail.id,
+                    limit: 4,
+                }).catch(() => []);
+                if (mounted) setRelatedProducts(related);
+
             } catch (err) {
                 if (mounted) {
                     setError(err?.message || "Không tải được chi tiết sản phẩm.");
                     setProduct(null);
+                    setVariants([]);
                     setRelatedProducts([]);
                 }
             } finally {
