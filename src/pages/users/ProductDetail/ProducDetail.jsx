@@ -1,3 +1,4 @@
+
 import { useMemo, useState, useContext, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { CartContext } from "../../../context/CartContext";
@@ -11,7 +12,7 @@ import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
 import AuthModal from "../../../components/AuthModal/AuthModal.jsx";
 import StarRating from "../../../components/common/StarRating.jsx";
 import WishlistButton from "../../../components/common/WishlistButton.jsx";
-
+import { promotionUtils } from "../../../services/promotionService.js";
 import "./ProductDetail.scss";
 
 function ProductDetail() {
@@ -29,6 +30,7 @@ function ProductDetail() {
     const [relatedProducts, setRelatedProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
+    const [promoResult, setPromoResult] = useState(null);
     const [reviews, setReviews] = useState([]);
     const [reviewSummary, setReviewSummary] = useState({ total: 0, averageRating: 0, ratingBreakdown: [] });
     const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -113,6 +115,18 @@ function ProductDetail() {
             isMounted = false;
         };
     }, [id]);
+
+    useEffect(() => {
+        if (!product) return;
+        let alive = true;
+        (async () => {
+            const list = await promotionUtils.fetchPromotionCatalog().catch(() => []);
+            if (!alive) return;
+            const result = promotionUtils.estimateProductPromotion(product, list);
+            setPromoResult(result);
+        })();
+        return () => { alive = false; };
+    }, [product]);
 
     useEffect(() => {
         let isMounted = true;
@@ -266,17 +280,27 @@ function ProductDetail() {
         return <ErrorState title="Không tải được sản phẩm" description={error} />;
     }
 
+    // const cartItem = {
+    //     id: product.id,
+    //     productId: product.id,
+    //     name: product.name,
+    //     price: product.price,
+    //     image: product.img,
+    //     quantity,
+    //     color: selectedColor,
+    //     size: selectedSize,
+    // };
     const cartItem = {
         id: product.id,
         productId: product.id,
         name: product.name,
-        price: product.price,
+        price: promoResult?.finalPrice ?? product.price,      // ← giá sau giảm
+        originalPrice: product.price,                          // ← giá gốc lưu lại
         image: product.img,
         quantity,
         color: selectedColor,
         size: selectedSize,
     };
-
     const handleAddToCart = async () => {
         setAddedSuccess(false);
         setCartActionError("");
@@ -467,34 +491,34 @@ function ProductDetail() {
             );
         }
 
-        return (
-            <div className="review-list">
-                {reviews.map((review) => (
-                    <article key={review.id} className="review-item">
-                        <div className="review-item__header">
-                            <div className="review-avatar">
-                                <span>{(review.userName || "K").charAt(0).toUpperCase()}</span>
-                            </div>
-                            <div className="review-meta">
-                                <strong>{review.userName}</strong>
-                                <div className="review-meta__rating">
-                                    <StarRating value={Math.round(Number(review.rating || 0))} readonly size={16} />
-                                    <span>{review.createdAt}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <p className="review-item__comment">{review.comment}</p>
-                        {Array.isArray(review.images) && review.images.length > 0 ? (
-                            <div className="review-images">
-                                {review.images.map((image, index) => (
-                                    <img key={`${review.id}-image-${index}`} src={image} alt={`Review ${index + 1}`} />
-                                ))}
-                            </div>
-                        ) : null}
-                    </article>
-                ))}
-            </div>
-        );
+        // return (
+        //     <div className="review-list">
+        //         {reviews.map((review) => (
+        //             <article key={review.id} className="review-item">
+        //                 <div className="review-item__header">
+        //                     <div className="review-avatar">
+        //                         <span>{(review.userName || "K").charAt(0).toUpperCase()}</span>
+        //                     </div>
+        //                     <div className="review-meta">
+        //                         <strong>{review.userName}</strong>
+        //                         <div className="review-meta__rating">
+        //                             <StarRating value={Math.round(Number(review.rating || 0))} readonly size={16} />
+        //                             <span>{review.createdAt}</span>
+        //                         </div>
+        //                     </div>
+        //                 </div>
+        //                 <p className="review-item__comment">{review.comment}</p>
+        //                 {Array.isArray(review.images) && review.images.length > 0 ? (
+        //                     <div className="review-images">
+        //                         {review.images.map((image, index) => (
+        //                             <img key={`${review.id}-image-${index}`} src={image} alt={`Review ${index + 1}`} />
+        //                         ))}
+        //                     </div>
+        //                 ) : null}
+        //             </article>
+        //         ))}
+        //     </div>
+        // );
     };
 
     return (
@@ -507,7 +531,28 @@ function ProductDetail() {
                 <div className="product-info">
                     <p className="brand">Dear Róse</p>
                     <h1>{product.name}</h1>
-                    <p className="price">{formatVND(product.price)}</p>
+                    {/* <p className="price">{formatVND(product.price)}</p> */}
+
+                    {promoResult && promoResult.discountAmount > 0 ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: "1.5rem", fontWeight: 700, color: "#e91e63" }}>
+                                {formatVND(promoResult.finalPrice)}
+                            </span>
+                            <span style={{ fontSize: "1rem", color: "#9ca3af", textDecoration: "line-through" }}>
+                                {formatVND(product.price)}
+                            </span>
+                            <span style={{
+                                background: "#fef2f2", color: "#e91e63", border: "1px solid #fecaca",
+                                borderRadius: 6, padding: "2px 8px", fontSize: "0.82rem", fontWeight: 700
+                            }}>
+                                {promoResult.promo.type === "percent"
+                                    ? `-${promoResult.promo.value}%`
+                                    : `Giảm ${Number(promoResult.promo.value).toLocaleString("vi-VN")}đ`}
+                            </span>
+                        </div>
+                    ) : (
+                        <p className="price">{formatVND(product.price)}</p>
+                    )}
 
                     <div className="option-group">
                         <span className="option-label">Màu sắc</span>
@@ -573,24 +618,34 @@ function ProductDetail() {
                 </div>
             </section>
 
-            <section className="product-reviews-section" aria-label="Đánh giá sản phẩm">
-                <div className="reviews-header">
-                    <div>
-                        <p className="reviews-kicker">Đánh giá từ khách hàng</p>
-                        <h2>{totalReviewCount} đánh giá cho sản phẩm này</h2>
+            <section className="dr-reviews-section" aria-label="Đánh giá sản phẩm">
+                <div className="dr-reviews-header">
+                    <div className="dr-header-title">
+                        <span className="dr-kicker">Phản hồi khách hàng</span>
+                        <h2>Đánh giá sản phẩm</h2>
                     </div>
-                    <div className="reviews-summary">
-                        <StarRating value={Math.round(averageRating)} readonly size={18} />
-                        <strong>{averageRating.toFixed(1)}</strong>
+                    <div className="dr-score-badge">
+                        <span className="dr-big-num">{averageRating.toFixed(1)}</span>
+                        <div className="dr-score-meta">
+                            <StarRating value={Math.round(averageRating)} readonly size={15} />
+                            <span className="dr-total-text">Dựa trên {totalReviewCount} nhận xét</span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="reviews-layout">
-                    {renderReviewForm()}
-                    <div className="reviews-panel">
+                <div className="dr-reviews-body">
+                    <aside className="dr-reviews-sidebar">
+                        {renderReviewForm()}
+                    </aside>
+
+                    <main className="dr-reviews-main">
+                        <div className="dr-list-title">
+                            <h3>Nhận xét thực tế ({reviews.length})</h3>
+                        </div>
                         {renderReviewItems()}
-                    </div>
+                    </main>
                 </div>
+
             </section>
 
             <div className="related-products-section">

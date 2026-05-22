@@ -47,43 +47,36 @@
 //     const [totalPages, setTotalPages] = useState(1);
 //     const [isLoading, setIsLoading] = useState(true);
 //     const [pageError, setPageError] = useState("");
-// <<<<<<< Updated upstream
-//     const pageSize = 12;
-//     const [promoMap, setPromoMap] = useState(new Map());
-//     const [globalPromos, setGlobalPromos] = useState([]);
+// const pageSize = 12;
+// const [promoMap, setPromoMap] = useState(new Map());
+// const [globalPromos, setGlobalPromos] = useState([]);
 
-//     useEffect(() => {
-//         let alive = true;
-//         (async () => {
-//             try {
-//                 const list = await promotionService.fetchActive().catch(() => []);
-//                 if (!alive) return;
-//                 const map = new Map();
-//                 const globals = [];
-//                 for (const p of list) {
-//                     if (p.products && p.products.length > 0) {
-//                         for (const pr of p.products) {
-//                             const id = Number(pr.id ?? pr.product_id ?? pr);
-//                             if (!isNaN(id)) map.set(id, p);
-//                         }
-//                     } else {
-//                         globals.push(p);
+// useEffect(() => {
+//     let alive = true;
+//     (async () => {
+//         try {
+//             const list = await promotionUtils.fetchPromotionCatalog().catch(() => []);
+//             if (!alive) return;
+//             const map = new Map();
+//             const globals = [];
+//             for (const p of list) {
+//                 if (p.products && p.products.length > 0) {
+//                     for (const pr of p.products) {
+//                         const id = Number(pr.id ?? pr.product_id ?? pr);
+//                         if (!isNaN(id)) map.set(id, p);
 //                     }
+//                 } else {
+//                     globals.push(p);
 //                 }
-//                 setPromoMap(map);
-//                 setGlobalPromos(globals);
-//             } catch (e) {
-//                 // ignore
 //             }
-//         })();
-//         return () => { alive = false; };
-//     }, []);
-//     // Các state filter/sort vẫn nằm ở UI, nhưng dữ liệu đã được lấy qua service/API.
-//     // Query params page/keyword tiếp tục được sync qua URL để share link được.
-// =======
-// >>>>>>> Stashed changes
-
-//     const pageSize = 12;
+//             setPromoMap(map);
+//             setGlobalPromos(globals);
+//         } catch (e) {
+//             // ignore
+//         }
+//     })();
+//     return () => { alive = false; };
+// }, []);
 //     const selectedSortOption = SORT_OPTIONS.find((o) => o.value === sortBy) ?? SORT_OPTIONS[0];
 
 //     const updatePageQuery = (nextPage) => {
@@ -335,7 +328,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { productService } from "../../../services/productService.js";
 import { categoryService } from "../../../services/categoryService.js";
-import { promotionService } from "../../../services/promotionService.js";
+import { promotionUtils } from "../../../services/promotionService.js";
 import "./style.scss";
 import { formatVND } from "../../../utils/format.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
@@ -381,6 +374,7 @@ const ProductPage = () => {
     const [pageError, setPageError] = useState("");
 
     const pageSize = 12;
+    // const [promotions, setPromotions] = useState([]);
     const [promoMap, setPromoMap] = useState(new Map());
     const [globalPromos, setGlobalPromos] = useState([]);
 
@@ -398,7 +392,7 @@ const ProductPage = () => {
         let alive = true;
         (async () => {
             try {
-                const list = await promotionService.fetchActive().catch(() => []);
+                const list = await promotionUtils.fetchPromotionCatalog().catch(() => []);
                 if (!alive) return;
                 const map = new Map();
                 const globals = [];
@@ -661,8 +655,34 @@ const ProductPage = () => {
                                         </Link>
 
                                         {/* footer: giá + tồn kho — nằm ngoài Link để không trigger navigation */}
-                                        <div className="product-card__footer">
+                                        {/* <div className="product-card__footer">
                                             <p className="price">{formatVND(item.price)}</p>
+                                            <span className={`stock ${item.in_stock ? "in-stock" : "out-stock"}`}>
+                                                {item.in_stock ? `Còn ${item.inventory}` : "Hết hàng"}
+                                            </span>
+                                        </div> */}
+
+                                        <div className="product-card__footer">
+                                            {(() => {
+                                                const allPromos = [
+                                                    ...(promoMap.has(item.id) ? [promoMap.get(item.id)] : []),
+                                                    ...globalPromos,
+                                                ];
+                                                const promo = promotionUtils.estimateProductPromotion(item, allPromos);
+                                                if (promo && promo.discountAmount > 0) {
+                                                    const pct = promo.promo.type === 'percent'
+                                                        ? promo.promo.value
+                                                        : Math.round((promo.discountAmount / item.price) * 100);
+                                                    return (
+                                                        <div className="price-block">
+                                                            <span className="price-original">{formatVND(item.price)}</span>
+                                                            <span className="price-sale">{formatVND(promo.finalPrice)}</span>
+                                                            <span className="price-badge">-{pct}%</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                return <p className="price">{formatVND(item.price)}</p>;
+                                            })()}
                                             <span className={`stock ${item.in_stock ? "in-stock" : "out-stock"}`}>
                                                 {item.in_stock ? `Còn ${item.inventory}` : "Hết hàng"}
                                             </span>

@@ -141,6 +141,37 @@
     margin: 0 0 30px;
 }
 
+.product-info .price-group {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 24px;
+}
+
+.product-info .promo-pill {
+    width: fit-content;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ef3d8f 0%, #d72672 100%);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.product-info .price--old {
+    margin: 0;
+    color: #8b8b97;
+    font-size: 14px;
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+}
+
+.product-info .price--sale {
+    margin: 0;
+    color: #e91e63;
+    font-size: 17px;
+    font-weight: 700;
+}
+
 .product-info .option-group {
     margin-bottom: 24px;
 }
@@ -331,6 +362,21 @@
     p {
         margin: 0;
         color: #e91e63;
+        font-weight: 700;
+    }
+
+    .related-price-old {
+        display: block;
+        color: #8b8b97;
+        font-size: 12px;
+        text-decoration: line-through;
+        text-decoration-thickness: 1.5px;
+    }
+
+    .related-price-sale {
+        display: block;
+        color: #e91e63;
+        font-size: 15px;
         font-weight: 700;
     }
 }
