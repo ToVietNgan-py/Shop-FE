@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal, Form, Input, Select, InputNumber, DatePicker, Switch, Button, message } from 'antd';
 import dayjs from 'dayjs';
 import adminPromotionService from '../../../services/admin/adminPromotionService.js';
-import { promotionSchema } from '../../../validations/adminSchema.js';
+import adminProductService from '../../../services/admin/adminProductService.js';
 import { productService } from '../../../services/productService.js';
+import { promotionSchema } from '../../../validations/adminSchema.js';
 import { categoryService } from '../../../services/categoryService.js';
 
 export default function PromotionModal({ open, promotion, onClose, onSuccess }) {
@@ -13,7 +14,7 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
 
-    const { register, control, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm({
+    const { register, control, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm({
         mode: 'onChange',
         reValidateMode: 'onChange',
         resolver: zodResolver(promotionSchema),
@@ -41,18 +42,49 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
     useEffect(() => {
         if (!open) return;
 
+        if (typeValue === 'bogo' && bogoFields.length === 0) {
+            bogoAppend({ buy_product_id: null, buy_quantity: 1, gift_product_id: null, gift_quantity: 1, gift_discount_percent: 100 });
+        }
+
+        if (typeValue !== 'bogo' && bogoFields.length > 0) {
+            setValue('bogo_rules', [], { shouldDirty: true, shouldValidate: true });
+        }
+    }, [typeValue, open, bogoFields.length, bogoAppend, setValue]);
+
+    const normalizedProducts = useMemo(
+        () => products.map((p) => ({ value: p.id, label: p.name })),
+        [products]
+    );
+
+    const normalizedCategories = useMemo(
+        () => categories.map((c) => ({ value: c.id, label: c.name })),
+        [categories]
+    );
+
+    useEffect(() => {
+        if (!open) return;
+
         // load selects
         (async () => {
             try {
-                const p = await productService.list({ page: 1, limit: 200 });
+                const p = await adminProductService.list({ page: 1, limit: 200 });
 
-                setProducts(
-                    p?.data?.data ??
-                    p?.data ??
-                    []
-                );
+                const items = p?.items ?? p?.data ?? [];
+
+                if (!items || items.length === 0) {
+                    // fallback to public product list (no auth required)
+                    const publicResp = await productService.list({ page: 1, limit: 200 });
+                    setProducts(publicResp?.data ?? publicResp?.items ?? publicResp?.data?.data ?? []);
+                } else {
+                    setProducts(items);
+                }
             } catch (e) {
-                setProducts([]);
+                try {
+                    const publicResp = await productService.list({ page: 1, limit: 200 });
+                    setProducts(publicResp?.data ?? publicResp?.items ?? publicResp?.data?.data ?? []);
+                } catch (ee) {
+                    setProducts([]);
+                }
             }
 
             try {
@@ -85,8 +117,17 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
             ...values,
             starts_at: values.starts_at?.toISOString() || null,
             expires_at: values.expires_at?.toISOString() || null,
-            product_ids: values.product_ids || [],
-            category_ids: values.category_ids || [],
+            product_ids: (values.product_ids || []).map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0),
+            category_ids: (values.category_ids || []).map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0),
+            bogo_rules: values.type === 'bogo'
+                ? (values.bogo_rules || []).map((rule) => ({
+                    buy_product_id: Number(rule.buy_product_id),
+                    buy_quantity: Number(rule.buy_quantity),
+                    gift_product_id: Number(rule.gift_product_id),
+                    gift_quantity: Number(rule.gift_quantity),
+                    gift_discount_percent: Number(rule.gift_discount_percent),
+                })).filter((rule) => Number.isFinite(rule.buy_product_id) && rule.buy_product_id > 0 && Number.isFinite(rule.gift_product_id) && rule.gift_product_id > 0)
+                : [],
         };
 
         if (values.type !== 'bogo') {
@@ -173,13 +214,29 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
 
                 <Form.Item label="Sản phẩm áp dụng" help={errors.product_ids?.message}>
                     <Controller name="product_ids" control={control} render={({ field }) => (
-                        <Select {...field} mode="multiple" options={products.map(p => ({ value: p.id, label: p.name }))} placeholder="Chọn sản phẩm (để trống = toàn shop)" />
+                        <Select
+                            {...field}
+                            mode="multiple"
+                            showSearch
+                            optionFilterProp="label"
+                            options={normalizedProducts}
+                            placeholder="Chọn sản phẩm (để trống = toàn shop)"
+                            notFoundContent={products.length === 0 ? 'Không có sản phẩm để chọn' : null}
+                        />
                     )} />
                 </Form.Item>
 
                 <Form.Item label="Danh mục áp dụng" help={errors.category_ids?.message}>
                     <Controller name="category_ids" control={control} render={({ field }) => (
-                        <Select {...field} mode="multiple" options={categories.map(c => ({ value: c.id, label: c.name }))} placeholder="Chọn danh mục (để trống = toàn shop)" />
+                        <Select
+                            {...field}
+                            mode="multiple"
+                            showSearch
+                            optionFilterProp="label"
+                            options={normalizedCategories}
+                            placeholder="Chọn danh mục (để trống = toàn shop)"
+                            notFoundContent={categories.length === 0 ? 'Không có danh mục để chọn' : null}
+                        />
                     )} />
                 </Form.Item>
 
@@ -188,7 +245,14 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
                         {bogoFields.map((f, idx) => (
                             <div key={f.id} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
                                 <Controller name={`bogo_rules.${idx}.buy_product_id`} control={control} render={({ field }) => (
-                                    <Select {...field} showSearch options={products.map(p => ({ value: p.id, label: p.name }))} placeholder="Sản phẩm mua" style={{ minWidth: 180 }} />
+                                    <Select
+                                        {...field}
+                                        showSearch
+                                        optionFilterProp="label"
+                                        options={normalizedProducts}
+                                        placeholder="Sản phẩm mua"
+                                        style={{ minWidth: 180 }}
+                                    />
                                 )} />
 
                                 <Controller name={`bogo_rules.${idx}.buy_quantity`} control={control} render={({ field }) => (
@@ -196,7 +260,14 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
                                 )} />
 
                                 <Controller name={`bogo_rules.${idx}.gift_product_id`} control={control} render={({ field }) => (
-                                    <Select {...field} showSearch options={products.map(p => ({ value: p.id, label: p.name }))} placeholder="Sản phẩm quà" style={{ minWidth: 180 }} />
+                                    <Select
+                                        {...field}
+                                        showSearch
+                                        optionFilterProp="label"
+                                        options={normalizedProducts}
+                                        placeholder="Sản phẩm quà"
+                                        style={{ minWidth: 180 }}
+                                    />
                                 )} />
 
                                 <Controller name={`bogo_rules.${idx}.gift_quantity`} control={control} render={({ field }) => (

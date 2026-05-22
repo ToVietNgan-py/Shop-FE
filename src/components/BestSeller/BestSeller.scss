@@ -229,3 +229,33 @@
 .best-seller .right {
     right: 6px;
 }
+
+.price-block {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin: 4px 0;
+}
+
+.price-sale {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #e91e63;
+}
+
+.price-original {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    text-decoration: line-through;
+}
+
+.price-badge {
+    background: #fef2f2;
+    color: #e91e63;
+    border: 1px solid #fecaca;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}

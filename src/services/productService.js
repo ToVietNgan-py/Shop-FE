@@ -52,6 +52,7 @@ const normalizeProduct = (product) => {
         description: product.description ?? product.shortDescription ?? "",
         category: categoryName,
         categorySlug,
+        category_id: Number(product.category_id ?? product.categoryId ?? product.category?.id ?? 0) || null,
         inventory,
         in_stock: inventory > 0,
         isHot: Boolean(product.isHot ?? product.hot ?? product.featured)

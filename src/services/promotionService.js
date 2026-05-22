@@ -1,3 +1,5 @@
+
+
 import api from "../apis/default.js";
 
 const readList = (res) => {
@@ -97,5 +99,73 @@ const applyToCart = async (items = [], orderTotal = 0) => {
 };
 
 export const promotionService = { fetchActive, applyToCart };
+
+
+// Utilities used by FE pages: normalize / estimate and a catalog fetch alias
+const normalizePromotion = (p) => {
+    if (!p) return null;
+    return {
+        id: p.id ?? p._id ?? null,
+        name: p.name ?? p.title ?? "",
+        type: p.type ?? "percent",
+        value: Number(p.value ?? p.discount ?? 0),
+        products: Array.isArray(p.products) ? p.products : (Array.isArray(p.product_ids) ? p.product_ids : []),
+        categories: Array.isArray(p.categories) ? p.categories : (Array.isArray(p.category_ids) ? p.category_ids : []),
+        bogo_rules: p.bogo_rules ?? p.rules ?? [],
+        priority: Number(p.priority ?? 0),
+        is_active: Boolean(p.is_active ?? true),
+        is_running: Boolean(p.is_running ?? true),
+        max_discount: p.max_discount ?? p.maxDiscount ?? null,
+        min_order_total: p.min_order_total ?? p.minOrderTotal ?? 0,
+    };
+};
+
+const normalizePromotions = (list) => Array.isArray(list) ? list.map(normalizePromotion).filter(Boolean) : [];
+
+const promotionMatchesProduct = (promo, product) => {
+    if (!promo || !product) return false;
+    const pid = Number(product.id ?? product.productId ?? product.product_id ?? 0);
+    if (!isNaN(pid) && pid > 0) {
+        const prodIds = (promo.products ?? []).map(x => Number(x?.id ?? x ?? 0)).filter(n => !isNaN(n));
+        if (prodIds.length > 0) return prodIds.includes(pid);
+    }
+    // fallback: global promo (no products specified) applies
+    return (promo.products ?? []).length === 0;
+};
+
+const estimateProductPromotion = (product, promotions = []) => {
+    const promos = normalizePromotions(promotions).filter(p => p.is_active && p.is_running);
+    if (!product) return null;
+    const price = Number(product.price ?? product.unitPrice ?? 0) || 0;
+    let best = null;
+    for (const p of promos) {
+        if (!promotionMatchesProduct(p, product)) continue;
+        if (p.type === 'percent') {
+            const disc = Math.round(price * (Number(p.value || 0) / 100));
+            const finalPrice = Math.max(0, price - disc);
+            if (!best || disc > best.discountAmount) best = { promo: p, discountAmount: disc, finalPrice };
+        } else if (p.type === 'amount') {
+            const disc = Math.min(Number(p.value || 0), price);
+            const finalPrice = Math.max(0, price - disc);
+            if (!best || disc > best.discountAmount) best = { promo: p, discountAmount: disc, finalPrice };
+        } else {
+            // bogo and others: skip detailed per-product estimation, mark existence
+            if (!best) best = { promo: p, discountAmount: 0, finalPrice: price };
+        }
+    }
+    return best;
+};
+
+const fetchPromotionCatalog = async () => {
+    return await fetchActive().catch(() => []);
+};
+
+export const promotionUtils = {
+    normalizePromotion,
+    normalizePromotions,
+    promotionMatchesProduct,
+    estimateProductPromotion,
+    fetchPromotionCatalog,
+};
 
 export default promotionService;
