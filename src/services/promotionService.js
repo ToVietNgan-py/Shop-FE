@@ -5,10 +5,7 @@ const readList = (res) => {
     return Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : payload?.items ?? [];
 };
 
-const fetchActive = async () => {
-    const res = await api.get('/promotions/active');
-    return readList(res);
-};
+const fetchActive = async () => readList(await api.get('/promotions/active'));
 
 // Basic client-side apply logic supporting percent, amount and simple BOGO rules.
 // This is meant as a progressive enhancement when backend cannot calculate discounts yet.
@@ -96,6 +93,10 @@ const applyToCart = async (items = [], orderTotal = 0) => {
     return { discount: Math.round(discount), applied, giftItems, promotionsCount: promotions.length };
 };
 
-export const promotionService = { fetchActive, applyToCart };
-
+export const promotionService = {
+    getActive: () => api.get('/promotions/active'),
+    getFlashSale: () => api.get('/promotions/flash-sale'),
+    applyToCart,
+    fetchActive,
+};
 export default promotionService;

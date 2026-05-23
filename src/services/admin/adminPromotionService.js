@@ -14,6 +14,9 @@ const adminPromotionService = {
     create: (data) => api.post('/admin/promotions', data),
     update: (id, data) => api.put(`/admin/promotions/${id}`, data),
     remove: (id) => api.delete(`/admin/promotions/${id}`),
+    setFlashSale: (id, data) => api.post(`/admin/promotions/${id}/flash-sale`, data),
+    removeFlashSale: (id) => api.delete(`/admin/promotions/${id}/flash-sale`),
+
 };
 
 export default adminPromotionService;

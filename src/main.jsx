@@ -10,7 +10,7 @@ import { LocaleProvider } from "./context/LocaleContext.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { CartProvider } from "./context/CartContext.jsx";
 import { WishlistProvider } from "./context/WishlistContext.jsx";
-
+import { FlashSaleProvider } from "./context/FlashSaleContext.jsx";
 createRoot(document.getElementById("root")).render(
     <StrictMode>
         <ThemeProvider>
@@ -18,7 +18,9 @@ createRoot(document.getElementById("root")).render(
                 <AuthProvider>
                     <WishlistProvider>
                         <CartProvider>
-                            <App />
+                            <FlashSaleProvider>
+                                <App />
+                            </FlashSaleProvider>
                         </CartProvider>
                     </WishlistProvider>
                 </AuthProvider>

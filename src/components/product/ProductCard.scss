@@ -1,0 +1,268 @@
+/* ProductCard.css — Dear Rose */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap');
+
+:root {
+    --rose: #db2777;
+    --rose-lt: #fdf2f8;
+    --rose-dk: #9d174d;
+    --ink: #1a1a1a;
+    --ink2: #4b4b4b;
+    --ink3: #9a9a9a;
+    --bg: #fafaf9;
+    --white: #ffffff;
+    --border: #ececec;
+    --border2: #e0e0e0;
+    --r: 12px;
+    --r-sm: 7px;
+    --font-d: 'Cormorant Garamond', serif;
+    --font: 'DM Sans', -apple-system, sans-serif;
+}
+
+/* ── Card wrapper ────────────────────────────────────────── */
+.pc {
+    font-family: var(--font);
+    background: var(--white);
+    border-radius: var(--r);
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.pc:hover {
+    transform: translateY(-4px);
+    border-color: var(--border2);
+}
+
+.pc--flash {
+    border-color: #fecaca;
+}
+
+.pc--flash:hover {
+    border-color: #f87171;
+}
+
+.pc--soldout {
+    opacity: 0.85;
+}
+
+/* ── Image ───────────────────────────────────────────────── */
+.pc__img-wrap {
+    aspect-ratio: 1;
+    background: var(--bg);
+    overflow: hidden;
+    position: relative;
+    display: block;
+    text-decoration: none;
+}
+
+.pc__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.35s ease;
+}
+
+.pc:hover .pc__img {
+    transform: scale(1.06);
+}
+
+.pc--soldout .pc__img {
+    opacity: 0.5;
+}
+
+.pc__img-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 52px;
+    transition: transform 0.35s ease;
+}
+
+.pc:hover .pc__img-placeholder {
+    transform: scale(1.06);
+}
+
+/* ── Badges ──────────────────────────────────────────────── */
+.pc__badge {
+    position: absolute;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 5px;
+    letter-spacing: 0.2px;
+    line-height: 1.4;
+}
+
+.pc__badge--flash {
+    top: 10px;
+    left: 10px;
+    background: var(--rose);
+    color: #fff;
+}
+
+.pc__badge--new {
+    top: 10px;
+    left: 10px;
+    background: var(--ink);
+    color: #fff;
+}
+
+.pc__badge--pct {
+    top: 10px;
+    right: 10px;
+    background: var(--white);
+    color: var(--rose);
+    border: 1px solid #fecaca;
+    font-weight: 700;
+}
+
+/* ── Wishlist button ─────────────────────────────────────── */
+.pc__wish {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    border: none;
+    font-size: 15px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--rose);
+}
+
+.pc:hover .pc__wish {
+    opacity: 1;
+}
+
+/* ── Body ────────────────────────────────────────────────── */
+.pc__body {
+    padding: 14px 14px 4px;
+    flex: 1;
+}
+
+.pc__cat {
+    font-size: 11px;
+    color: var(--ink3);
+    text-transform: uppercase;
+    letter-spacing: 0.9px;
+    margin-bottom: 4px;
+}
+
+.pc__name {
+    display: block;
+    font-family: var(--font-d);
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--ink);
+    text-decoration: none;
+    margin-bottom: 10px;
+    transition: color 0.15s;
+}
+
+.pc__name:hover {
+    color: var(--rose);
+}
+
+/* ── Prices ──────────────────────────────────────────────── */
+.pc__prices {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.pc__price-flash {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--rose);
+}
+
+.pc__price-orig {
+    font-size: 13px;
+    color: var(--ink3);
+    text-decoration: line-through;
+}
+
+.pc__price {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink);
+}
+
+/* ── Stock bar ───────────────────────────────────────────── */
+.pc__stock {
+    margin-top: 10px;
+}
+
+.pc__stock-bar {
+    height: 3px;
+    background: #f3f4f6;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.pc__stock-fill {
+    height: 100%;
+    background: var(--rose);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+}
+
+.pc--soldout .pc__stock-fill {
+    background: #d1d5db;
+}
+
+.pc__stock-lbl {
+    font-size: 11px;
+    color: var(--ink3);
+    margin-top: 4px;
+}
+
+.pc__stock-lbl--urgent {
+    color: #dc2626;
+    font-weight: 500;
+}
+
+/* ── Add to cart ─────────────────────────────────────────── */
+.pc__add {
+    display: none;
+    width: calc(100% - 28px);
+    margin: 10px 14px 14px;
+    padding: 10px;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    border-radius: var(--r-sm);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--font);
+    cursor: pointer;
+    letter-spacing: 0.2px;
+    transition: background 0.15s;
+}
+
+.pc__add:hover {
+    background: #374151;
+}
+
+.pc__add:disabled {
+    background: var(--border2);
+    color: var(--ink3);
+    cursor: not-allowed;
+}
+
+.pc:hover .pc__add {
+    display: block;
+}

@@ -72,16 +72,23 @@ export default function PromotionsPage() {
             title: 'Trạng thái',
             key: 'status',
             render: (_, record) => {
-                if (!record.is_active) {
-                    return <Tag>Tắt</Tag>;
-                }
+                if (!record.is_active) return <Tag>Tắt</Tag>;
 
-                if (record.is_running) {
-                    return <Tag color="green">Đang chạy</Tag>;
-                }
+                const now = new Date();
+                const expires = record.expires_at ? new Date(record.expires_at) : null;
+                const starts = record.starts_at ? new Date(record.starts_at) : null;
 
-                return <Tag color="red">Hết hạn</Tag>;
+                if (expires && expires < now) return <Tag color="red">Hết hạn</Tag>;
+                if (starts && starts > now) return <Tag color="blue">Chưa bắt đầu</Tag>;
+                return <Tag color="green">Đang chạy</Tag>;
             }
+        },
+        {
+            title: 'Flash Sale',
+            key: 'flash_sale',
+            render: (_, record) => record.is_flash_sale
+                ? <Tag color="volcano">⚡ Flash Sale</Tag>
+                : null
         },
         {
             title: 'Hành động', key: 'actions', render: (_, record) => (

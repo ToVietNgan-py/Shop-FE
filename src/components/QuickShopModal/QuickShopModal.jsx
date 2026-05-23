@@ -6,7 +6,6 @@ import { AuthContext } from "../../context/AuthContext.jsx";
 import { formatVND } from "../../utils/format.js";
 import "./QuickShopModal.scss";
 
-// ─── Size sort (giống ProductDetail) ─────────────────────────────────────────
 const CLOTH_SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "2XL", "3XL"];
 
 const sortSizes = (sizes) => {
@@ -36,14 +35,13 @@ const getSizesForColor = (variants, color) =>
 const findVariant = (variants, color, size) =>
     variants.find((v) => v.color === color && v.size === size) ?? null;
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 /**
  * QuickShopModal
  *
  * Props:
- *   product  – object từ list (id, name, img, price)
- *   onClose  – callback đóng modal
+ *   product     – object từ list (id, name, img, price, flashPrice?)
+ *   onClose     – callback đóng modal
+ *   actionType  – "cart" | "buy"
  */
 function QuickShopModal({ product, onClose, actionType = "cart" }) {
     const navigate = useNavigate();
@@ -60,7 +58,6 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
     const [feedback, setFeedback] = useState("");
     const [feedbackType, setFeedbackType] = useState("success");
 
-    // Fetch detail (có variants) khi modal mở
     useEffect(() => {
         if (!product?.id) return;
         let mounted = true;
@@ -71,32 +68,25 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
             .then((data) => {
                 if (!mounted) return;
                 setDetail(data);
-
                 const variants = Array.isArray(data?.variants) ? data.variants : [];
                 if (variants.length > 0) {
-                    const firstAvailable =
-                        variants.find((v) => v.inventory > 0) ?? variants[0];
-
+                    const firstAvailable = variants.find((v) => v.inventory > 0) ?? variants[0];
                     setSelectedColor(firstAvailable?.color ?? "");
                     setSelectedSize(firstAvailable?.size ?? "");
                 }
             })
-            .catch(() => {
-                if (mounted) setError("Không tải được thông tin sản phẩm.");
-            })
+            .catch(() => { if (mounted) setError("Không tải được thông tin sản phẩm."); })
             .finally(() => { if (mounted) setLoading(false); });
 
         return () => { mounted = false; };
     }, [product?.id]);
 
-    // Đóng khi bấm Escape
     useEffect(() => {
         const handler = (e) => { if (e.key === "Escape") onClose(); };
         document.addEventListener("keydown", handler);
         return () => document.removeEventListener("keydown", handler);
     }, [onClose]);
 
-    // Lock scroll
     useEffect(() => {
         document.body.style.overflow = "hidden";
         return () => { document.body.style.overflow = ""; };
@@ -107,11 +97,19 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
     const sizes = getSizesForColor(variants, selectedColor);
     const activeVariant = findVariant(variants, selectedColor, selectedSize);
     const hasVariants = variants.length > 0;
-    const displayPrice = activeVariant?.price || detail?.price || product?.price || 0;
+
+    // ✅ FIX: Ưu tiên flashPrice được truyền từ ngoài vào (flash sale)
+    // Thứ tự: flashPrice prop → variant price → detail price → product price
+    const flashPrice = product?.flashPrice ?? null;
+    const basePrice = activeVariant?.price || detail?.price || product?.price || 0;
+    const displayPrice = flashPrice ?? basePrice;
+
+    // Khi hiển thị: nếu có flash thì gạch giá gốc
+    const originalPrice = flashPrice ? basePrice : null;
+
     const variantInventory = activeVariant?.inventory ?? detail?.inventory ?? 0;
-    const canAdd =
-        !hasVariants ||
-        Boolean(activeVariant && variantInventory > 0);
+    const canAdd = !hasVariants || Boolean(activeVariant && variantInventory > 0);
+
     const showFeedback = useCallback((msg, type = "success") => {
         setFeedback(msg);
         setFeedbackType(type);
@@ -127,8 +125,9 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
         const item = {
             id: product.id,
             name: detail?.name ?? product.name,
+            // ✅ FIX: lưu flash_price vào giỏ hàng nếu có
             price: displayPrice,
-            img: detail?.img ?? product.img,
+            img: detail?.img ?? product.img ?? product.image ?? "",
             quantity,
             ...(hasVariants && activeVariant
                 ? { variantId: activeVariant.id, color: selectedColor, size: selectedSize }
@@ -152,62 +151,26 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
         const buyNowItem = {
             id: product.id,
             name: detail?.name ?? product.name,
+            // ✅ FIX: lưu flash_price vào checkout nếu có
             price: displayPrice,
-            img:
-                detail?.img ||
-                product?.img ||
-                detail?.image ||
-                product?.image ||
-                "",
+            img: detail?.img ?? product?.img ?? detail?.image ?? product?.image ?? "",
             quantity,
-
             ...(hasVariants && activeVariant
-                ? {
-                    variantId: activeVariant.id,
-                    color: selectedColor,
-                    size: selectedSize,
-                }
+                ? { variantId: activeVariant.id, color: selectedColor, size: selectedSize }
                 : {}),
         };
 
         onClose();
-
         navigate("/thanh-toan", {
-            state: {
-                buyNow: true,
-                checkoutItems: [buyNowItem],
-            },
+            state: { buyNow: true, checkoutItems: [buyNowItem] },
         });
-    }, [
-        canAdd,
-        product,
-        detail,
-        displayPrice,
-        quantity,
-        hasVariants,
-        activeVariant,
-        selectedColor,
-        selectedSize,
-        navigate,
-        onClose,
-        showFeedback,
-    ]);
+    }, [canAdd, product, detail, displayPrice, quantity, hasVariants, activeVariant, selectedColor, selectedSize, navigate, onClose, showFeedback]);
+
     useEffect(() => {
         if (!detail || loading) return;
+        if (!hasVariants && actionType === "buy") handleBuyNow();
+    }, [detail, loading, hasVariants, actionType, handleBuyNow]);
 
-        // Nếu không có variants thì xử lý luôn
-        if (!hasVariants) {
-            if (actionType === "buy") {
-                handleBuyNow();
-            }
-        }
-    }, [
-        detail,
-        loading,
-        hasVariants,
-        actionType,
-        handleBuyNow,
-    ]);
     const handleColorChange = (color) => {
         setSelectedColor(color);
         setSelectedSize("");
@@ -217,30 +180,37 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
     return (
         <div className="qsm-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label="Chọn nhanh sản phẩm">
             <div className="qsm-panel" onClick={(e) => e.stopPropagation()}>
-                {/* Close */}
                 <button className="qsm-close" onClick={onClose} aria-label="Đóng">✕</button>
 
-                {/* Product header */}
                 <div className="qsm-header">
                     <div className="qsm-thumb">
-                        {(detail?.img ?? product?.img) && (
-                            <img src={detail?.img ?? product?.img} alt={detail?.name ?? product?.name} />
+                        {(detail?.img ?? product?.img ?? product?.image) && (
+                            <img
+                                src={detail?.img ?? product?.img ?? product?.image}
+                                alt={detail?.name ?? product?.name}
+                            />
                         )}
                     </div>
                     <div className="qsm-info">
                         <h3 className="qsm-name">{detail?.name ?? product?.name}</h3>
-                        <p className="qsm-price">{formatVND(displayPrice)}</p>
+                        {/* ✅ FIX: hiện cả giá flash + giá gốc gạch ngang */}
+                        <div className="qsm-price-wrap">
+                            <p className={`qsm-price${flashPrice ? " qsm-price--flash" : ""}`}>
+                                {formatVND(displayPrice)}
+                            </p>
+                            {originalPrice && (
+                                <p className="qsm-price-orig">{formatVND(originalPrice)}</p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Body */}
                 <div className="qsm-body">
                     {loading && <p className="qsm-loading">Đang tải...</p>}
                     {error && <p className="qsm-error">{error}</p>}
 
                     {!loading && !error && (
                         <>
-                            {/* Màu */}
                             {colors.length > 0 && (
                                 <div className="qsm-option-group">
                                     <span className="qsm-label">Màu sắc</span>
@@ -259,7 +229,6 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
                                 </div>
                             )}
 
-                            {/* Size */}
                             {sizes.length > 0 && (
                                 <div className="qsm-option-group">
                                     <span className="qsm-label">Size</span>
@@ -284,14 +253,12 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
                                 </div>
                             )}
 
-                            {/* Tồn kho */}
                             {activeVariant && (
                                 <p className={`qsm-stock ${variantInventory === 0 ? "out" : "in"}`}>
                                     {variantInventory === 0 ? "Hết hàng" : `Còn ${variantInventory} sản phẩm`}
                                 </p>
                             )}
 
-                            {/* Số lượng */}
                             <div className="qsm-qty-row">
                                 <span className="qsm-label">Số lượng</span>
                                 <div className="qsm-qty">
@@ -306,12 +273,10 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
                                 </div>
                             </div>
 
-                            {/* Feedback */}
                             {feedback && (
                                 <p className={`qsm-feedback ${feedbackType}`}>{feedback}</p>
                             )}
 
-                            {/* Actions */}
                             <div className="qsm-actions">
                                 <button
                                     type="button"
@@ -323,10 +288,7 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
                                 </button>
                                 <button
                                     type="button"
-                                    className={`qsm-btn primary ${actionType === "buy"
-                                        ? "is-buy"
-                                        : "is-cart"
-                                        }`}
+                                    className={`qsm-btn primary ${actionType === "buy" ? "is-buy" : "is-cart"}`}
                                     onClick={handleBuyNow}
                                     disabled={hasVariants && variantInventory === 0}
                                 >

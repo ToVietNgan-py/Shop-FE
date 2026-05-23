@@ -159,10 +159,22 @@ $dr-bg-main: #ffffff; // Chuyển nền tổng thể sang trắng để layout t
     }
 
     .price {
-        font-size: 16px;
-        font-weight: 400;
+        font-size: 20px;
+        font-weight: 500;
         margin: 0 0 30px;
         color: $dr-dark;
+    }
+
+    .price--flash {
+        color: #ff3b3b;
+        font-weight: 700;
+        font-size: 22px;
+    }
+
+    .price--orig {
+        font-size: 14px;
+        color: #999;
+        text-decoration: line-through;
     }
 
     .option-group {
@@ -262,6 +274,11 @@ $dr-bg-main: #ffffff; // Chuyển nền tổng thể sang trắng để layout t
         font-size: 14px;
         cursor: pointer;
         transition: opacity 0.2s ease;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
 
         &:hover {
             opacity: 0.86;

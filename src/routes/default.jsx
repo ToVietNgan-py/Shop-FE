@@ -25,7 +25,11 @@ import OrdersAdminPage from "../pages/admin/orders/index.jsx";
 import VouchersPage from "../pages/admin/vouchers/index.jsx";
 import PromotionsPage from "../pages/admin/promotions/index.jsx";
 import AdminAccount from "../pages/admin/accounts/index.jsx";
-import RequireAuth from "../components/RequireAuth/RequireAuth.jsx"; function AppRoutes() {
+import RequireAuth from "../components/RequireAuth/RequireAuth.jsx";
+import PromotionListPage from "../pages/admin/promotions/PromotionListPage.jsx";
+import PromotionStatsPage from "../pages/admin/promotions/PromotionStatsPage.jsx";
+import ProductListingPage from "../pages/users/ProductListingPage/ProductListingPage.jsx";
+function AppRoutes() {
     return (
         <div>
             <Routes>
@@ -45,7 +49,7 @@ import RequireAuth from "../components/RequireAuth/RequireAuth.jsx"; function Ap
                 <Route path="/don-hang" element={<MyOrders />} />
                 <Route path="/don-hang/:id" element={<OrderDetail />} />
                 <Route path="/login" element={<LoginPage />} />
-
+                <Route path="/san-pham" element={<ProductListingPage />} />
                 <Route
                     path="/admin"
                     element={
@@ -74,6 +78,14 @@ import RequireAuth from "../components/RequireAuth/RequireAuth.jsx"; function Ap
                     <Route
                         path="promotions"
                         element={<PromotionsPage />}
+                    />
+                    <Route
+                        path="promotions"
+                        element={<PromotionListPage />}
+                    />
+                    <Route
+                        path="promotions/:id/stats"
+                        element={<PromotionStatsPage />}
                     />
                     <Route
                         path="tai-khoan"

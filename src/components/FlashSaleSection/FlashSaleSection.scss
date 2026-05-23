@@ -1,0 +1,348 @@
+.fss {
+    padding: 28px 20px;
+    background: linear-gradient(135deg, #fff5f7 0%, #fff 100%);
+    border-top: 3px solid #e91e63;
+}
+
+/* ── Header ── */
+.fss__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.fss__title {
+    font-size: 1.8rem;
+    color: #e91e63;
+    font-weight: bold;
+    margin: 0;
+}
+
+.fss__subtitle {
+    font-size: 0.82rem;
+    color: #aaa;
+    margin: 2px 0 0;
+}
+
+.fss__btn {
+    background: #e91e63;
+    color: #fff;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.3s;
+    white-space: nowrap;
+
+    &:hover {
+        background: #c2195a;
+    }
+}
+
+/* ── Countdown ── */
+.fss__countdown {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.fss__countdown-label {
+    font-size: 0.72rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.fss__digits {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.fss__block {
+    background: #e91e63;
+    color: #fff;
+    border-radius: 6px;
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 40px;
+
+    span {
+        font-size: 1.1rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    small {
+        font-size: 0.55rem;
+        opacity: 0.85;
+        margin-top: 2px;
+        letter-spacing: 0.5px;
+    }
+}
+
+.fss__sep {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #e91e63;
+    margin-bottom: 10px;
+}
+
+/* ── Slider ── */
+.fss__slider {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.fss__list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin: 0 48px;
+    flex: 1;
+}
+
+/* ── Card wrap — dùng để position wishlist + card ── */
+.fss__card-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Đẩy wishlist button xuống dưới badge flash (tránh đè) */
+.fss__card-wrap :global(.wishlist-btn),
+.fss__card-wrap [class*="wishlist"] {
+    top: 36px !important;
+    right: 8px !important;
+    z-index: 3;
+}
+
+/* ── Card ── */
+.fss__card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(233, 30, 99, 0.1);
+    border: 1.5px solid #fce4ec;
+    overflow: hidden;
+    transition: transform 0.22s, box-shadow 0.22s;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+
+    &:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(233, 30, 99, 0.18);
+    }
+}
+
+.fss__card-link {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+/* ── Image ── */
+.fss__img-wrap {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: #f5f5f5;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.fss__img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    transition: transform 0.3s;
+
+    &:hover {
+        transform: scale(1.05);
+    }
+}
+
+.fss__img-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: #e91e63;
+    opacity: 0.3;
+}
+
+/* ── Badges ── */
+.fss__badge-flash {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #e91e63;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 20px;
+    z-index: 2;
+}
+
+/* % badge — góc dưới trái tránh đè wishlist ở trên phải */
+.fss__badge-pct {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: #ff5722;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 20px;
+    z-index: 2;
+}
+
+/* ── Name ── */
+.fss__name {
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin: 6px 8px 3px;
+    color: #333;
+    min-height: 2.2rem;
+    line-height: 1.3rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: left;
+}
+
+/* ── Prices ── */
+.fss__prices {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px 6px;
+    flex-wrap: wrap;
+}
+
+.fss__price-flash {
+    font-size: 0.9rem;
+    color: #e91e63;
+    font-weight: bold;
+}
+
+.fss__price-orig {
+    font-size: 0.75rem;
+    color: #bbb;
+    text-decoration: line-through;
+}
+
+/* ── Quick actions ── */
+.fss .product-quick-actions {
+    width: 100%;
+    padding: 0 8px 8px;
+}
+
+.fss .product-quick-actions__buttons {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 5px !important;
+}
+
+.fss .quick-action-btn {
+    padding: 6px 4px !important;
+    border-radius: 7px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    transition: opacity 0.2s, transform 0.15s !important;
+
+    &:hover:not(:disabled) {
+        opacity: 0.88 !important;
+        transform: translateY(-1px) !important;
+    }
+}
+
+/* ── Arrows ── */
+.fss__arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.8rem;
+    background: rgba(233, 30, 99, 0.8);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+
+    &:hover {
+        background: #e91e63;
+        transform: translateY(-50%) scale(1.1);
+    }
+
+    &:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    &--left {
+        left: 4px;
+    }
+
+    &--right {
+        right: 4px;
+    }
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+    .fss__list {
+        grid-template-columns: repeat(3, 1fr);
+        margin: 0 44px;
+    }
+}
+
+@media (max-width: 768px) {
+    .fss__list {
+        grid-template-columns: repeat(2, 1fr);
+        margin: 0 36px;
+    }
+
+    .fss__header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .fss__list {
+        grid-template-columns: 1fr;
+        margin: 0 32px;
+    }
+}

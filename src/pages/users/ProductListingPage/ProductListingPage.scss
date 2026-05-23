@@ -1,0 +1,202 @@
+/* ProductListingPage.css — Dear Rose */
+:root {
+    --rose: #db2777;
+    --rose-lt: #fdf2f8;
+    --rose-dk: #9d174d;
+    --ink: #1a1a1a;
+    --ink2: #4b4b4b;
+    --ink3: #9a9a9a;
+    --bg: #fafaf9;
+    --white: #ffffff;
+    --border: #ececec;
+    --border2: #e0e0e0;
+    --r: 12px;
+    --font-d: 'Cormorant Garamond', serif;
+    --font: 'DM Sans', -apple-system, sans-serif;
+}
+
+.plp {
+    font-family: var(--font);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+    background: var(--bg);
+    min-height: 100vh;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+.plp__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.plp__title {
+    font-family: var(--font-d);
+    font-size: 36px;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+    color: var(--ink);
+}
+
+.plp__cart-indicator {
+    font-size: 13.5px;
+    color: var(--ink2);
+    background: var(--white);
+    border: 1.5px solid var(--border2);
+    border-radius: 20px;
+    padding: 6px 14px;
+}
+
+/* ── Controls row ────────────────────────────────────── */
+.plp__controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.plp__cats {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.plp__cat-btn {
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--font);
+    border: 1.5px solid var(--border2);
+    background: var(--white);
+    color: var(--ink2);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.plp__cat-btn:hover {
+    background: var(--bg);
+}
+
+.plp__cat-btn--on {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+}
+
+.plp__sort {
+    padding: 8px 14px;
+    border: 1.5px solid var(--border2);
+    border-radius: 20px;
+    font-size: 13px;
+    font-family: var(--font);
+    background: var(--white);
+    color: var(--ink2);
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.plp__sort:focus {
+    border-color: var(--rose);
+}
+
+/* ── Flash hint bar ──────────────────────────────────── */
+.plp__flash-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #b91c1c;
+    margin-bottom: 20px;
+}
+
+.plp__flash-hint-btn {
+    background: none;
+    border: none;
+    color: var(--rose);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* ── Product grid ────────────────────────────────────── */
+.plp__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 20px;
+}
+
+/* ── Skeleton loader ─────────────────────────────────── */
+.plp__skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 20px;
+}
+
+.plp__skeleton-card {
+    border-radius: var(--r);
+    aspect-ratio: 0.75;
+    background: linear-gradient(90deg,
+            #f0f0f0 25%,
+            #fafafa 50%,
+            #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.3s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* ── Empty state ─────────────────────────────────────── */
+.plp__empty {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--ink3);
+    font-size: 15px;
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 640px) {
+    .plp {
+        padding: 20px 16px 64px;
+    }
+
+    .plp__title {
+        font-size: 28px;
+    }
+
+    .plp__controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .plp__sort {
+        width: 100%;
+    }
+
+    .plp__grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 14px;
+    }
+}

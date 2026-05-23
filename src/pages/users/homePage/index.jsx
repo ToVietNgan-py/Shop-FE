@@ -9,6 +9,7 @@ import HomeSlider from './HomeSlider/HomeSlider.jsx';
 import "./style.scss";
 import BestSeller from '../../../components/BestSeller/BestSeller.jsx';
 import NewArrival from '../../../components/NewArrival/NewArrival.jsx';
+import FlashSaleSection from '../../../components/FlashSaleSection/FlashSaleSection.jsx';
 import { promotionService } from '../../../services/promotionService.js';
 function HomePage() {
     const [promos, setPromos] = useState([]);
@@ -35,6 +36,7 @@ function HomePage() {
                 </div>
             )}
             <HomeSlider />
+            <FlashSaleSection />
             <BestSeller />
             <NewArrival />
 

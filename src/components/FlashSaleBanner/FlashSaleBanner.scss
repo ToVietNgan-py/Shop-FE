@@ -1,0 +1,260 @@
+// FlashSaleBanner.scss — Phase 4
+
+// ── Variables ──────────────────────────────────────────────────────
+$rose: #db2777;
+$rose-dk: #9d174d;
+$red-bright: #ff1a1a;
+$red-deep: #cc0000;
+$red-badge: #ff1a1a;
+$white: #fff;
+$gray-100: #f3f4f6;
+$gray-400: #9ca3af;
+$gray-700: #374151;
+$gray-800: #1f2937;
+
+$radius-wrap: 14px;
+$radius-card: 10px;
+$radius-digit: 8px;
+$radius-badge: 4px;
+
+$bp-mobile: 640px;
+
+// ── Mixins ─────────────────────────────────────────────────────────
+@mixin mobile {
+  @media (max-width: $bp-mobile) {
+    @content;
+  }
+}
+
+// ── Wrapper ────────────────────────────────────────────────────────
+.fsb-wrap {
+  background: linear-gradient(135deg, #ff4d4d 0%, $red-bright 40%, $red-deep 100%);
+  border-radius: $radius-wrap;
+  padding: 20px 24px;
+  margin: 24px 0;
+  color: $white;
+  box-shadow: 0 8px 32px rgba($red-bright, 0.3);
+  overflow: hidden;
+  position: relative;
+
+  // Subtle shimmer overlay
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(-45deg,
+        transparent,
+        transparent 20px,
+        rgba($white, 0.03) 20px,
+        rgba($white, 0.03) 40px);
+    pointer-events: none;
+  }
+}
+
+// ── Header ─────────────────────────────────────────────────────────
+.fsb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+
+  @include mobile {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+}
+
+.fsb-icon {
+  font-size: 36px;
+  display: block;
+  animation: fsb-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes fsb-pulse {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.15);
+  }
+}
+
+.fsb-title {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(#000, 0.2);
+
+  @include mobile {
+    font-size: 22px;
+  }
+}
+
+.fsb-subtitle {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+// ── Countdown ──────────────────────────────────────────────────────
+.fsb-countdown {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  &__label {
+    font-size: 12px;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  &__digits {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.fsb-digit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(#000, 0.25);
+  border-radius: $radius-digit;
+  padding: 6px 10px;
+  min-width: 52px;
+
+  @include mobile {
+    min-width: 44px;
+    padding: 5px 8px;
+  }
+
+  &__num {
+    font-size: 24px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+
+    @include mobile {
+      font-size: 20px;
+    }
+  }
+
+  &__label {
+    font-size: 9px;
+    opacity: 0.7;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+}
+
+.fsb-sep {
+  font-size: 22px;
+  font-weight: 700;
+  opacity: 0.6;
+  margin-bottom: 14px;
+}
+
+// ── Product list ────────────────────────────────────────────────────
+.fsb-products {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+
+  @include mobile {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+
+// ── Product card ────────────────────────────────────────────────────
+.fsb-product {
+  background: $white;
+  border-radius: $radius-card;
+  overflow: hidden;
+  color: $gray-800;
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: block;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(#000, 0.2);
+
+    .fsb-product__img {
+      transform: scale(1.05);
+    }
+  }
+
+  &__img-wrap {
+    position: relative;
+    aspect-ratio: 1;
+    background: $gray-100;
+    overflow: hidden;
+  }
+
+  &__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+  }
+
+  &__badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: $red-badge;
+    color: $white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: $radius-badge;
+  }
+
+  &__info {
+    padding: 10px;
+  }
+
+  &__name {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: $gray-700;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+  }
+
+  &__prices {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  &__flash-price {
+    font-size: 14px;
+    font-weight: 700;
+    color: #dc2626;
+  }
+
+  &__original-price {
+    font-size: 11.5px;
+    color: $gray-400;
+    text-decoration: line-through;
+  }
+}
