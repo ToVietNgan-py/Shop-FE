@@ -15,13 +15,13 @@ function BestSeller() {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [quickShopProduct, setQuickShopProduct] = useState(null);
-  const [quickActionType, setQuickActionType] = "cart";
+  const [quickActionType, setQuickActionType] = useState("cart"); // Đã sửa lỗi useState tại đây
   const [promoMap, setPromoMap] = useState(new Map());
   const [globalPromos, setGlobalPromos] = useState([]);
   const ITEMS_PER_PAGE = 4;
   const { getFlashInfo, isFlash } = useFlashSale();
 
-  // Load products
+  // Load products (featured)
   useEffect(() => {
     let isMounted = true;
     async function loadProducts() {
@@ -64,10 +64,6 @@ function BestSeller() {
     };
   }, []);
 
-  if (isLoading) {
-    return <PageLoading compact title="Đang tải BEST SELLER" description="Danh sách sản phẩm nổi bật đang được lấy từ API." />;
-  }
-
   const next = () => {
     if (startIndex + ITEMS_PER_PAGE < products.length) setStartIndex(startIndex + ITEMS_PER_PAGE);
   };
@@ -76,6 +72,7 @@ function BestSeller() {
   };
   const visibleProducts = products.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+  // Hàm renderPrice đặt cố định bên trong BestSeller để tránh lỗi ReferenceError
   const renderPrice = (item) => {
     const allPromos = [...(promoMap.has(item.id) ? [promoMap.get(item.id)] : []), ...globalPromos];
     const promo = promotionUtils.estimateProductPromotion(item, allPromos);
@@ -95,6 +92,10 @@ function BestSeller() {
     return <p className="price">{formatVND(item.price)}</p>;
   };
 
+  if (isLoading) {
+    return <PageLoading compact title="Đang tải BEST SELLER" description="Danh sách sản phẩm nổi bật đang được lấy từ API." />;
+  }
+
   return (
     <>
       <div className="best-seller">
@@ -110,11 +111,12 @@ function BestSeller() {
               const displayPrice = flash?.flash_price ?? item.price;
               const hasFlash = isFlash(item.id);
               return (
+                /* BẮT BUỘC PHẢI CÓ THẺ DIV BỌC NGOÀI NÀY ĐỂ SCSS ĐẨY CHIỀU CAO FLEXBOX */
                 <div key={item.id} style={{ position: "relative" }}>
                   <WishlistButton product={item} />
                   <div className="card">
                     <Link to={`/san-pham/${item.id}`} className="card-main">
-                      <div className="image" style={{ position: "relative" }}>
+                      <div className="image">
                         {item.img ? <img src={item.img} alt={item.name} /> : null}
                         {hasFlash && (
                           <span style={{
@@ -127,16 +129,22 @@ function BestSeller() {
                             fontWeight: 700,
                             padding: "2px 7px",
                             borderRadius: 4,
+                            zIndex: 2
                           }}>⚡ Flash</span>
                         )}
                       </div>
                       <p className="name">{item.name}</p>
                       {hasFlash ? (
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                          <p className="price" style={{ color: "#ff3b3b", margin: 0 }}>{formatVND(displayPrice)}</p>
-                          <p style={{ margin: 0, fontSize: 12, color: "#999", textDecoration: "line-through" }}>{formatVND(item.price)}</p>
+                        /* Đưa cấu trúc giá Flash Sale về cùng khối với renderPrice để ăn nhập CSS */
+                        <div className="price-block" style={{ justifyContent: 'center' }}>
+                          <span className="price-sale">{formatVND(displayPrice)}</span>
+                          <span className="price-original">{formatVND(item.price)}</span>
                         </div>
-                      ) : renderPrice(item)}
+                      ) : (
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          {renderPrice(item)}
+                        </div>
+                      )}
                     </Link>
                     <ProductQuickActions
                       product={{ ...item, flashPrice: hasFlash ? displayPrice : undefined }}
