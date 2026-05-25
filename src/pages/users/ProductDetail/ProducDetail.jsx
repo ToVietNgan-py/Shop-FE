@@ -1,4 +1,3 @@
-
 import { useMemo, useState, useContext, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { CartContext } from "../../../context/CartContext";
@@ -57,43 +56,53 @@ function ProductDetail() {
             const total = reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0);
             return total / reviews.length;
         }
-
         return Number(reviewSummary.averageRating || 0);
     }, [reviews, reviewSummary.averageRating]);
 
     const totalReviewCount = reviews.length > 0 ? reviews.length : reviewSummary.total;
 
-    const decreaseQuantity = () => {
-        setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
-    };
+    const decreaseQuantity = () => setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
+    const increaseQuantity = () => setQuantity((prev) => prev + 1);
 
-    const increaseQuantity = () => {
-        setQuantity((prev) => prev + 1);
-    };
-
+    // ── Load product detail + related ──────────────────────────────
     useEffect(() => {
         let isMounted = true;
 
         async function loadProductDetail() {
             setIsLoading(true);
             setError("");
-
             try {
                 const detail = await productService.detail(id);
-
-                if (!detail) {
-                    throw new Error("Không tìm thấy sản phẩm");
-                }
+                if (!detail) throw new Error("Không tìm thấy sản phẩm");
 
                 const related = await productService.related({
-                    category: detail.categorySlug || detail.category,
+                    // pass numeric category id so backend can filter by category_id
+                    category: detail.category_id ?? detail.categoryId ?? detail.category?.id ?? null,
                     excludeId: detail.id,
                     limit: 4,
                 });
 
                 if (isMounted) {
                     setProduct(detail);
-                    setRelatedProducts(related);
+
+                    // enrich related products with estimated promotion (FE-side)
+                    try {
+                        const promoCatalog = await promotionUtils.fetchPromotionCatalog().catch(() => []);
+                        const enriched = Array.isArray(related)
+                            ? related.map((r) => {
+                                const est = promotionUtils.estimateProductPromotion(r, promoCatalog);
+                                return {
+                                    ...r,
+                                    promoEstimate: est || null,
+                                    displayPrice: est?.finalPrice ?? r.price,
+                                };
+                            })
+                            : [];
+
+                        setRelatedProducts(enriched);
+                    } catch {
+                        setRelatedProducts(related);
+                    }
                 }
             } catch (loadError) {
                 if (isMounted) {
@@ -102,20 +111,16 @@ function ProductDetail() {
                     setRelatedProducts([]);
                 }
             } finally {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
+                if (isMounted) setIsLoading(false);
             }
         }
 
         window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
         loadProductDetail();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [id]);
 
+    // ── Load promotion ─────────────────────────────────────────────
     useEffect(() => {
         if (!product) return;
         let alive = true;
@@ -128,16 +133,15 @@ function ProductDetail() {
         return () => { alive = false; };
     }, [product]);
 
+    // ── Load reviews ───────────────────────────────────────────────
     useEffect(() => {
         let isMounted = true;
 
         async function loadReviews() {
             setReviewsLoading(true);
             setReviewsError("");
-
             try {
                 const result = await reviewService.list(id, { perPage: 10, page: 1 });
-
                 if (isMounted) {
                     setReviews(result.items ?? []);
                     setReviewSummary({
@@ -153,19 +157,15 @@ function ProductDetail() {
                     setReviewsError(loadError?.message || "Không tải được đánh giá.");
                 }
             } finally {
-                if (isMounted) {
-                    setReviewsLoading(false);
-                }
+                if (isMounted) setReviewsLoading(false);
             }
         }
 
         loadReviews();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [id]);
 
+    // ── Load eligible orders for review ───────────────────────────
     useEffect(() => {
         let isMounted = true;
 
@@ -181,16 +181,13 @@ function ProductDetail() {
 
             setOrdersLoading(true);
             setOrdersError("");
-
             try {
                 const response = await getOrders();
                 const orders = Array.isArray(response.data) ? response.data : [];
                 const matchedOrders = orders.filter((order) => {
-                    if (order.status !== "completed") {
-                        return false;
-                    }
-
-                    return Array.isArray(order.items) && order.items.some((item) => String(item.productId ?? item.id) === String(productId));
+                    if (order.status !== "completed") return false;
+                    return Array.isArray(order.items) &&
+                        order.items.some((item) => String(item.productId ?? item.id) === String(productId));
                 });
 
                 if (isMounted) {
@@ -204,43 +201,34 @@ function ProductDetail() {
                     setOrdersError(loadError?.message || "Không tải được danh sách đơn hàng đủ điều kiện.");
                 }
             } finally {
-                if (isMounted) {
-                    setOrdersLoading(false);
-                }
+                if (isMounted) setOrdersLoading(false);
             }
         }
 
         loadEligibleOrders();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [user, productId]);
 
+    // ── Auto-clear success / feedback ─────────────────────────────
     useEffect(() => {
-        if (addedSuccess) {
-            const timer = setTimeout(() => setAddedSuccess(false), 2000);
-            return () => clearTimeout(timer);
-        }
+        if (!addedSuccess) return;
+        const timer = setTimeout(() => setAddedSuccess(false), 2000);
+        return () => clearTimeout(timer);
     }, [addedSuccess]);
 
     useEffect(() => {
-        if (reviewFeedback) {
-            const timer = setTimeout(() => setReviewFeedback(""), 2500);
-            return () => clearTimeout(timer);
-        }
+        if (!reviewFeedback) return;
+        const timer = setTimeout(() => setReviewFeedback(""), 2500);
+        return () => clearTimeout(timer);
     }, [reviewFeedback]);
 
+    // ── Pending cart action after login ───────────────────────────
     useEffect(() => {
-        if (!user || !pendingCartItem) {
-            return;
-        }
-
+        if (!user || !pendingCartItem) return;
         let isMounted = true;
 
         (async () => {
             try {
-                // Buy-now sau khi đăng nhập: đi thẳng tới checkout riêng, không thêm vào giỏ.
                 if (pendingAction === "buy-now") {
                     if (isMounted) {
                         const item = pendingCartItem;
@@ -250,9 +238,7 @@ function ProductDetail() {
                     }
                     return;
                 }
-
                 await addToCart(pendingCartItem);
-
                 if (isMounted) {
                     setAddedSuccess(true);
                     setPendingCartItem(null);
@@ -260,47 +246,38 @@ function ProductDetail() {
                 }
             } catch (addError) {
                 if (isMounted) {
-                    setCartActionError(addError?.message || "Khong the them san pham vao gio.");
+                    setCartActionError(addError?.message || "Không thể thêm sản phẩm vào giỏ.");
                     setPendingCartItem(null);
                     setPendingAction("");
                 }
             }
         })();
 
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [user, pendingCartItem, pendingAction, addToCart, navigate]);
 
+    // ── Guards ─────────────────────────────────────────────────────
     if (isLoading) {
         return <PageLoading title="Đang tải chi tiết sản phẩm" description="Đợi một chút, mình đang lấy dữ liệu từ API." />;
     }
-
     if (error) {
         return <ErrorState title="Không tải được sản phẩm" description={error} />;
     }
 
-    // const cartItem = {
-    //     id: product.id,
-    //     productId: product.id,
-    //     name: product.name,
-    //     price: product.price,
-    //     image: product.img,
-    //     quantity,
-    //     color: selectedColor,
-    //     size: selectedSize,
-    // };
+    // ── Cart item ──────────────────────────────────────────────────
     const cartItem = {
         id: product.id,
         productId: product.id,
         name: product.name,
-        price: promoResult?.finalPrice ?? product.price,      // ← giá sau giảm
-        originalPrice: product.price,                          // ← giá gốc lưu lại
+        price: promoResult?.finalPrice ?? product.price,
+        originalPrice: product.price,
         image: product.img,
         quantity,
         color: selectedColor,
         size: selectedSize,
     };
+
+    // ── Handlers ───────────────────────────────────────────────────
     const handleAddToCart = async () => {
         setAddedSuccess(false);
         setCartActionError("");
@@ -311,12 +288,11 @@ function ProductDetail() {
             setIsAuthOpen(true);
             return;
         }
-
         try {
             await addToCart(cartItem);
             setAddedSuccess(true);
         } catch (addError) {
-            setCartActionError(addError?.message || "Khong the them san pham vao gio.");
+            setCartActionError(addError?.message || "Không thể thêm sản phẩm vào giỏ.");
         }
     };
 
@@ -329,9 +305,6 @@ function ProductDetail() {
             setIsAuthOpen(true);
             return;
         }
-
-        // Mua ngay = luồng thanh toán riêng cho duy nhất sản phẩm này.
-        // Không addToCart để tránh trộn vào giỏ hàng hiện tại; truyền item qua route state.
         navigate("/thanh-toan", { state: { checkoutItem: cartItem, buyNow: true } });
     };
 
@@ -392,6 +365,7 @@ function ProductDetail() {
         }
     };
 
+    // ── Render helpers ─────────────────────────────────────────────
     const renderReviewForm = () => {
         if (!user) {
             return (
@@ -404,7 +378,6 @@ function ProductDetail() {
                 </div>
             );
         }
-
         if (ordersLoading) {
             return (
                 <div className="review-form review-form--locked">
@@ -413,7 +386,6 @@ function ProductDetail() {
                 </div>
             );
         }
-
         if (ordersError) {
             return (
                 <div className="review-form review-form--locked">
@@ -422,7 +394,6 @@ function ProductDetail() {
                 </div>
             );
         }
-
         if (eligibleOrders.length === 0) {
             return (
                 <div className="review-form review-form--locked">
@@ -431,14 +402,13 @@ function ProductDetail() {
                 </div>
             );
         }
-
         return (
             <form className="review-form" onSubmit={handleReviewSubmit}>
                 <h3>Viết đánh giá của bạn</h3>
 
                 <label className="review-select-field">
                     <span>Chọn đơn hàng đã hoàn thành</span>
-                    <select value={selectedOrderId} onChange={(event) => setSelectedOrderId(event.target.value)}>
+                    <select value={selectedOrderId} onChange={(e) => setSelectedOrderId(e.target.value)}>
                         {eligibleOrders.map((order) => (
                             <option key={order.id} value={String(order.id)}>
                                 {order.orderCode} - {order.createdAt}
@@ -457,14 +427,14 @@ function ProductDetail() {
                     <textarea
                         rows="5"
                         value={reviewComment}
-                        onChange={(event) => setReviewComment(event.target.value)}
+                        onChange={(e) => setReviewComment(e.target.value)}
                         placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
                     />
                 </label>
 
-                {reviewFeedback ? (
+                {reviewFeedback && (
                     <p className={`review-feedback ${reviewFeedbackType}`}>{reviewFeedback}</p>
-                ) : null}
+                )}
 
                 <button type="submit" className="review-submit-btn" disabled={reviewSubmitting}>
                     {reviewSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
@@ -474,14 +444,8 @@ function ProductDetail() {
     };
 
     const renderReviewItems = () => {
-        if (reviewsLoading) {
-            return <p className="review-empty">Đang tải đánh giá...</p>;
-        }
-
-        if (reviewsError) {
-            return <p className="review-empty error">{reviewsError}</p>;
-        }
-
+        if (reviewsLoading) return <p className="review-empty">Đang tải đánh giá...</p>;
+        if (reviewsError) return <p className="review-empty error">{reviewsError}</p>;
         if (reviews.length === 0) {
             return (
                 <div className="review-empty">
@@ -490,51 +454,54 @@ function ProductDetail() {
                 </div>
             );
         }
-
-        // return (
-        //     <div className="review-list">
-        //         {reviews.map((review) => (
-        //             <article key={review.id} className="review-item">
-        //                 <div className="review-item__header">
-        //                     <div className="review-avatar">
-        //                         <span>{(review.userName || "K").charAt(0).toUpperCase()}</span>
-        //                     </div>
-        //                     <div className="review-meta">
-        //                         <strong>{review.userName}</strong>
-        //                         <div className="review-meta__rating">
-        //                             <StarRating value={Math.round(Number(review.rating || 0))} readonly size={16} />
-        //                             <span>{review.createdAt}</span>
-        //                         </div>
-        //                     </div>
-        //                 </div>
-        //                 <p className="review-item__comment">{review.comment}</p>
-        //                 {Array.isArray(review.images) && review.images.length > 0 ? (
-        //                     <div className="review-images">
-        //                         {review.images.map((image, index) => (
-        //                             <img key={`${review.id}-image-${index}`} src={image} alt={`Review ${index + 1}`} />
-        //                         ))}
-        //                     </div>
-        //                 ) : null}
-        //             </article>
-        //         ))}
-        //     </div>
-        // );
+        return (
+            <div className="review-list">
+                {reviews.map((review) => (
+                    <article key={review.id} className="review-item">
+                        <div className="review-item__header">
+                            <div className="review-avatar">
+                                <span>{(review.userName || "K").charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div className="review-meta">
+                                <strong>{review.userName}</strong>
+                                <div className="review-meta__rating">
+                                    <StarRating value={Math.round(Number(review.rating || 0))} readonly size={15} />
+                                    <span>{review.createdAt}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p className="review-item__comment">{review.comment}</p>
+                        {Array.isArray(review.images) && review.images.length > 0 && (
+                            <div className="review-images">
+                                {review.images.map((img, i) => (
+                                    <img key={`${review.id}-img-${i}`} src={img} alt={`Ảnh ${i + 1}`} />
+                                ))}
+                            </div>
+                        )}
+                    </article>
+                ))}
+            </div>
+        );
     };
 
+    // ── JSX ────────────────────────────────────────────────────────
     return (
         <>
+            {/* ══ Product Detail ══════════════════════════════════════ */}
             <section className="product-detail" aria-label="Chi tiết sản phẩm">
                 <div className="product-media">
-                    {product.img ? <img src={product.img} alt={product.name} className="main-image" /> : null}
+                    {product.img && (
+                        <img src={product.img} alt={product.name} className="main-image" />
+                    )}
                 </div>
 
                 <div className="product-info">
                     <p className="brand">Dear Róse</p>
                     <h1>{product.name}</h1>
-                    {/* <p className="price">{formatVND(product.price)}</p> */}
 
+                    {/* Giá — có promo hay không */}
                     {promoResult && promoResult.discountAmount > 0 ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>
                             <span style={{ fontSize: "1.5rem", fontWeight: 700, color: "#e91e63" }}>
                                 {formatVND(promoResult.finalPrice)}
                             </span>
@@ -543,7 +510,7 @@ function ProductDetail() {
                             </span>
                             <span style={{
                                 background: "#fef2f2", color: "#e91e63", border: "1px solid #fecaca",
-                                borderRadius: 6, padding: "2px 8px", fontSize: "0.82rem", fontWeight: 700
+                                borderRadius: 6, padding: "2px 8px", fontSize: "0.82rem", fontWeight: 700,
                             }}>
                                 {promoResult.promo.type === "percent"
                                     ? `-${promoResult.promo.value}%`
@@ -554,6 +521,7 @@ function ProductDetail() {
                         <p className="price">{formatVND(product.price)}</p>
                     )}
 
+                    {/* Màu sắc */}
                     <div className="option-group">
                         <span className="option-label">Màu sắc</span>
                         <div className="chip-list">
@@ -570,6 +538,7 @@ function ProductDetail() {
                         </div>
                     </div>
 
+                    {/* Size */}
                     <div className="option-group">
                         <span className="option-label">Size</span>
                         <div className="chip-list size-list">
@@ -586,6 +555,7 @@ function ProductDetail() {
                         </div>
                     </div>
 
+                    {/* Số lượng */}
                     <div className="qty-row">
                         <span className="option-label">Số lượng</span>
                         <div className="qty-control">
@@ -595,12 +565,22 @@ function ProductDetail() {
                         </div>
                     </div>
 
+                    {/* Actions */}
                     <div className="action-list">
-                        <button type="button" className={`btn secondary ${addedSuccess ? "added-success" : ""}`} onClick={handleAddToCart}>Thêm vào giỏ</button>
-                        <button type="button" className="btn primary" onClick={handleBuyNow}>Mua ngay</button>
+                        <button
+                            type="button"
+                            className={`btn secondary ${addedSuccess ? "added-success" : ""}`}
+                            onClick={handleAddToCart}
+                        >
+                            {addedSuccess ? "✓ Đã thêm vào giỏ" : "Thêm vào giỏ"}
+                        </button>
+                        <button type="button" className="btn primary" onClick={handleBuyNow}>
+                            Mua ngay
+                        </button>
                     </div>
-                    {cartActionError ? <p className="field-message error">{cartActionError}</p> : null}
+                    {cartActionError && <p className="field-message error">{cartActionError}</p>}
 
+                    {/* Meta */}
                     <div className="meta-list">
                         <div className="meta-item">
                             <span>Thông tin sản phẩm</span>
@@ -618,55 +598,83 @@ function ProductDetail() {
                 </div>
             </section>
 
-            <section className="dr-reviews-section" aria-label="Đánh giá sản phẩm">
-                <div className="dr-reviews-header">
-                    <div className="dr-header-title">
-                        <span className="dr-kicker">Phản hồi khách hàng</span>
+            {/* ══ Reviews ═════════════════════════════════════════════ */}
+            <section className="product-reviews-section" aria-label="Đánh giá sản phẩm">
+
+                {/* Header */}
+                <div className="reviews-header">
+                    <div>
+                        <p className="reviews-kicker">Phản hồi khách hàng</p>
                         <h2>Đánh giá sản phẩm</h2>
                     </div>
-                    <div className="dr-score-badge">
-                        <span className="dr-big-num">{averageRating.toFixed(1)}</span>
-                        <div className="dr-score-meta">
-                            <StarRating value={Math.round(averageRating)} readonly size={15} />
-                            <span className="dr-total-text">Dựa trên {totalReviewCount} nhận xét</span>
+                    <div className="reviews-summary">
+                        <strong>{averageRating.toFixed(1)}</strong>
+                        <div className="reviews-summary-meta">
+                            <StarRating value={Math.round(averageRating)} readonly size={16} />
+                            <span className="reviews-summary-count">Dựa trên {totalReviewCount} nhận xét</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="dr-reviews-body">
-                    <aside className="dr-reviews-sidebar">
+                {/* Layout 2 cột: form trái + list phải */}
+                <div className="reviews-layout">
+                    <aside>
                         {renderReviewForm()}
                     </aside>
-
-                    <main className="dr-reviews-main">
-                        <div className="dr-list-title">
-                            <h3>Nhận xét thực tế ({reviews.length})</h3>
-                        </div>
+                    <div className="reviews-panel">
+                        <p className="reviews-panel-title">Nhận xét thực tế ({reviews.length})</p>
                         {renderReviewItems()}
-                    </main>
+                    </div>
                 </div>
-
             </section>
 
-            <div className="related-products-section">
-                <h2>Sản phẩm cùng danh mục</h2>
-                <div className="related-products-list">
-                    {relatedProducts.map((item) => (
-                        <div key={item.id} className="related-product-shell">
-                            <WishlistButton product={item} />
-                            <Link to={`/san-pham/${item.id}`} className="related-product-card">
-                                {item.img ? <img src={item.img} alt={item.name} /> : null}
-                                <div>
-                                    <strong>{item.name}</strong>
-                                    <p>{formatVND(item.price)}</p>
-                                </div>
-                            </Link>
-                        </div>
-                    ))}
-                </div>
-            </div>
+            {/* ══ Related Products (showed under Reviews) ═════════════ */}
+            {relatedProducts.length > 0 && (
+                <section className="related-products-section" aria-label="Sản phẩm cùng danh mục">
+                    <h2>Sản phẩm cùng danh mục</h2>
+                    <p className="related-section-sub">Các sản phẩm cùng danh mục bạn có thể thích</p>
 
-            {isAuthOpen ? <AuthModal onClose={() => setIsAuthOpen(false)} /> : null}
+                    <div className="related-products-list">
+                        {relatedProducts.map((item) => {
+                            const est = item.promoEstimate ?? null;
+                            const hasSale = est && (est.discountAmount ?? 0) > 0;
+                            const salePrice = hasSale ? est.finalPrice ?? item.price : null;
+
+                            return (
+                                <div key={item.id} className="related-product-shell">
+                                    <WishlistButton product={item} />
+
+                                    <Link to={`/san-pham/${item.id}`} className="related-product-card">
+                                        {item.img ? (
+                                            <div className="rpc-img-wrap">
+                                                <img src={item.img} alt={item.name} loading="lazy" />
+                                            </div>
+                                        ) : (
+                                            <div className="rpc-no-img">👗</div>
+                                        )}
+                                        <div className="rpc-info">
+                                            <p className="rpc-name">{item.name}</p>
+                                            <div className="rpc-price-row">
+                                                {hasSale ? (
+                                                    <>
+                                                        <span className="rpc-price">{formatVND(salePrice)}</span>
+                                                        <span className="rpc-original">{formatVND(item.price)}</span>
+                                                        <span className="rpc-badge">-{Math.round((1 - (est.finalPrice / item.price)) * 100)}%</span>
+                                                    </>
+                                                ) : (
+                                                    <span className="rpc-price">{formatVND(item.price)}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </Link>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
+
+            {isAuthOpen && <AuthModal onClose={() => setIsAuthOpen(false)} />}
         </>
     );
 }
