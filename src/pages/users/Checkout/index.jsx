@@ -1,5 +1,3 @@
-
-
 import { useContext, useEffect, useMemo, useState } from "react";
 import { FaCreditCard, FaMoneyBillWave, FaUniversity } from "react-icons/fa";
 import { useForm } from "react-hook-form";
@@ -13,24 +11,23 @@ import { checkoutSchema } from "../../../validations/checkoutSchema.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
 import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
 import { useRegion } from "../../../hooks/useRegion.js";
-import { useCheckoutOrder } from "../../../hooks/useCheckoutOrder.js";
+import { useCheckoutOrder, SHIPPING_FEE_DISPLAY } from "../../../hooks/useCheckoutOrder.js";
 import { PaymentStep } from "../../../components/PaymentStep.jsx";
 import { SuccessStep } from "../../../components/SuccessStep.jsx";
 import "./style.scss";
-const SHIPPING_FEE = 35000;
-// TODO: Lấy phí ship và giảm giá từ API pricing/promotion khi backend hoàn thiện.
+
+// FIX: bỏ SHIPPING_FEE hardcode ở đây, dùng SHIPPING_FEE_DISPLAY từ hook để hiển thị
+// trước khi đặt hàng, sau khi đặt sẽ dùng shippingFee từ BE qua orderData.
 
 const DEFAULT_BANK_INFO = {
     bankName: "Vietcombank",
-    bin: "970436", // mã BIN Napas của Vietcombank, dùng để dựng VietQR
+    bin: "970436",
     accountName: "CONG TY TNHH DEAR ROSE",
     accountNumber: "0123456789",
 };
-// TODO: Bỏ DEFAULT_BANK_INFO khi BE trả về payment_info.bank_info.
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-/** Trả label loading cho select địa chỉ */
 function regionPlaceholder(isLoading, disabled, labels) {
     if (disabled) return labels.disabled;
     if (isLoading) return "Đang tải...";
@@ -44,10 +41,8 @@ function CheckoutPage() {
     const [searchParams] = useSearchParams();
     const { cartId, cartItems } = useContext(CartContext);
 
-
     const buyNowItems = location.state?.items ?? null;
 
-    // --- Fallback product khi không có items ---
     const productId = Number(searchParams.get("productId"));
     const [fallbackItem, setFallbackItem] = useState(null);
     const [isLoadingFallback, setIsLoadingFallback] = useState(true);
@@ -73,47 +68,19 @@ function CheckoutPage() {
         loadFallback();
         return () => { isMounted = false; };
     }, [productId]);
+
     const [frozenItems, setFrozenItems] = useState(null);
-    // Buy-now: chỉ thanh toán riêng sản phẩm này, không đụng vào giỏ hàng hiện có.
     const isBuyNow = Boolean(location.state?.buyNow);
-    // --- Danh sách sản phẩm checkout ---
+
     const checkoutItems = useMemo(() => {
-        // Case 1:
-        // Đã đóng băng dữ liệu checkout (sau refresh / VNPay / etc)
-        if (frozenItems?.length > 0) {
-            return frozenItems;
-        }
-
-        // Case 2:
-        // Mua ngay từ QuickActions hoặc ProductDetail
-        // navigate(..., { state: { checkoutItems: [...] } })
+        if (frozenItems?.length > 0) return frozenItems;
         const stateItems = location.state?.checkoutItems;
-
-        if (Array.isArray(stateItems) && stateItems.length > 0) {
-            return stateItems;
-        }
-
-        // Case 3:
-        // Fallback single item
-        if (location.state?.checkoutItem) {
-            return [location.state.checkoutItem];
-        }
-
-        // Case 4:
-        // Thanh toán từ giỏ hàng
-        if (Array.isArray(cartItems) && cartItems.length > 0) {
-            return cartItems;
-        }
-
-        // Case 5:
-        // fallback cuối cùng
+        if (Array.isArray(stateItems) && stateItems.length > 0) return stateItems;
+        if (location.state?.checkoutItem) return [location.state.checkoutItem];
+        if (Array.isArray(cartItems) && cartItems.length > 0) return cartItems;
         return fallbackItem ? [fallbackItem] : [];
-    }, [
-        frozenItems,
-        location.state,
-        cartItems,
-        fallbackItem,
-    ]);
+    }, [frozenItems, location.state, cartItems, fallbackItem]);
+
     // --- Form ---
     const {
         register,
@@ -140,29 +107,33 @@ function CheckoutPage() {
         },
     });
 
-    // Dùng watch() một lần, lấy tất cả giá trị cần — tránh watch() lặp nhiều lần
     const { cityCode, districtCode, voucher_code: couponCode, paymentMethod, phone } = watch();
 
-    // --- Region hook (thay 3 useEffect lặp code) ---
     const {
         provinces, districts, wards,
         isLoadingProvinces, isLoadingDistricts, isLoadingWards,
         regionError, retryRegions,
     } = useRegion({ cityCode, districtCode });
 
-    // --- Tính tiền ---
+    // --- Tính subtotal (giá gốc các item, chưa trừ gì) ---
     const subtotal = useMemo(
         () => checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
         [checkoutItems]
     );
+
     const {
         orderData, orderError, checkoutStep, setCheckoutStep,
-        isConfirmingPayment, appliedCoupon, couponError, isApplyingCoupon, couponDiscount,
-        promoDiscount, appliedPromotions, promotionGifts, isLoadingPromotions,
+        isConfirmingPayment, appliedCoupon, couponError, isApplyingCoupon,
+        couponDiscount, promoDiscount, appliedPromotions, promotionGifts,
+        isLoadingPromotions, shippingFee, total,
         handleApplyCoupon, handlePlaceOrder, handleConfirmTransfer,
-    } = useCheckoutOrder({ checkoutItems, subtotal, cartId, total: subtotal + SHIPPING_FEE - 0, onFreezeItems: setFrozenItems, buyNow: isBuyNow });
-
-    const total = subtotal + SHIPPING_FEE - couponDiscount;
+    } = useCheckoutOrder({
+        checkoutItems,
+        subtotal,
+        cartId,
+        onFreezeItems: setFrozenItems,
+        buyNow: isBuyNow,
+    });
 
     // --- Payment info cho bước chuyển khoản ---
     const paymentInfo = useMemo(() => {
@@ -171,9 +142,10 @@ function CheckoutPage() {
         const hasBeBank = beBank && (beBank.bankName || beBank.accountNumber);
         const bankInfo = hasBeBank ? beBank : DEFAULT_BANK_INFO;
         const transferContent = beInfo?.transferContent || (orderData?.orderCode ? `DEARROSE ${orderData.orderCode}` : "");
-        const amount = beInfo?.amount || orderData?.totalAmount || total;
+
+        // FIX: dùng total từ hook (đã ưu tiên orderData.totalAmount nếu có)
+        const amount = beInfo?.amount || total;
         return {
-            // BE chưa trả ảnh QR → tự dựng VietQR từ thông tin ngân hàng để khách quét chuyển khoản.
             qrCodeUrl: beInfo?.qrCodeUrl || buildVietQrUrl(bankInfo, amount, transferContent),
             transferContent,
             amount,
@@ -207,7 +179,6 @@ function CheckoutPage() {
 
     const onSubmit = (values) => handlePlaceOrder(values);
 
-    // --- Loading guard ---
     if (isLoadingFallback && checkoutItems.length === 0) {
         return <PageLoading title="Đang tải thanh toán" description="Đang lấy dữ liệu sản phẩm mặc định từ API." />;
     }
@@ -376,11 +347,7 @@ function CheckoutPage() {
                                 <div className="product-thumb">
                                     {item.image
                                         ? <img
-                                            src={
-                                                item.img ||
-                                                item.image ||
-                                                "/placeholder.png"
-                                            }
+                                            src={item.img || item.image || "/placeholder.png"}
                                             alt={item.name}
                                         />
                                         : <div className="thumb-placeholder" />
@@ -414,16 +381,20 @@ function CheckoutPage() {
                         {appliedPromotions && appliedPromotions.length > 0 && (
                             <div style={{ marginTop: 8 }}>
                                 <strong>Khuyến mãi áp dụng:</strong>
-                                <ul style={{ margin: '6px 0 0 18px' }}>
-                                    {appliedPromotions.map((p) => (<li key={p.id}>{p.name} {p.amount ? `(- ${formatVND(Math.round(p.amount))})` : ''}</li>))}
+                                <ul style={{ margin: "6px 0 0 18px" }}>
+                                    {appliedPromotions.map((p) => (
+                                        <li key={p.id}>{p.name} {p.amount ? `(- ${formatVND(Math.round(p.amount))})` : ""}</li>
+                                    ))}
                                 </ul>
                             </div>
                         )}
                         {promotionGifts && promotionGifts.length > 0 && (
                             <div style={{ marginTop: 8 }}>
                                 <strong>Quà tặng:</strong>
-                                <ul style={{ margin: '6px 0 0 18px' }}>
-                                    {promotionGifts.map((g, idx) => (<li key={idx}>Sản phẩm ID {g.giftProductId} x{g.quantity} (Ước tính giảm {formatVND(Math.round(g.estimatedDiscount || 0))})</li>))}
+                                <ul style={{ margin: "6px 0 0 18px" }}>
+                                    {promotionGifts.map((g, idx) => (
+                                        <li key={idx}>Sản phẩm ID {g.giftProductId} x{g.quantity} (Ước tính giảm {formatVND(Math.round(g.estimatedDiscount || 0))})</li>
+                                    ))}
                                 </ul>
                             </div>
                         )}
@@ -431,7 +402,8 @@ function CheckoutPage() {
 
                     <div className="price-list">
                         <PriceRow label="Tạm tính" value={formatVND(subtotal)} />
-                        <PriceRow label="Phí vận chuyển" value={formatVND(SHIPPING_FEE)} />
+                        {/* FIX: shippingFee từ hook — hiển thị mặc định trước, BE xác nhận sau */}
+                        <PriceRow label="Phí vận chuyển" value={formatVND(shippingFee)} />
                         <PriceRow label="Giảm giá thành viên" value="0 đ" muted />
                         <PriceRow label="Giảm giá coupon" value={`- ${formatVND(couponDiscount)}`} muted />
                         <PriceRow label="Giảm giá khuyến mãi" value={`- ${formatVND(promoDiscount || 0)}`} muted />
@@ -440,7 +412,8 @@ function CheckoutPage() {
                     <div className="summary-footer">
                         <div className="total-row">
                             <span>Tổng cộng</span>
-                            <strong>{formatVND(orderData?.totalAmount || total)}</strong>
+                            {/* FIX: total từ hook — ưu tiên orderData.totalAmount (BE), fallback tính FE */}
+                            <strong>{formatVND(total)}</strong>
                         </div>
                         {checkoutStep === "form" && (
                             <button type="submit" className="place-order-btn" disabled={isSubmitting}>
@@ -464,7 +437,7 @@ const PAYMENT_OPTIONS = [
     { value: ORDER_PAYMENT_METHODS.VNPAY, label: "Thanh toán VNPay", Icon: FaCreditCard, iconClass: "payment-icon-vnpay" },
 ];
 
-// ─── Micro-components dùng trong trang ───────────────────────────────────────
+// ─── Micro-components ────────────────────────────────────────────────────────
 
 function FieldError({ error }) {
     if (!error) return null;

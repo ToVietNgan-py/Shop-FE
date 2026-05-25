@@ -7,11 +7,15 @@ import { paymentService } from "../services/paymentService.js";
 import { voucherService } from "../services/voucherService.js";
 import { promotionService } from "../services/promotionService.js";
 
+// Phí ship mặc định hiển thị TRƯỚC khi BE xác nhận.
+// Sau khi đặt hàng, dùng orderData.shippingFee từ BE thay thế.
+export const SHIPPING_FEE_DISPLAY = 30000;
+
 /**
  * Gom toàn bộ state + logic đặt hàng vào hook này,
  * tách khỏi CheckoutPage để component chỉ lo render.
  */
-export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems, buyNow = false }) {
+export function useCheckoutOrder({ checkoutItems, subtotal, onFreezeItems, buyNow = false }) {
     const { cartId, syncCart, cartItems } = useContext(CartContext);
     const { user } = useContext(AuthContext);
 
@@ -29,6 +33,15 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
 
     const couponDiscount = appliedCoupon?.discount ?? 0;
     const promoDiscount = promotionDiscount ?? 0;
+
+    // FIX: shippingFee lấy từ BE sau khi đặt hàng xong.
+    // Trước khi đặt hiển thị giá mặc định SHIPPING_FEE_DISPLAY.
+    const shippingFee = orderData?.shippingFee ?? SHIPPING_FEE_DISPLAY;
+
+    // FIX: total tính đúng — trừ cả promoDiscount lẫn couponDiscount.
+    // Sau khi có orderData → dùng orderData.totalAmount (giá BE xác nhận, chính xác tuyệt đối).
+    const total = orderData?.totalAmount
+        ?? Math.max(0, subtotal + shippingFee - promoDiscount - couponDiscount);
 
     // Buy-now buộc phải tạm clear giỏ server (BE đặt hàng theo cart_id, mỗi user 1 giỏ).
     // Lưu lại giỏ gốc để khôi phục sau khi đặt xong → giỏ hàng của user không bị mất.
@@ -134,7 +147,6 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
         try {
             // 1. Sync cart trước để lấy resolvedCartId
             let resolvedCartId = null;
-            // ✅ Mới - clear rồi add từng item
             try {
                 const cleared = await cartService.clear().catch((e) => {
                     console.warn("[Checkout] cartService.clear() failed (ignored):", e?.message);
@@ -159,7 +171,7 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
 
             if (!resolvedCartId) throw new Error("Không tạo được giỏ hàng trên máy chủ.");
 
-            // 2. Build payload sau khi đã có resolvedCartId
+            // 2. Build payload
             const payload = buildCreateOrderPayload({
                 customer: {
                     fullName: values.fullName,
@@ -185,6 +197,9 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
 
             // 3. Tạo đơn hàng
             const createdOrder = await orderService.createOrder(payload);
+
+            // FIX: setOrderData TRƯỚC mọi action tiếp theo
+            // → total, shippingFee từ đây sẽ dùng giá BE xác nhận (chính xác)
             setOrderData(createdOrder);
 
             const method = createdOrder.paymentMethod;
@@ -195,7 +210,7 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
                 return;
             }
 
-            // VNPay
+            // VNPay: dùng paymentUrl từ createdOrder (BE đã tính đúng total)
             let paymentUrl = createdOrder.paymentUrl;
             if (!paymentUrl && createdOrder.id) {
                 const res = await paymentService.createVNPay(createdOrder.id);
@@ -207,7 +222,6 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
             window.location.href = paymentUrl;
 
         } catch (error) {
-            // Đặt hàng lỗi: nếu là buy-now, giỏ server đã bị clear → khôi phục lại giỏ gốc.
             if (buyNow) {
                 await restoreBuyNowCart();
                 try { await syncCart(); } catch { /* lần load giỏ kế tiếp sẽ tự resync */ }
@@ -225,7 +239,6 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
         setOrderError("");
         setIsConfirmingPayment(true);
         try {
-            // TODO: Thay bằng polling/webhook khi backend chuẩn hóa flow xác nhận chuyển khoản.
             await Promise.resolve();
             await refreshCartAfterOrder();
             setCheckoutStep("success");
@@ -246,7 +259,9 @@ export function useCheckoutOrder({ checkoutItems, subtotal, total, onFreezeItems
         couponError,
         isApplyingCoupon,
         couponDiscount,
-        promoDiscount: promoDiscount,
+        promoDiscount,
+        shippingFee,   // ← export để CheckoutPage dùng thay SHIPPING_FEE hardcode
+        total,         // ← export tổng đã tính đúng
         appliedPromotions,
         promotionGifts,
         isLoadingPromotions,
