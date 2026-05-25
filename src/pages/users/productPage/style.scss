@@ -466,6 +466,39 @@
     letter-spacing: -.01em;
 }
 
+.product-page .price-block {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 0;
+}
+
+.product-page .price-original {
+    font-size: .82rem;
+    color: #9ca3af;
+    text-decoration: line-through;
+    font-weight: 400;
+}
+
+.product-page .price-sale {
+    font-size: .96rem;
+    font-weight: 700;
+    color: #e91e63;
+    letter-spacing: -.01em;
+}
+
+.product-page .price-badge {
+    background: #fef2f2;
+    color: #e91e63;
+    border: 1px solid #fecaca;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+}
+
 .product-page .stock {
     display: inline-flex;
     align-items: center;

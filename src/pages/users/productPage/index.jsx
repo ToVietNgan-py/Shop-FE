@@ -1,9 +1,8 @@
-﻿
-import { memo, useEffect, useRef, useState } from "react";
+﻿import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { productService } from "../../../services/productService.js";
 import { categoryService } from "../../../services/categoryService.js";
-import promotionService from "../../../services/promotionService.js";
+import { promotionUtils } from "../../../services/promotionService.js";
 import "./style.scss";
 import { formatVND } from "../../../utils/format.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
@@ -32,6 +31,7 @@ const ProductPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const keyword = (searchParams.get("tu-khoa") || "").trim().toLowerCase();
     const currentPage = Math.max(Number(searchParams.get("page") || 1), 1);
+
     const [quickShopProduct, setQuickShopProduct] = useState(null);
     const [quickActionType, setQuickActionType] = useState("cart");
     const [selectedCategory, setSelectedCategory] = useState("all");
@@ -54,95 +54,127 @@ const ProductPage = () => {
     const [promoMap, setPromoMap] = useState(new Map());
     const [globalPromos, setGlobalPromos] = useState([]);
 
-    const selectedSortOption = SORT_OPTIONS.find((o) => o.value === sortBy) ?? SORT_OPTIONS[0];
+    const selectedSortOption = SORT_OPTIONS.find((option) => option.value === sortBy) ?? SORT_OPTIONS[0];
 
     const updatePageQuery = (nextPage) => {
         const next = new URLSearchParams(searchParams);
-        if (nextPage <= 1) next.delete("page");
-        else next.set("page", String(nextPage));
+        if (nextPage <= 1) {
+            next.delete("page");
+        } else {
+            next.set("page", String(nextPage));
+        }
         setSearchParams(next);
     };
 
-    /* load promotions */
     useEffect(() => {
         let alive = true;
+
         (async () => {
             try {
-                const list = await promotionService.fetchActive().catch(() => []);
+                const list = await promotionUtils.fetchPromotionCatalog().catch(() => []);
                 if (!alive) return;
+
                 const map = new Map();
                 const globals = [];
-                for (const p of list) {
-                    if (p.products && p.products.length > 0) {
-                        for (const pr of p.products) {
-                            const id = Number(pr.id ?? pr.product_id ?? pr);
-                            if (!isNaN(id)) map.set(id, p);
+
+                for (const promo of list) {
+                    if (promo.products && promo.products.length > 0) {
+                        for (const productRef of promo.products) {
+                            const id = Number(productRef.id ?? productRef.product_id ?? productRef);
+                            if (!Number.isNaN(id)) {
+                                map.set(id, promo);
+                            }
                         }
                     } else {
-                        globals.push(p);
+                        globals.push(promo);
                     }
                 }
+
                 setPromoMap(map);
                 setGlobalPromos(globals);
             } catch {
-                // ignore
+                // ignore promotion loading errors
             }
         })();
-        return () => { alive = false; };
+
+        return () => {
+            alive = false;
+        };
     }, []);
 
-    /* load categories */
     useEffect(() => {
         let alive = true;
-        categoryService.list().then((data) => {
-            if (!alive || !Array.isArray(data) || data.length === 0) return;
-            const seen = new Set();
-            const unique = data.filter((c) => {
-                if (seen.has(c.slug)) return false;
-                seen.add(c.slug);
-                return true;
-            });
-            setCategories([{ slug: "all", name: "Tất cả sản phẩm" }, ...unique]);
-        }).catch(() => { });
-        return () => { alive = false; };
+
+        categoryService
+            .list()
+            .then((data) => {
+                if (!alive || !Array.isArray(data) || data.length === 0) {
+                    return;
+                }
+
+                const seen = new Set();
+                const unique = data.filter((category) => {
+                    if (seen.has(category.slug)) return false;
+                    seen.add(category.slug);
+                    return true;
+                });
+
+                setCategories([{ slug: "all", name: "Tất cả sản phẩm" }, ...unique]);
+            })
+            .catch(() => { });
+
+        return () => {
+            alive = false;
+        };
     }, []);
 
-    /* load products */
     useEffect(() => {
         let alive = true;
+
         setIsLoading(true);
         setPageError("");
-        productService.list({
-            keyword,
-            category: selectedCategory,
-            priceRange: selectedPriceRange,
-            hotOnly: showHotOnly,
-            inStockOnly: showInStockOnly,
-            sortBy,
-            page: currentPage,
-            limit: pageSize,
-        })
+
+        productService
+            .list({
+                keyword,
+                category: selectedCategory,
+                priceRange: selectedPriceRange,
+                hotOnly: showHotOnly,
+                inStockOnly: showInStockOnly,
+                sortBy,
+                page: currentPage,
+                limit: pageSize,
+            })
             .then((result) => {
                 if (!alive) return;
+
                 setProducts(result.data);
                 setTotalProducts(result.meta.total);
                 setTotalPages(result.meta.last_page);
             })
             .catch(() => {
                 if (!alive) return;
+
                 setProducts([]);
                 setTotalProducts(0);
                 setPageError("Không tải được danh sách sản phẩm.");
             })
-            .finally(() => { if (alive) setIsLoading(false); });
-        return () => { alive = false; };
+            .finally(() => {
+                if (alive) setIsLoading(false);
+            });
+
+        return () => {
+            alive = false;
+        };
     }, [keyword, selectedCategory, selectedPriceRange, showHotOnly, showInStockOnly, sortBy, currentPage]);
 
-    /* close sort dropdown on outside click */
     useEffect(() => {
-        const handler = (e) => {
-            if (!sortDropdownRef.current?.contains(e.target)) setIsSortOpen(false);
+        const handler = (event) => {
+            if (!sortDropdownRef.current?.contains(event.target)) {
+                setIsSortOpen(false);
+            }
         };
+
         document.addEventListener("mousedown", handler);
         return () => document.removeEventListener("mousedown", handler);
     }, []);
@@ -157,24 +189,36 @@ const ProductPage = () => {
         updatePageQuery(1);
     };
 
-    const handlePageChange = (next) => updatePageQuery(Math.min(Math.max(next, 1), totalPages));
+    const handlePageChange = (next) => {
+        updatePageQuery(Math.min(Math.max(next, 1), totalPages));
+    };
+
+    const getPromotionInfo = (item) => {
+        const allPromos = [
+            ...(promoMap.has(item.id) ? [promoMap.get(item.id)] : []),
+            ...globalPromos,
+        ];
+
+        return promotionUtils.estimateProductPromotion(item, allPromos);
+    };
 
     return (
         <div className="product-page">
             <div className="product-page__body">
-
-                {/* ── SIDEBAR ── */}
                 <aside className="filter-sidebar">
                     <div className="sidebar-card">
                         <h3>Danh mục</h3>
-                        {categories.map((cat) => (
+                        {categories.map((category) => (
                             <button
-                                key={cat.slug}
+                                key={category.slug}
                                 type="button"
-                                className={`sidebar-option ${selectedCategory === cat.slug ? "active" : ""}`}
-                                onClick={() => { setSelectedCategory(cat.slug); updatePageQuery(1); }}
+                                className={`sidebar-option ${selectedCategory === category.slug ? "active" : ""}`}
+                                onClick={() => {
+                                    setSelectedCategory(category.slug);
+                                    updatePageQuery(1);
+                                }}
                             >
-                                {cat.name}
+                                {category.name}
                             </button>
                         ))}
                     </div>
@@ -182,26 +226,31 @@ const ProductPage = () => {
                     <div className="sidebar-card">
                         <h4>Mức giá</h4>
                         <div className="filter-stack">
-                            {PRICE_RANGES.map((r) => (
+                            {PRICE_RANGES.map((range) => (
                                 <button
-                                    key={r.value}
+                                    key={range.value}
                                     type="button"
-                                    className={`sidebar-option ${selectedPriceRange === r.value ? "active" : ""}`}
-                                    onClick={() => { setSelectedPriceRange(r.value); updatePageQuery(1); }}
+                                    className={`sidebar-option ${selectedPriceRange === range.value ? "active" : ""}`}
+                                    onClick={() => {
+                                        setSelectedPriceRange(range.value);
+                                        updatePageQuery(1);
+                                    }}
                                 >
-                                    {r.label}
+                                    {range.label}
                                 </button>
                             ))}
                         </div>
                     </div>
-
                     <div className="sidebar-card">
                         <h4>Trạng thái</h4>
                         <label className="check-option">
                             <input
                                 type="checkbox"
                                 checked={showHotOnly}
-                                onChange={() => { setShowHotOnly((p) => !p); updatePageQuery(1); }}
+                                onChange={() => {
+                                    setShowHotOnly((current) => !current);
+                                    updatePageQuery(1);
+                                }}
                             />
                             <span>Chỉ hiển thị sản phẩm nổi bật</span>
                         </label>
@@ -209,7 +258,10 @@ const ProductPage = () => {
                             <input
                                 type="checkbox"
                                 checked={showInStockOnly}
-                                onChange={() => { setShowInStockOnly((p) => !p); updatePageQuery(1); }}
+                                onChange={() => {
+                                    setShowInStockOnly((current) => !current);
+                                    updatePageQuery(1);
+                                }}
                             />
                             <span>Chỉ hiển thị sản phẩm còn hàng</span>
                         </label>
@@ -220,10 +272,7 @@ const ProductPage = () => {
                     </button>
                 </aside>
 
-                {/* ── CONTENT ── */}
                 <div className="product-content">
-
-                    {/* filter bar */}
                     <div className="filter-bar">
                         <div className="filter-bar__summary">
                             <strong>{totalProducts}</strong>
@@ -236,26 +285,32 @@ const ProductPage = () => {
                                 <button
                                     type="button"
                                     className="sort-dropdown__trigger"
-                                    onClick={() => setIsSortOpen((p) => !p)}
+                                    onClick={() => setIsSortOpen((current) => !current)}
                                     aria-haspopup="listbox"
                                     aria-expanded={isSortOpen}
                                 >
                                     <span>{selectedSortOption.label}</span>
-                                    <span className="sort-dropdown__arrow" aria-hidden="true">▾</span>
+                                    <span className="sort-dropdown__arrow" aria-hidden="true">
+                                        ▾
+                                    </span>
                                 </button>
 
                                 {isSortOpen && (
                                     <div className="sort-dropdown__menu" role="listbox">
-                                        {SORT_OPTIONS.map((o) => (
+                                        {SORT_OPTIONS.map((option) => (
                                             <button
-                                                key={o.value}
+                                                key={option.value}
                                                 type="button"
-                                                className={`sort-dropdown__option ${sortBy === o.value ? "active" : ""}`}
-                                                onClick={() => { setSortBy(o.value); setIsSortOpen(false); updatePageQuery(1); }}
+                                                className={`sort-dropdown__option ${sortBy === option.value ? "active" : ""}`}
+                                                onClick={() => {
+                                                    setSortBy(option.value);
+                                                    setIsSortOpen(false);
+                                                    updatePageQuery(1);
+                                                }}
                                                 role="option"
-                                                aria-selected={sortBy === o.value}
+                                                aria-selected={sortBy === option.value}
                                             >
-                                                {o.label}
+                                                {option.label}
                                             </button>
                                         ))}
                                     </div>
@@ -264,7 +319,6 @@ const ProductPage = () => {
                         </div>
                     </div>
 
-                    {/* product list */}
                     {isLoading ? (
                         <PageLoading
                             title="Đang tải danh sách sản phẩm"
@@ -281,91 +335,116 @@ const ProductPage = () => {
                         <p className="empty">Không tìm thấy sản phẩm phù hợp.</p>
                     ) : (
                         <div className="product-list">
-                            {products.map((item) => (
-                                <div key={item.id} className="product-card-wrapper">
-                                    <WishlistButton product={item} />
-                                    <div className="product-card">
-                                        <Link to={`/san-pham/${item.id}`} className="product-card__main">
-                                            <div className="image-box" style={{ position: "relative" }}>
-                                                {item.img
-                                                    ? <img src={item.img} alt={item.name} loading="lazy" />
-                                                    : <div className="image-placeholder" />}
+                            {products.map((item) => {
+                                const promo = getPromotionInfo(item);
+                                const hasDiscount = Boolean(promo?.discountAmount > 0);
+                                const salePrice = hasDiscount ? promo.finalPrice : item.price;
 
-                                                {/* Promo badge: ưu tiên promo gắn riêng cho sản phẩm */}
-                                                {promoMap.has(item.id) ? (
-                                                    <span
-                                                        className="product-promo"
-                                                        style={{
-                                                            position: "absolute", top: 8, left: 8,
-                                                            background: "#db2777", color: "#fff",
-                                                            padding: "4px 8px", borderRadius: 6, fontSize: 12,
-                                                        }}
-                                                    >
-                                                        {promoMap.get(item.id).type === "percent"
-                                                            ? `-${promoMap.get(item.id).value}%`
-                                                            : promoMap.get(item.id).type === "amount"
-                                                                ? `Giảm ${Number(promoMap.get(item.id).value).toLocaleString("vi-VN")} đ`
-                                                                : "KM"}
-                                                    </span>
-                                                ) : globalPromos.length > 0 ? (
-                                                    <span
-                                                        className="product-promo"
-                                                        style={{
-                                                            position: "absolute", top: 8, left: 8,
-                                                            background: "#f59e0b", color: "#111",
-                                                            padding: "4px 8px", borderRadius: 6, fontSize: 12,
-                                                        }}
-                                                    >
-                                                        KM
-                                                    </span>
-                                                ) : null}
-                                            </div>
+                                return (
+                                    <div key={item.id} className="product-card-wrapper">
+                                        <WishlistButton product={item} />
 
-                                            {/* nút mua / giỏ hàng — ngay dưới hình ảnh */}
+                                        <div className="product-card">
+                                            <Link to={`/san-pham/${item.id}`} className="product-card__main">
+                                                <div className="image-box" style={{ position: "relative" }}>
+                                                    {item.img ? (
+                                                        <img src={item.img} alt={item.name} loading="lazy" />
+                                                    ) : (
+                                                        <div className="image-placeholder" />
+                                                    )}
 
-
-                                            <div className="product-card__content">
-                                                <div className="product-card__meta">
-                                                    {item.category && <span className="product-tag">{item.category}</span>}
-                                                    {item.isHot && <span className="product-badge">Nổi bật</span>}
-                                                </div>
-                                                {/* footer: giá + tồn kho — nằm ngoài Link để không trigger navigation */}
-                                                <div className="product-card__footer">
-                                                    <p className="price">{formatVND(item.price)}</p>
-                                                    <span className={`stock ${item.in_stock ? "in-stock" : "out-stock"}`}>
-                                                        {item.in_stock ? `Còn ${item.inventory}` : "Hết hàng"}
-                                                    </span>
-                                                </div>
-
-                                                <div className="product-card__title-row">
-                                                    <h3>{item.name}</h3>
-
-                                                    <div onClick={(e) => e.preventDefault()}>
-                                                        <ProductQuickActions
-                                                            product={item}
-                                                            onAddToCart={(product) => {
-                                                                setQuickActionType("cart");
-                                                                setQuickShopProduct(product);
+                                                    {promoMap.has(item.id) ? (
+                                                        <span
+                                                            className="product-promo"
+                                                            style={{
+                                                                position: "absolute",
+                                                                top: 8,
+                                                                left: 8,
+                                                                background: "#db2777",
+                                                                color: "#fff",
+                                                                padding: "4px 8px",
+                                                                borderRadius: 6,
+                                                                fontSize: 12,
                                                             }}
-                                                            onBuyNow={(product) => {
-                                                                setQuickActionType("buy");
-                                                                setQuickShopProduct(product);
+                                                        >
+                                                            {promoMap.get(item.id).type === "percent"
+                                                                ? `-${promoMap.get(item.id).value}%`
+                                                                : promoMap.get(item.id).type === "amount"
+                                                                    ? `Giảm ${Number(promoMap.get(item.id).value).toLocaleString("vi-VN")} đ`
+                                                                    : "KM"}
+                                                        </span>
+                                                    ) : globalPromos.length > 0 ? (
+                                                        <span
+                                                            className="product-promo"
+                                                            style={{
+                                                                position: "absolute",
+                                                                top: 8,
+                                                                left: 8,
+                                                                background: "#f59e0b",
+                                                                color: "#111",
+                                                                padding: "4px 8px",
+                                                                borderRadius: 6,
+                                                                fontSize: 12,
                                                             }}
-                                                        />
+                                                        >
+                                                            KM
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                                <div className="product-card__content">
+                                                    <div className="product-card__meta">
+                                                        {item.category && <span className="product-tag">{item.category}</span>}
+                                                        {item.isHot && <span className="product-badge">Nổi bật</span>}
                                                     </div>
+
+                                                    <h3>{item.name}</h3>
+                                                </div>
+                                            </Link>
+
+                                            <div className="product-card__footer">
+                                                {hasDiscount ? (
+                                                    <div className="price-block">
+                                                        <span className="price-original">{formatVND(item.price)}</span>
+                                                        <span className="price-sale">{formatVND(salePrice)}</span>
+                                                        <span className="price-badge">
+                                                            -{promo.promo.type === "percent"
+                                                                ? promo.promo.value
+                                                                : Math.round((promo.discountAmount / item.price) * 100)}%
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <p className="price">{formatVND(item.price)}</p>
+                                                )}
+
+                                                <span className={`stock ${item.in_stock ? "in-stock" : "out-stock"}`}>
+                                                    {item.in_stock ? `Còn ${item.inventory}` : "Hết hàng"}
+                                                </span>
+                                            </div>
+
+                                            <div className="product-card__title-row">
+                                                <h3>{item.name}</h3>
+
+                                                <div onClick={(event) => event.preventDefault()}>
+                                                    <ProductQuickActions
+                                                        product={item}
+                                                        onAddToCart={(product) => {
+                                                            setQuickActionType("cart");
+                                                            setQuickShopProduct(product);
+                                                        }}
+                                                        onBuyNow={(product) => {
+                                                            setQuickActionType("buy");
+                                                            setQuickShopProduct(product);
+                                                        }}
+                                                    />
                                                 </div>
                                             </div>
-                                        </Link>
-
-
-
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
 
-                    {/* pagination */}
                     <div className="pagination-bar">
                         <button
                             type="button"
