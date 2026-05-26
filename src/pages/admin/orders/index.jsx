@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Input, Select, DatePicker, Space, Button, message, Tag } from 'antd';
-import { EyeOutlined } from '@ant-design/icons';
+import { Input, Select, DatePicker, Space, Button, message, Tag, Tooltip, Popconfirm } from 'antd';
+import { EyeOutlined, CheckCircleOutlined, CarOutlined, TrophyOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import DataTable from '../../../components/admin/DataTable';
 import adminOrderService from "../../../services/admin/adminOrderService.js";
@@ -15,17 +15,42 @@ const STATUS_OPTIONS = [
     { value: '', label: 'Tất cả trạng thái' },
     { value: 'Pending', label: 'Chờ xác nhận' },
     { value: 'Processing', label: 'Đã xác nhận' },
-    { value: 'Shipping', label: 'Đang giao' },
+    { value: 'Delivering', label: 'Đang giao' },
     { value: 'Completed', label: 'Hoàn thành' },
     { value: 'Cancelled', label: 'Đã huỷ' },
 ];
 
+// Config nút action theo từng trạng thái
+const STATUS_ACTIONS = {
+    Pending: {
+        next: 'Processing',
+        label: 'Xác nhận đơn',
+        icon: <CheckCircleOutlined />,
+        color: '#7c3aed',
+        confirmTitle: 'Xác nhận đơn hàng này?',
+    },
+    Processing: {
+        next: 'Delivering',
+        label: 'Đã giao',
+        icon: <CarOutlined />,
+        color: '#0ea5e9',
+        confirmTitle: 'Xác nhận đã bàn giao cho đơn vị vận chuyển?',
+    },
+    Delivering: {
+        next: 'Completed',
+        label: 'Giao thành công',
+        icon: <TrophyOutlined />,
+        color: '#16a34a',
+        confirmTitle: 'Xác nhận khách đã nhận hàng thành công?',
+    },
+};
+
 export default function AdminOrders() {
     const [selectedOrder, setSelectedOrder] = useState(null);
-    const [allOrders, setAllOrders] = useState([]);  // raw từ API
-    const [orders, setOrders] = useState([]);  // sau filter
-    const [meta, setMeta] = useState({ current_page: 1, per_page: 15, total: 0 });
+    const [allOrders, setAllOrders] = useState([]);
+    const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [updatingId, setUpdatingId] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedId, setSelectedId] = useState(null);
     const [dateRange, setDateRange] = useState(null);
@@ -59,14 +84,12 @@ export default function AdminOrders() {
             }
 
             setAllOrders(allData);
-            setMeta({ current_page: 1, per_page: 15, total: allData.length });
         } catch (error) {
             const status = error?.response?.status;
             if (status === 401) message.error('Phiên đăng nhập đã hết hạn.');
             else if (status === 403) message.error('Không có quyền xem đơn hàng.');
             else message.error('Không tải được danh sách đơn hàng.');
             setAllOrders([]);
-            setMeta({ current_page: 1, per_page: 15, total: 0 });
         } finally {
             setLoading(false);
         }
@@ -128,6 +151,21 @@ export default function AdminOrders() {
 
     const hasFilter = filters.status || filters.search || filters.date_from;
 
+    const handleUpdateStatus = useCallback(async (orderId, nextStatus) => {
+        setUpdatingId(orderId);
+        try {
+            await adminOrderService.updateStatus(orderId, nextStatus);
+            const labelMap = { Processing: 'Đã xác nhận', Delivering: 'Đã giao', Completed: 'Giao thành công' };
+            message.success(`Đơn #${orderId}: ${labelMap[nextStatus] ?? nextStatus}`);
+            fetchOrders();
+        } catch (err) {
+            const msg = err?.response?.data?.message;
+            message.error(msg || 'Cập nhật thất bại, thử lại sau');
+        } finally {
+            setUpdatingId(null);
+        }
+    }, [fetchOrders]);
+
     // ── Columns ──────────────────────────────────────────────────────────────
     const columns = [
         {
@@ -160,6 +198,7 @@ export default function AdminOrders() {
                 const map = {
                     paid: { color: 'green', label: 'Đã thanh toán' },
                     pending: { color: 'gold', label: 'Chờ thanh toán' },
+                    failed: { color: 'red', label: 'Thất bại' },
                 };
                 const { color, label } = map[v] || { color: 'default', label: v };
                 return <Tag color={color}>{label}</Tag>;
@@ -173,43 +212,52 @@ export default function AdminOrders() {
         },
         {
             title: 'Hành động',
-            width: 160,
-            render: (_, record) => (
-                <Space size="small">
-                    {record.Status === 'Pending' && (
-                        <Button
-                            size="small"
-                            type="primary"
-                            style={{
-                                background: 'linear-gradient(135deg, #7c3aed, #a78bfa)',
-                                border: 'none', fontWeight: 600, fontSize: 12,
-                            }}
-                            onClick={async () => {
-                                try {
-                                    await adminOrderService.updateStatus(record.id, 'Processing');
-                                    message.success(`Đã xác nhận đơn #${record.id}`);
-                                    fetchOrders();
-                                } catch {
-                                    message.error('Xác nhận thất bại, thử lại sau');
-                                }
-                            }}
-                        >
-                            Xác nhận
-                        </Button>
-                    )}
-                    <Button
-                        icon={<EyeOutlined />}
-                        size="small"
-                        onClick={() => {
-                            setSelectedId(record.id);
-                            setSelectedOrder(record);
-                            setDrawerOpen(true);
-                        }}
-                    >
-                        Xem
-                    </Button>
-                </Space>
-            ),
+            width: 200,
+            render: (_, record) => {
+                const action = STATUS_ACTIONS[record.Status];
+                const isUpdating = updatingId === record.id;
+                return (
+                    <Space size={4}>
+                        {action && (
+                            <Tooltip title={action.confirmTitle}>
+                                <Popconfirm
+                                    title={action.confirmTitle}
+                                    okText="Xác nhận"
+                                    cancelText="Huỷ"
+                                    onConfirm={() => handleUpdateStatus(record.id, action.next)}
+                                    disabled={isUpdating}
+                                >
+                                    <Button
+                                        size="small"
+                                        type="primary"
+                                        icon={action.icon}
+                                        loading={isUpdating}
+                                        style={{
+                                            background: action.color,
+                                            borderColor: action.color,
+                                            fontWeight: 600,
+                                            fontSize: 12,
+                                        }}
+                                    >
+                                        {action.label}
+                                    </Button>
+                                </Popconfirm>
+                            </Tooltip>
+                        )}
+                        <Tooltip title="Xem chi tiết">
+                            <Button
+                                icon={<EyeOutlined />}
+                                size="small"
+                                onClick={() => {
+                                    setSelectedId(record.id);
+                                    setSelectedOrder(record);
+                                    setDrawerOpen(true);
+                                }}
+                            />
+                        </Tooltip>
+                    </Space>
+                );
+            },
         },
     ];
 
@@ -253,7 +301,7 @@ export default function AdminOrders() {
                 <DataTable
                     columns={columns}
                     dataSource={orders}
-                    meta={{ ...meta, total: orders.length }}
+                    meta={{ current_page: filters.page, per_page: filters.per_page, total: orders.length }}
                     loading={loading}
                     onChange={(page, pageSize) => setFilters(f => ({ ...f, page, per_page: pageSize }))}
                 />

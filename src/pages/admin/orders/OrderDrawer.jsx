@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Drawer, Button, Table, Timeline, Space, message } from 'antd';
+import { Drawer, Button, Table, Timeline, Space, message, Popconfirm } from 'antd';
 import { PrinterOutlined, UserOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, CreditCardOutlined, FileTextOutlined } from '@ant-design/icons';
 import adminOrderService from "../../../services/admin/adminOrderService.js";
 import OrderStatusTag from './OrderStatusTag';
 
 const NEXT_STATUS = {
     Pending: ['Processing', 'Cancelled'],
-    Processing: ['Shipping', 'Cancelled'],
-    Shipping: ['Completed', 'Cancelled'],
+    Processing: ['Delivering', 'Cancelled'],
+    Delivering: ['Completed', 'Cancelled'],
     Completed: [],
     Cancelled: [],
 };
 
 const STATUS_LABEL = {
     Processing: 'Xác nhận',
-    Shipping: 'Giao hàng',
+    Delivering: 'Giao hàng',
     Completed: 'Hoàn thành',
     Cancelled: 'Huỷ đơn',
 };
@@ -115,11 +115,16 @@ export default function OrderDrawer({ open, orderId, orderData, onClose, onStatu
         try {
             await adminOrderService.updateStatus(orderId, newStatus);
             message.success('Đã cập nhật trạng thái đơn hàng');
-            setOrder(prev => ({ ...prev, status: newStatus }));
+            // Reload lại từ API để đảm bảo state_logs và status đồng bộ
+            const res = await adminOrderService.getById(orderId);
+            setOrder(res.data.data);
             onStatusChanged?.();
-        } catch {
-            message.error('Cập nhật thất bại, thử lại sau');
-        } finally { setUpdating(false); }
+        } catch (err) {
+            const msg = err?.response?.data?.message;
+            message.error(msg || 'Cập nhật thất bại, thử lại sau');
+        } finally {
+            setUpdating(false);
+        }
     };
 
     const handlePrint = () => window.print();
@@ -268,20 +273,28 @@ export default function OrderDrawer({ open, orderId, orderData, onClose, onStatu
                             <SectionTitle>Cập nhật trạng thái</SectionTitle>
                             <Space wrap>
                                 {NEXT_STATUS[order.status].map(s => (
-                                    <Button
+                                    <Popconfirm
                                         key={s}
-                                        loading={updating}
-                                        onClick={() => handleStatusChange(s)}
-                                        danger={s === 'Cancelled'}
-                                        type={s === 'Cancelled' ? 'default' : 'primary'}
-                                        style={s !== 'Cancelled' ? {
-                                            background: 'linear-gradient(135deg, #7c3aed, #a78bfa)',
-                                            border: 'none',
-                                            fontWeight: 600,
-                                        } : { fontWeight: 600 }}
+                                        title={s === 'Cancelled' ? 'Bạn chắc chắn muốn huỷ đơn hàng này?' : `Xác nhận chuyển sang "${STATUS_LABEL[s]}"?`}
+                                        okText="Xác nhận"
+                                        cancelText="Huỷ"
+                                        onConfirm={() => handleStatusChange(s)}
+                                        okButtonProps={{ danger: s === 'Cancelled' }}
+                                        disabled={updating}
                                     >
-                                        {STATUS_LABEL[s]}
-                                    </Button>
+                                        <Button
+                                            loading={updating}
+                                            danger={s === 'Cancelled'}
+                                            type={s === 'Cancelled' ? 'default' : 'primary'}
+                                            style={s !== 'Cancelled' ? {
+                                                background: 'linear-gradient(135deg, #7c3aed, #a78bfa)',
+                                                border: 'none',
+                                                fontWeight: 600,
+                                            } : { fontWeight: 600 }}
+                                        >
+                                            {STATUS_LABEL[s]}
+                                        </Button>
+                                    </Popconfirm>
                                 ))}
                             </Space>
                         </div>
