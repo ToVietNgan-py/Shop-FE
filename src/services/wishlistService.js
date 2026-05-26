@@ -12,29 +12,21 @@ const slugify = (value) => String(value ?? "")
     .replace(/^-+|-+$/g, "");
 
 const extractList = (payload) => {
-    if (Array.isArray(payload)) {
-        return payload;
-    }
-
-    if (Array.isArray(payload?.items)) {
-        return payload.items;
-    }
-
-    if (Array.isArray(payload?.data)) {
-        return payload.data;
-    }
-
-    if (Array.isArray(payload?.products)) {
-        return payload.products;
-    }
-
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.items)) return payload.items;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.products)) return payload.products;
     return [];
 };
 
 const getImage = (product) => {
     const images = product.images ?? product.productImages ?? product.product_images;
     const firstImage = Array.isArray(images) ? images[0] : null;
+
     const rawImage = (
+        // Các field phổ biến từ productService.normalizeProduct
+        product.img ??
+        // Các field phổ biến từ API wishlist
         product.image ??
         product.imageUrl ??
         product.image_url ??
@@ -43,6 +35,7 @@ const getImage = (product) => {
         product.thumbnail_url ??
         product.mainImage ??
         product.main_image ??
+        // Từ nested images array
         firstImage?.url ??
         firstImage?.image ??
         firstImage?.imageUrl ??
@@ -54,20 +47,24 @@ const getImage = (product) => {
 };
 
 export const normalizeWishlistProduct = (product) => {
-    if (!product) {
-        return null;
-    }
+    if (!product) return null;
 
     const nestedProduct = product.product ?? product;
     const categoryName = nestedProduct.category?.name ?? nestedProduct.categoryName ?? nestedProduct.category ?? "";
     const categorySlug = nestedProduct.category?.slug ?? nestedProduct.categorySlug ?? (categoryName ? slugify(categoryName) : "");
+
+    const imageUrl = getImage(nestedProduct);
 
     return {
         wishlistId: product.id ?? null,
         id: nestedProduct.id ?? nestedProduct._id ?? product.product_id ?? product.productId ?? null,
         name: nestedProduct.name ?? nestedProduct.productName ?? "",
         price: Number(nestedProduct.price ?? nestedProduct.unitPrice ?? 0),
-        image: getImage(nestedProduct),
+        // Giữ cả 2 field để tương thích với mọi component:
+        // - WishlistPage dùng product.image
+        // - BestSeller/NewArrival (nếu reuse) dùng product.img
+        image: imageUrl,
+        img: imageUrl,
         description: nestedProduct.description ?? nestedProduct.shortDescription ?? "",
         category: categoryName,
         categorySlug,

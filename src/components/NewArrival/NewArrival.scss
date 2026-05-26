@@ -104,11 +104,10 @@
     flex: 1;
 }
 
-/* ── Ảnh: kiểu Shopee/Shein — vuông, fill hết, không đệm ── */
+/* ── Ảnh: vuông, fill hết ── */
 .new-arrival .card .image {
     width: 100%;
     aspect-ratio: 1 / 1;
-    /* vuông như Shopee */
     flex-shrink: 0;
     overflow: hidden;
     background: #f5f5f5;
@@ -121,7 +120,6 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* fill hết khung, không đệm */
     object-position: center top;
     transition: transform 0.3s ease;
 }
@@ -145,7 +143,7 @@
     text-align: left;
 }
 
-/* ── Giá: căn giữa ── */
+/* ── Giá bình thường ── */
 .new-arrival .card .price {
     font-size: 0.95rem;
     color: #e91e63;
@@ -154,7 +152,7 @@
     text-align: center;
 }
 
-/* ── Quick actions: dùng đúng class thật ── */
+/* ── Quick actions ── */
 .new-arrival .product-quick-actions {
     width: 100%;
     padding: 0 8px 10px;
@@ -230,6 +228,11 @@
     right: 6px;
 }
 
+
+/* ════════════════════════════════════════════════
+   PRICE BLOCK — đồng bộ với BestSeller.scss
+   ════════════════════════════════════════════════ */
+
 .price-block {
     display: flex;
     align-items: center;
@@ -250,12 +253,19 @@
     text-decoration: line-through;
 }
 
+/* Badge pill — chữ trắng nổi bật, giống fss__badge-pct */
 .price-badge {
-    background: #fef2f2;
-    color: #e91e63;
-    border: 1px solid #fecaca;
-    border-radius: 4px;
-    padding: 1px 5px;
-    font-size: 0.72rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.68rem;
     font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+    background: #ff5722;
+    color: #fff !important;
+    border: none;
 }

@@ -1,13 +1,11 @@
 .best-seller {
     padding: 40px 20px;
     background-color: #f9f9f9;
-    // text-align: center;
 }
 
 .best-seller .header {
     margin-bottom: 30px;
     text-align: center;
-
 }
 
 .best-seller .header h2 {
@@ -73,7 +71,6 @@
     }
 }
 
-/* wrapper > div */
 .best-seller .list>div {
     display: flex;
     flex-direction: column;
@@ -97,7 +94,6 @@
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.13);
 }
 
-/* link wrap */
 .best-seller .card-main {
     text-decoration: none;
     color: inherit;
@@ -106,11 +102,10 @@
     flex: 1;
 }
 
-/* ── Ảnh: kiểu Shopee/Shein — vuông, fill hết, không đệm ── */
+/* ── Ảnh vuông, fill hết ── */
 .best-seller .card .image {
     width: 100%;
     aspect-ratio: 1 / 1;
-    /* vuông như Shopee */
     flex-shrink: 0;
     overflow: hidden;
     background: #f5f5f5;
@@ -123,7 +118,6 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* fill hết khung, không đệm */
     object-position: center top;
     transition: transform 0.3s ease;
 }
@@ -147,7 +141,7 @@
     text-align: left;
 }
 
-/* ── Giá: căn giữa ── */
+/* ── Giá bình thường ── */
 .best-seller .card .price {
     font-size: 0.95rem;
     color: #e91e63;
@@ -156,7 +150,7 @@
     text-align: center;
 }
 
-/* ── Quick actions: dùng đúng class thật ── */
+/* ── Quick actions ── */
 .best-seller .product-quick-actions {
     width: 100%;
     padding: 0 8px 10px;
@@ -232,6 +226,12 @@
     right: 6px;
 }
 
+
+/* ════════════════════════════════════════════════
+   PRICE BLOCK — dùng chung toàn site
+   (BestSeller, NewArrival, ProductPage, Wishlist)
+   ════════════════════════════════════════════════ */
+
 .price-block {
     display: flex;
     align-items: center;
@@ -252,12 +252,25 @@
     text-decoration: line-through;
 }
 
+/* ── Badge giảm giá — đồng bộ với FlashSale badge ── */
 .price-badge {
-    background: #fef2f2;
-    color: #e91e63;
-    border: 1px solid #fecaca;
-    border-radius: 4px;
-    padding: 1px 5px;
-    font-size: 0.72rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    /* pill, giống fss__badge-pct */
+    font-size: 0.68rem;
     font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+
+    /* Màu mặc định cho promotion thường */
+    background: #ff5722;
+    color: #fff !important;
+    /* đảm bảo không bị override bởi selector có specificity cao hơn */
+    border: none;
 }
+
+/* Khi là flash sale, JS truyền thêm style background: #ff3b3b — vẫn hợp lệ */
