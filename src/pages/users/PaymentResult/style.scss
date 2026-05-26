@@ -2,76 +2,121 @@
     min-height: calc(100vh - 180px);
     display: grid;
     place-items: center;
-    padding: 48px 18px;
-    background: #fff;
+    padding: 56px 18px;
+    background: #fbfafb;
 }
 
 .payment-result-card {
-    width: min(620px, 100%);
-    border: 1px solid #e8e2da;
+    width: min(720px, 94%);
     border-radius: 14px;
-    padding: 42px 28px;
+    padding: 36px 28px;
     text-align: center;
-    background: #fff;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+    background: #ffffff;
+    box-shadow: 0 12px 36px rgba(18, 18, 18, 0.06);
+    border: 1px solid rgba(214, 210, 208, 0.6);
 
     h1 {
-        margin: 14px 0 12px;
-        color: #1d2d44;
-        font-size: 28px;
+        margin: 18px 0 8px;
+        color: #2b2b2b;
+        font-size: 26px;
+        font-weight: 700;
     }
 
     p {
-        margin: 0 auto 12px;
-        max-width: 480px;
-        color: #62564d;
-        line-height: 1.7;
+        margin: 0 auto;
+        max-width: 520px;
+        color: #6b6b6b;
+        line-height: 1.6;
+        font-size: 15px;
+    }
+
+    .result-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 6px auto 6px;
+        width: 84px;
+        height: 84px;
+    }
+
+    &.success .result-icon svg circle {
+        fill: #FFF0F4;
+    }
+
+    &.success .result-icon svg path {
+        stroke: #D6336C;
+    }
+
+    &.failed .result-icon svg circle {
+        fill: #FFF5F6;
+    }
+
+    &.failed .result-icon svg path {
+        stroke: #D6336C;
+    }
+
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 4px solid rgba(214, 214, 214, 0.6);
+        border-top-color: #D6336C;
+        margin: 6px auto 12px;
+        animation: spin 1s linear infinite;
+    }
+
+    .result-actions {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 22px;
+        flex-wrap: wrap;
+    }
+
+    .primary-action,
+    .secondary-action {
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        padding: 0 20px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .primary-action {
+        background: linear-gradient(90deg, #D6336C, #C02A61);
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(214, 51, 108, 0.12);
+        border: none;
+    }
+
+    .secondary-action {
+        border: 1px solid rgba(34, 34, 34, 0.06);
+        color: #2b2b2b;
+        background: #fff;
     }
 }
 
-.payment-result-card.success .result-icon {
-    color: #1f8f55;
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
-.payment-result-card.failed .result-icon {
-    color: #c62828;
-}
+@media (max-width: 520px) {
+    .payment-result-card {
+        padding: 22px 18px;
+    }
 
-.result-icon {
-    font-size: 64px;
-}
+    .payment-result-card h1 {
+        font-size: 20px;
+    }
 
-.order-code {
-    padding-top: 8px;
-}
-
-.result-actions {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 24px;
-    flex-wrap: wrap;
-}
-
-.primary-action,
-.secondary-action {
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    padding: 0 18px;
-    font-weight: 700;
-    text-decoration: none;
-}
-
-.primary-action {
-    background: #050505;
-    color: #fff;
-}
-
-.secondary-action {
-    border: 1px solid #d8d8d8;
-    color: #1f1812;
-    background: #fff;
+    .payment-result-card .result-icon {
+        width: 64px;
+        height: 64px;
+    }
 }

@@ -65,7 +65,7 @@ function ProductTable({ data, meta, loading, onEdit, onDelete, onChange }) {
             dataIndex: "is_active",
             key: "is_active",
             width: 80,
-            render: (value) => <Tag color={value ? "green" : "red"}>{value ? "Hoạt động" : "Tắt"}</Tag>
+            render: () => <Tag color="green">Hoạt động</Tag>
         },
         {
             title: "Hành động",
