@@ -5,10 +5,14 @@ const slugify = (value) => String(value ?? "")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/đ/g, "d")
     .replace(/Đ/g, "D")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+
+export const categorySlugify = slugify;
 
 const normalizeCategory = (category) => {
     if (!category) {

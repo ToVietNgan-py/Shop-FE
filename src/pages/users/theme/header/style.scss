@@ -300,7 +300,7 @@
             z-index: 111;
             display: flex;
             list-style: none;
-            gap: clamp(28px, 4vw, 56px);
+            gap: 24px;
             padding: 12px 0;
             margin: 0;
             color: white;
@@ -308,7 +308,8 @@
             font-size: 14px;
             letter-spacing: 0.5px;
             flex-wrap: nowrap;
-            justify-content: center;
+            align-items: center;
+            justify-content: space-between;
             padding-left: 0;
 
             >li {
@@ -329,10 +330,11 @@
 
             .category-menu {
                 // Tách khỏi flow, ghim vào cạnh trái header-inner
-                position: absolute;
-                left: 15px;
-                top: 50%;
-                transform: translateY(-50%);
+                position: relative;
+                left: auto;
+                top: auto;
+                transform: none;
+                flex: 0 0 auto;
 
                 .category-trigger {
                     border: 0;

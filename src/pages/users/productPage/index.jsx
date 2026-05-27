@@ -1,7 +1,7 @@
 ﻿import { memo, useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { productService } from "../../../services/productService.js";
-import { categoryService } from "../../../services/categoryService.js";
+import { categoryService, categorySlugify } from "../../../services/categoryService.js";
 import "./style.scss";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
 import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
@@ -126,7 +126,9 @@ const ProductPage = () => {
                 setCategories(nextCategories);
 
                 if (categorySlug) {
-                    const matched = nextCategories.find((c) => c.slug === categorySlug);
+                    const matched = nextCategories.find((c) =>
+                        c.slug === categorySlug || categorySlugify(c.name) === categorySlug
+                    );
                     setSelectedCategory(matched?.value ?? "all");
                 } else {
                     setSelectedCategory("all");
