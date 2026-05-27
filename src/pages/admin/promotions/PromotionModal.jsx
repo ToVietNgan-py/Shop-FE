@@ -239,9 +239,21 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
             payload.flash_products = (values.flash_products ?? [])
                 .map((item) => ({
                     product_id: Number(item.product_id),
-                    flash_price: Number(item.flash_price) || 0,
+                    flash_price: item.flash_price != null ? Number(item.flash_price) : null,
                 }))
-                .filter((item) => Number.isFinite(item.product_id) && item.product_id > 0);
+                .filter(
+                    (item) =>
+                        Number.isFinite(item.product_id) &&
+                        item.product_id > 0 &&
+                        item.flash_price != null &&
+                        Number.isFinite(item.flash_price) &&
+                        item.flash_price > 0
+                );
+
+            if (payload.flash_products.length === 0) {
+                message.error("Vui lòng nhập giá flash cho ít nhất một sản phẩm");
+                return;
+            }
 
             payload.product_ids = payload.flash_products.map((item) => item.product_id);
             delete payload.value;
@@ -373,23 +385,25 @@ export default function PromotionModal({ open, promotion, onClose, onSuccess }) 
                     />
                 </Form.Item>
 
-                <Form.Item label="Sản phẩm áp dụng" help="Để trống = toàn shop">
-                    <Controller
-                        name="product_ids"
-                        control={control}
-                        render={({ field }) => (
-                            <Select
-                                {...field}
-                                mode="multiple"
-                                showSearch
-                                optionFilterProp="label"
-                                options={normalizedProducts}
-                                placeholder="Chọn sản phẩm"
-                                notFoundContent={products.length === 0 ? "Không có sản phẩm để chọn" : null}
-                            />
-                        )}
-                    />
-                </Form.Item>
+                {typeValue !== "flash_sale" && (
+                    <Form.Item label="Sản phẩm áp dụng" help="Để trống = toàn shop">
+                        <Controller
+                            name="product_ids"
+                            control={control}
+                            render={({ field }) => (
+                                <Select
+                                    {...field}
+                                    mode="multiple"
+                                    showSearch
+                                    optionFilterProp="label"
+                                    options={normalizedProducts}
+                                    placeholder="Chọn sản phẩm"
+                                    notFoundContent={products.length === 0 ? "Không có sản phẩm để chọn" : null}
+                                />
+                            )}
+                        />
+                    </Form.Item>
+                )}
 
                 <Form.Item label="Danh mục áp dụng" help="Để trống = toàn shop">
                     <Controller
