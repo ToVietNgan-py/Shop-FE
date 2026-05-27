@@ -108,10 +108,31 @@ function ProductForm({ visible = false, product = null, categories = [], onSave,
     };
 
     // ─── Cloudinary direct upload handler (dùng bởi ImageUploader) ──────
-    const handleCloudinaryUpload = ({ file, onSuccess, onError, onProgress }) => {
-        uploadToCloudinary(file, ({ percent }) => onProgress({ percent }))
-            .then((url) => onSuccess({ url }, file))
-            .catch((err) => onError(err));
+    const handleCloudinaryUpload = async ({
+        file,
+        onSuccess,
+        onError,
+        onProgress,
+    }) => {
+        try {
+            const url = await uploadToCloudinary(
+                file,
+                ({ percent }) => onProgress({ percent })
+            );
+
+            console.log("Uploaded URL:", url);
+
+            onSuccess(
+                {
+                    success: true,
+                    url,
+                },
+                file
+            );
+        } catch (err) {
+            console.error(err);
+            onError(err);
+        }
     };
 
     // ─── Save product ─────────────────────────────────────────────────────
