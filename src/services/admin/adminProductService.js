@@ -9,22 +9,34 @@ const adminProductService = {
         const response = await api.get("/admin/products", { params });
         const payload = response?.data ?? {};
 
-        const BASE_URL = (import.meta.env.VITE_API_URL || "")
-            .replace(/\/api\/?$/, "")
-            .replace(/\/$/, "");
+        const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
         const normalizeImg = (url) => {
             if (!url) return null;
-            // Extract path after /storage/ regardless of what domain the BE returned
+
+            // Đã là Cloudinary URL → dùng thẳng
+            if (url.includes("res.cloudinary.com")) {
+                return url;
+            }
+
+            // Nếu là full URL (bất kỳ domain nào) → extract path sau /storage/
+            // rồi build Cloudinary URL từ đó, không phụ thuộc vào domain của BE
+            let relativePath = url;
             const storageMatch = url.match(/\/storage\/(.+)$/);
             if (storageMatch) {
-                return `${BASE_URL}/storage/${storageMatch[1]}`;
+                relativePath = storageMatch[1]; // "products/file.webp"
+            } else if (url.startsWith("http")) {
+                // Full URL không có /storage/ → không xác định được path → bỏ qua
+                return null;
             }
-            // Relative path (e.g. "products/file.webp")
-            if (!url.startsWith("http")) {
-                return `${BASE_URL}/storage/${url}`;
+
+            // Build Cloudinary URL từ relative path
+            if (CLOUD_NAME) {
+                const publicId = relativePath.replace(/\.[^.]+$/, ""); // bỏ extension
+                return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${publicId}`;
             }
-            return url;
+
+            return null;
         };
         // BE trả { data: [...], meta: { current_page, per_page, total, last_page } }
         return {
