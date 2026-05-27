@@ -28,15 +28,18 @@
     .menu-list {
         li {
             a {
-                text-decoration: none; // Bỏ gạch chân
-                color: white; // Giữ màu trắng đúng thiết kế Lam Thảo
+                text-decoration: none;
+                color: white;
                 display: flex;
                 align-items: center;
                 gap: 8px;
-                font-weight: 470;
+                font-weight: 600;
+                font-size: 14px;
+                letter-spacing: 0.5px;
+                white-space: nowrap;
 
                 &:hover {
-                    color: #fff176; // Đổi màu nhẹ khi rê chuột vào
+                    color: #fff176;
                 }
             }
         }
@@ -275,8 +278,13 @@
     }
 
     .header-bottom {
-        background-color: #f48fb1; // Màu hồng menu
+        background-color: #f48fb1;
         position: relative;
+
+        // Cho phép category-menu absolute bên trong
+        .header-inner {
+            position: relative;
+        }
 
         .category-backdrop {
             position: fixed;
@@ -292,18 +300,24 @@
             z-index: 111;
             display: flex;
             list-style: none;
-            gap: 30px;
+            gap: 36px;
             padding: 12px 0;
+            margin: 0;
             color: white;
-            font-weight: 500;
+            font-weight: 600;
             font-size: 14px;
-            flex-wrap: wrap;
+            letter-spacing: 0.5px;
+            flex-wrap: nowrap;
+            // Căn giữa các mục còn lại, chừa trái cho DANH MỤC (~210px)
+            justify-content: center;
+            padding-left: 210px;
 
             >li {
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 gap: 8px;
+                white-space: nowrap;
 
                 &:hover {
                     opacity: 0.8;
@@ -312,24 +326,28 @@
                 &.hot {
                     color: #fff176;
                 }
-
-                // Màu vàng nổi bật
             }
 
             .category-menu {
-                position: relative;
+                // Tách khỏi flow, ghim vào cạnh trái header-inner
+                position: absolute;
+                left: 15px;
+                top: 50%;
+                transform: translateY(-50%);
 
                 .category-trigger {
                     border: 0;
                     background: transparent;
                     color: #fff;
-                    font-weight: 500;
+                    font-weight: 600;
                     display: flex;
                     align-items: center;
                     gap: 10px;
                     cursor: pointer;
                     font-size: 20px;
                     padding: 0;
+                    letter-spacing: 0.5px;
+                    white-space: nowrap;
 
                     span {
                         font-size: 14px;
@@ -446,8 +464,8 @@
 
         .header-bottom {
             .menu-list {
-                justify-content: center;
-                gap: 18px;
+                gap: 20px;
+                padding-left: 190px;
             }
         }
     }
@@ -509,8 +527,8 @@
 
         .header-bottom {
             .menu-list {
-                padding: 10px 0;
-                gap: 14px;
+                padding: 10px 0 10px 170px;
+                gap: 16px;
                 font-size: 13px;
             }
         }
@@ -548,16 +566,22 @@
         .header-bottom {
             .menu-list {
                 justify-content: flex-start;
+                padding-left: 15px;
                 gap: 8px 12px;
+                flex-wrap: wrap;
 
                 .category-menu {
+                    position: relative;
+                    left: auto;
+                    top: auto;
+                    transform: none;
                     width: 100%;
 
                     .category-trigger {
-                        font-size: 24px;
+                        font-size: 20px;
 
                         span {
-                            font-size: 16px;
+                            font-size: 14px;
                         }
                     }
 
