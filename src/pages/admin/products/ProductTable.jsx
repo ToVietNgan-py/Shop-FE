@@ -22,9 +22,10 @@ function ProductTable({ data, meta, loading, onEdit, onDelete, onChange }) {
             width: 60,
             render: (img) => (
                 <img
-                    src={img || "/placeholder.png"}
+                    src={img || "/logo.png"}
                     alt="product"
                     style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4 }}
+                    onError={(e) => { e.currentTarget.src = "/logo.png"; }}
                 />
             )
         },
@@ -65,7 +66,7 @@ function ProductTable({ data, meta, loading, onEdit, onDelete, onChange }) {
             dataIndex: "is_active",
             key: "is_active",
             width: 80,
-            render: (value) => <Tag color={value ? "green" : "red"}>{value ? "Hoạt động" : "Tắt"}</Tag>
+            render: () => <Tag color="green">Hoạt động</Tag>
         },
         {
             title: "Hành động",

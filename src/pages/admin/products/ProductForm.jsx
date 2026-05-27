@@ -19,6 +19,7 @@ import { useEffect, useState, useMemo } from "react";
 import { AiOutlineSave, AiOutlinePlus, AiOutlineEdit, AiOutlineDelete } from "react-icons/ai";
 import ImageUploader from "../../../components/admin/ImageUploader.jsx";
 import adminProductVariantService from "../../../services/admin/adminProductVariantService.js";
+import { uploadToCloudinary } from "../../../utils/cloudinaryUpload.js";
 
 // ─── Category type mapping (theo id trong DB) ────────────────────────────────
 // id=1 Quần áo → CLOTHING  | id=3 Giày dép → SHOES  | id=2 Túi xách → BAG (free)
@@ -106,6 +107,13 @@ function ProductForm({ visible = false, product = null, categories = [], onSave,
         }
     };
 
+    // ─── Cloudinary direct upload handler (dùng bởi ImageUploader) ──────
+    const handleCloudinaryUpload = ({ file, onSuccess, onError, onProgress }) => {
+        uploadToCloudinary(file, ({ percent }) => onProgress({ percent }))
+            .then((url) => onSuccess({ url }, file))
+            .catch((err) => onError(err));
+    };
+
     // ─── Save product ─────────────────────────────────────────────────────
     const handleSubmit = async (values) => {
         setSubmitting(true);
@@ -119,11 +127,10 @@ function ProductForm({ visible = false, product = null, categories = [], onSave,
             formData.append("inventory", values.inventory);
             formData.append("category_id", values.category_id);
 
-            const newFile = images.find((img) => img.originFileObj);
-            if (newFile) {
-                formData.append("img", newFile.originFileObj);
-            } else if (images[0]?.url) {
-                formData.append("img", images[0].url);
+            // FE đã upload lên Cloudinary → chỉ gửi URL string về BE
+            const imgFile = images[0];
+            if (imgFile?.url) {
+                formData.append("img", imgFile.url);
             }
 
             await onSave?.(formData);
@@ -397,7 +404,13 @@ function ProductForm({ visible = false, product = null, categories = [], onSave,
                     </Form.Item>
 
                     <Form.Item label="Ảnh sản phẩm">
-                        <ImageUploader value={images} onChange={setImages} maxCount={1} label="Ảnh sản phẩm" />
+                        <ImageUploader
+                            value={images}
+                            onChange={setImages}
+                            maxCount={1}
+                            label="Ảnh sản phẩm"
+                            customRequest={handleCloudinaryUpload}
+                        />
                     </Form.Item>
                 </Form>
             ),

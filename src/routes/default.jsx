@@ -12,6 +12,7 @@ import CheckoutPage from "../pages/users/Checkout/index.jsx";
 import PaymentResult from "../pages/users/PaymentResult/index.jsx";
 import MyOrders from "../pages/users/MyOrders/index.jsx";
 import OrderDetail from "../pages/users/OrderDetail/index.jsx";
+import ReviewOrderPage from "../pages/users/ReviewOrder/index.jsx";
 import ProfilePage from "../pages/users/Profile/index.jsx";
 import WishlistPage from "../pages/users/Wishlist/index.jsx";
 import LoginPage from "../pages/users/auth/LoginPage.jsx";
@@ -48,6 +49,7 @@ function AppRoutes() {
                 <Route path="/yeu-thich" element={<RequireAuth><WishlistPage /></RequireAuth>} />
                 <Route path="/don-hang" element={<MyOrders />} />
                 <Route path="/don-hang/:id" element={<OrderDetail />} />
+                <Route path="/don-hang/:id/danh-gia" element={<ReviewOrderPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/san-pham" element={<ProductListingPage />} />
                 <Route

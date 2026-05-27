@@ -85,50 +85,66 @@ export default function PaymentResultPage() {
         };
     }, [orderId, isSuccessByQuery, messageParam]);
 
+    // Render verifying state as centered card
     if (status === 'verifying') {
         return (
-            <div className="payment-result verifying">
-                <div className="spinner" />
-                <p>Đang xác nhận thanh toán...</p>
+            <div className="payment-result-page">
+                <div className="payment-result-card">
+                    <div className="spinner" />
+                    <h1>Đang xác nhận thanh toán</h1>
+                    <p>Vui lòng chờ trong giây lát. Chúng tôi đang xác thực giao dịch của bạn.</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className={`payment-result ${status}`}>
-            {status === 'success' ? (
-                <>
-                    <div className="result-icon success-icon">✓</div>
-                    <h1>Thanh toán thành công!</h1>
-                    <p>{message || 'Đơn hàng của bạn đã được xác nhận và đang được xử lý.'}</p>
-                    <div className="result-actions">
-                        {orderId && (
-                            <Link to={`/don-hang/${orderId}`} className="btn-primary">
-                                Xem đơn hàng →
+        <div className="payment-result-page">
+            <div className={`payment-result-card ${status === 'success' ? 'success' : 'failed'}`}>
+                {status === 'success' ? (
+                    <>
+                        <div className="result-icon success">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10" fill="#FCEFF3" />
+                                <path d="M7 13l3 3 7-8" stroke="#D6336C" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                        </div>
+                        <h1>Thanh toán thành công</h1>
+                        <p>{message || 'Đơn hàng của bạn đã được xác nhận và đang được xử lý.'}</p>
+                        <div className="result-actions">
+                            {orderId && (
+                                <Link to={`/don-hang/${orderId}`} className="primary-action">
+                                    Xem đơn hàng
+                                </Link>
+                            )}
+                            <Link to="/" className="secondary-action">
+                                Tiếp tục mua sắm
                             </Link>
-                        )}
-                        <Link to="/" className="btn-secondary">
-                            Tiếp tục mua sắm
-                        </Link>
-                    </div>
-                </>
-            ) : (
-                <>
-                    <div className="result-icon fail-icon">✗</div>
-                    <h1>Thanh toán thất bại</h1>
-                    <p>{message}</p>
-                    <div className="result-actions">
-                        {orderId && (
-                            <Link to={`/don-hang/${orderId}`} className="btn-primary">
-                                Kiểm tra đơn hàng
-                            </Link>
-                        )}
-                        <button onClick={() => navigate(-1)} className="btn-secondary">
-                            Thử lại
-                        </button>
-                    </div>
-                </>
-            )}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="result-icon failed">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10" fill="#FFF5F6" />
+                                <path d="M15 9l-6 6M9 9l6 6" stroke="#D6336C" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                        </div>
+                        <h1>Thanh toán thất bại</h1>
+                        <p>{message || 'Giao dịch không thành công. Vui lòng thử lại hoặc liên hệ hỗ trợ nếu tiền đã bị trừ.'}</p>
+                        <div className="result-actions">
+                            {orderId && (
+                                <Link to={`/don-hang/${orderId}`} className="primary-action">
+                                    Kiểm tra đơn hàng
+                                </Link>
+                            )}
+                            <button onClick={() => navigate(-1)} className="secondary-action">
+                                Thử lại
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 }
