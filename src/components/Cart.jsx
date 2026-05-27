@@ -1,4 +1,4 @@
-import { memo, useContext, useEffect, useState } from "react";
+import { memo, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
 import { MdCheckCircle } from "react-icons/md";
@@ -28,6 +28,7 @@ const Cart = ({ onClose }) => {
     const [appliedPromotions, setAppliedPromotions] = useState([]);
     const [promotionGifts, setPromotionGifts] = useState([]);
     const [promotionLoading, setPromotionLoading] = useState(false);
+    const [itemPrices, setItemPrices] = useState([]);
 
     useEffect(() => {
         const originalOverflow = document.body.style.overflow;
@@ -45,6 +46,7 @@ const Cart = ({ onClose }) => {
             if (!cartItems?.length) {
                 setAppliedPromotions([]);
                 setPromotionGifts([]);
+                setItemPrices([]);
                 setPromotionLoading(false);
                 return;
             }
@@ -55,10 +57,12 @@ const Cart = ({ onClose }) => {
                 if (!alive) return;
                 setAppliedPromotions(res.applied ?? []);
                 setPromotionGifts(res.giftItems ?? []);
+                setItemPrices(res.itemPrices ?? []);
             } catch (error) {
                 if (!alive) return;
                 setAppliedPromotions([]);
                 setPromotionGifts([]);
+                setItemPrices([]);
             } finally {
                 if (alive) setPromotionLoading(false);
             }
@@ -84,7 +88,7 @@ const Cart = ({ onClose }) => {
         try {
             const result = await voucherService.apply({
                 code: voucherCode.trim(),
-                orderTotal: cartSubtotal,
+                orderTotal: resolvedSubtotal,
             });
 
             console.log("[Cart] Voucher applied:", result);
@@ -113,9 +117,25 @@ const Cart = ({ onClose }) => {
     };
 
     // ===== Calculate total =====
+    const resolvedSubtotal = useMemo(() => {
+        if (!itemPrices.length || !cartItems?.length) return cartSubtotal;
+        return cartItems.reduce((sum, item, idx) => {
+            const ip = itemPrices[idx];
+            return sum + (ip?.resolvedPrice ?? item.price) * item.quantity;
+        }, 0);
+    }, [itemPrices, cartItems, cartSubtotal]);
+
+    const totalSavings = useMemo(() => {
+        if (!itemPrices.length || !cartItems?.length) return 0;
+        return cartItems.reduce((sum, item, idx) => {
+            const ip = itemPrices[idx];
+            if (!ip || ip.resolvedPrice >= ip.originalPrice) return sum;
+            return sum + (ip.originalPrice - ip.resolvedPrice) * item.quantity;
+        }, 0);
+    }, [itemPrices, cartItems]);
+
     const discountAmount = appliedVoucher?.discount ?? 0;
-    const promotionDiscount = appliedPromotions.reduce((sum, promo) => sum + Number(promo.amount ?? promo.discount ?? 0), 0);
-    const finalTotal = Math.max(0, cartSubtotal - promotionDiscount - discountAmount);
+    const finalTotal = Math.max(0, resolvedSubtotal - discountAmount);
 
     const handleCheckout = () => {
         if (!cartItems?.length) {
@@ -144,7 +164,12 @@ const Cart = ({ onClose }) => {
                         </div>
                     ) : (
                         <div className="cart-list">
-                            {cartItems.map((item, index) => (
+                            {cartItems.map((item, index) => {
+                                const ip = itemPrices[index];
+                                const resolvedPrice = ip?.resolvedPrice ?? item.price;
+                                const originalPrice = ip?.originalPrice ?? item.price;
+                                const hasDiscount = resolvedPrice < originalPrice;
+                                return (
                                 <article key={item.cartKey || `${item.productId || "item"}-${index}`} className="cart-item">
                                     <img
                                         src={item.image || PRODUCT_PLACEHOLDER_IMAGE}
@@ -154,7 +179,12 @@ const Cart = ({ onClose }) => {
                                     <div className="cart-item-info">
                                         <h3>{item.name}</h3>
                                         <p>{item.size} / {item.color}</p>
-                                        <strong>{formatVND(item.price * item.quantity)}</strong>
+                                        <div className="item-price-block">
+                                            {hasDiscount && (
+                                                <span className="item-price-original">{formatVND(originalPrice * item.quantity)}</span>
+                                            )}
+                                            <strong>{formatVND(resolvedPrice * item.quantity)}</strong>
+                                        </div>
                                         <div className="cart-item-actions">
                                             <div className="cart-qty">
                                                 <button
@@ -182,46 +212,25 @@ const Cart = ({ onClose }) => {
                                         </div>
                                     </div>
                                 </article>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
 
                 {cartItems?.length > 0 ? (
                     <div className="cart-footer">
-                        {(appliedPromotions.length > 0 || promotionGifts.length > 0) && (
+                        {promotionGifts.length > 0 && (
                             <div className="voucher-section" style={{ marginBottom: 12 }}>
-                                {promotionLoading ? (
-                                    <div className="voucher-error">Đang tính khuyến mãi tự động...</div>
-                                ) : null}
-
-                                {appliedPromotions.length > 0 && (
-                                    <div style={{ marginBottom: 8 }}>
-                                        <strong>Khuyến mãi tự động:</strong>
-                                        <ul style={{ margin: '6px 0 0 18px' }}>
-                                            {appliedPromotions.map((promo) => (
-                                                <li key={promo.id}>
-                                                    {promo.name}
-                                                    {promo.amount || promo.discount ? ` (- ${formatVND(Math.round(promo.amount ?? promo.discount ?? 0))})` : ''}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-
-                                {promotionGifts.length > 0 && (
-                                    <div>
-                                        <strong>Quà tặng kèm:</strong>
-                                        <ul style={{ margin: '6px 0 0 18px' }}>
-                                            {promotionGifts.map((gift, index) => (
-                                                <li key={`${gift.giftProductId || 'gift'}-${index}`}>
-                                                    Sản phẩm ID {gift.giftProductId} x{gift.quantity}
-                                                    {gift.estimatedDiscount ? ` (ước tính giảm ${formatVND(Math.round(gift.estimatedDiscount))})` : ''}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
+                                <strong>Quà tặng kèm:</strong>
+                                <ul style={{ margin: '6px 0 0 18px' }}>
+                                    {promotionGifts.map((gift, index) => (
+                                        <li key={`${gift.giftProductId || 'gift'}-${index}`}>
+                                            Sản phẩm ID {gift.giftProductId} x{gift.quantity}
+                                            {gift.estimatedDiscount ? ` (ước tính giảm ${formatVND(Math.round(gift.estimatedDiscount))})` : ''}
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         )}
 
@@ -280,15 +289,8 @@ const Cart = ({ onClose }) => {
                         {/* ===== Cart Summary ===== */}
                         <div className="cart-summary-row">
                             <span>Tạm tính</span>
-                            <strong>{formatVND(cartSubtotal)}</strong>
+                            <strong>{formatVND(resolvedSubtotal)}</strong>
                         </div>
-
-                        {promotionDiscount > 0 && (
-                            <div className="cart-summary-row discount-row">
-                                <span>Giảm giá khuyến mãi</span>
-                                <strong className="discount-amount">-{formatVND(promotionDiscount)}</strong>
-                            </div>
-                        )}
 
                         {appliedVoucher && (
                             <>
@@ -301,6 +303,12 @@ const Cart = ({ onClose }) => {
                                     <strong className="final-total">{formatVND(finalTotal)}</strong>
                                 </div>
                             </>
+                        )}
+
+                        {totalSavings > 0 && (
+                            <div className="savings-row">
+                                Bạn đã tiết kiệm {formatVND(totalSavings)}
+                            </div>
                         )}
 
                         <div className="cart-footer-actions">

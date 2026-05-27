@@ -124,8 +124,9 @@ function CheckoutPage() {
     const {
         orderData, orderError, checkoutStep, setCheckoutStep,
         isConfirmingPayment, appliedCoupon, couponError, isApplyingCoupon,
-        couponDiscount, promoDiscount, appliedPromotions, promotionGifts,
+        couponDiscount, promotionGifts,
         isLoadingPromotions, shippingFee, total,
+        itemPrices, resolvedSubtotal, totalSavings,
         handleApplyCoupon, handlePlaceOrder, handleConfirmTransfer,
     } = useCheckoutOrder({
         checkoutItems,
@@ -339,7 +340,12 @@ function CheckoutPage() {
                     </div>
 
                     <div className="summary-product-list">
-                        {checkoutItems.map((item, index) => (
+                        {checkoutItems.map((item, index) => {
+                            const ip = itemPrices[index];
+                            const resolvedPrice = ip?.resolvedPrice ?? item.price;
+                            const originalPrice = ip?.originalPrice ?? item.price;
+                            const hasDiscount = resolvedPrice < originalPrice;
+                            return (
                             <div
                                 key={item.cartKey ?? `${item.id ?? "item"}-${item.color ?? ""}-${item.size ?? ""}-${index}`}
                                 className="summary-product"
@@ -358,9 +364,15 @@ function CheckoutPage() {
                                     <h3>{item.name}</h3>
                                     <p>{item.size} / {item.color}</p>
                                 </div>
-                                <strong>{formatVND(item.price * item.quantity)}</strong>
+                                <div className="product-price-block">
+                                    {hasDiscount && (
+                                        <span className="item-original-price">{formatVND(originalPrice * item.quantity)}</span>
+                                    )}
+                                    <strong>{formatVND(resolvedPrice * item.quantity)}</strong>
+                                </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
 
                     <div className="voucher-box">
@@ -378,16 +390,6 @@ function CheckoutPage() {
                         <FieldError error={errors.voucher_code} />
                         {appliedCoupon && <p className="coupon-note">Đã áp dụng mã {appliedCoupon.code}.</p>}
                         {couponError && <p className="coupon-note">{couponError}</p>}
-                        {appliedPromotions && appliedPromotions.length > 0 && (
-                            <div style={{ marginTop: 8 }}>
-                                <strong>Khuyến mãi áp dụng:</strong>
-                                <ul style={{ margin: "6px 0 0 18px" }}>
-                                    {appliedPromotions.map((p) => (
-                                        <li key={p.id}>{p.name} {p.amount ? `(- ${formatVND(Math.round(p.amount))})` : ""}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
                         {promotionGifts && promotionGifts.length > 0 && (
                             <div style={{ marginTop: 8 }}>
                                 <strong>Quà tặng:</strong>
@@ -401,12 +403,16 @@ function CheckoutPage() {
                     </div>
 
                     <div className="price-list">
-                        <PriceRow label="Tạm tính" value={formatVND(subtotal)} />
-                        {/* FIX: shippingFee từ hook — hiển thị mặc định trước, BE xác nhận sau */}
+                        <PriceRow label="Tạm tính" value={formatVND(resolvedSubtotal ?? subtotal)} />
                         <PriceRow label="Phí vận chuyển" value={formatVND(shippingFee)} />
-                        <PriceRow label="Giảm giá thành viên" value="0 đ" muted />
-                        <PriceRow label="Giảm giá coupon" value={`- ${formatVND(couponDiscount)}`} muted />
-                        <PriceRow label="Giảm giá khuyến mãi" value={`- ${formatVND(promoDiscount || 0)}`} muted />
+                        {couponDiscount > 0 && (
+                            <PriceRow label={`Giảm giá coupon${appliedCoupon ? ` (${appliedCoupon.code})` : ""}`} value={`- ${formatVND(couponDiscount)}`} muted />
+                        )}
+                        {totalSavings > 0 && (
+                            <div className="savings-row">
+                                Bạn đã tiết kiệm {formatVND(totalSavings)}
+                            </div>
+                        )}
                     </div>
 
                     <div className="summary-footer">

@@ -331,6 +331,31 @@
     }
 }
 
+.product-price-block {
+    text-align: right;
+
+    .item-original-price {
+        display: block;
+        font-size: 12px;
+        color: #9ca3af;
+        text-decoration: line-through;
+        margin-bottom: 1px;
+        font-weight: 400;
+        white-space: nowrap;
+    }
+}
+
+.savings-row {
+    color: #16a34a;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 10px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    text-align: center;
+}
+
 .summary-product strong,
 .price-row strong,
 .total-row strong {

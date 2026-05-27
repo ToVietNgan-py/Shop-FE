@@ -165,7 +165,7 @@ const applyToCart = async (items = [], orderTotal = 0) => {
 
         if (thisDiscount > bestDiscount) {
             bestDiscount = thisDiscount;
-            bestPromo = { promo, amount: thisDiscount };
+            bestPromo = { promo, amount: thisDiscount, eligibleAmount };
         }
     }
 
@@ -231,11 +231,53 @@ const applyToCart = async (items = [], orderTotal = 0) => {
     const applied = [...flashApplied, ...percentAmountApplied, ...bogoApplied];
     const discount = Math.round(flashDiscount + bestDiscount + bogoDiscount);
 
+    // ── Step 4: Per-item resolved prices for Shopee-style display ──────────
+    const itemPrices = norm.map((item, idx) => {
+        const originalPrice = item.price;
+
+        if (flashClaimed[idx]) {
+            const fp = flashMap[String(item.productId)];
+            return { resolvedPrice: fp ?? originalPrice, originalPrice };
+        }
+
+        if (bestPromo) {
+            const promo = bestPromo.promo;
+            const isGlobal = promo.products_scope.length === 0 && promo.categories_scope.length === 0;
+            const itemMatches = isGlobal
+                || promo.products_scope.includes(item.productId)
+                || promo.categories_scope.includes(item.categoryId);
+
+            if (itemMatches) {
+                if (promo.type === "percent") {
+                    const value = Number(promo.value ?? 0);
+                    const uncappedPerUnit = originalPrice * (value / 100);
+                    const uncappedTotal = bestPromo.eligibleAmount * (value / 100);
+                    const capRatio = (uncappedTotal > 0 && bestPromo.amount < uncappedTotal)
+                        ? bestPromo.amount / uncappedTotal
+                        : 1;
+                    const perUnit = Math.min(uncappedPerUnit * capRatio, originalPrice);
+                    return { resolvedPrice: Math.round(originalPrice - perUnit), originalPrice };
+                }
+                if (promo.type === "amount") {
+                    const eligibleAmt = bestPromo.eligibleAmount;
+                    if (eligibleAmt > 0) {
+                        const itemWeight = (originalPrice * item.quantity) / eligibleAmt;
+                        const perUnit = (bestPromo.amount * itemWeight) / item.quantity;
+                        return { resolvedPrice: Math.round(originalPrice - Math.min(perUnit, originalPrice)), originalPrice };
+                    }
+                }
+            }
+        }
+
+        return { resolvedPrice: originalPrice, originalPrice };
+    });
+
     return {
         discount,
         applied,
         giftItems,
         promotionsCount: promotions.length,
+        itemPrices,
     };
 };
 
