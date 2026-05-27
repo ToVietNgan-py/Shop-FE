@@ -391,7 +391,6 @@ function ProductDetail() {
         productId: product.id,
         name: product.name,
         price: basePrice,
-        displayPrice,
         originalPrice: basePrice,
         isFlashSale: hasFlash,
         image: product.img,

@@ -72,6 +72,7 @@ export function useCheckoutOrder({ checkoutItems, subtotal, onFreezeItems, buyNo
     };
 
     // --- Áp mã giảm giá ---
+    // Voucher tính trên subtotal đã trừ promotion discount (theo combine rule).
     const handleApplyCoupon = async (couponCode) => {
         const code = (couponCode || "").trim().toUpperCase();
         setCouponError("");
@@ -85,8 +86,8 @@ export function useCheckoutOrder({ checkoutItems, subtotal, onFreezeItems, buyNo
 
         setIsApplyingCoupon(true);
         try {
-            const voucherBase = Math.max(0, subtotal - promoDiscount);
-            const voucher = await voucherService.apply({ code, orderTotal: voucherBase, cartId });
+            const subtotalAfterPromo = Math.max(0, subtotal - promoDiscount);
+            const voucher = await voucherService.apply({ code, orderTotal: subtotalAfterPromo });
             setAppliedCoupon(voucher);
         } catch (error) {
             setCouponError(error?.message || "Mã giảm giá không hợp lệ.");

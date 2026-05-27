@@ -140,7 +140,7 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
         const item = {
             id: product.id,
             name: detail?.name ?? product.name,
-            price: displayPrice,
+            price: variantBasePrice,
             img: resolvedImg,
             image: resolvedImg,   // Checkout dùng item.image để render thumb
             quantity,
@@ -166,7 +166,7 @@ function QuickShopModal({ product, onClose, actionType = "cart" }) {
         const buyNowItem = {
             id: product.id,
             name: detail?.name ?? product.name,
-            price: displayPrice,
+            price: variantBasePrice,
             img: resolvedImg,
             image: resolvedImg,   // Checkout dùng item.image để render thumb
             quantity,
