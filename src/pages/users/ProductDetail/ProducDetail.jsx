@@ -391,10 +391,6 @@ function ProductDetail() {
         productId: product.id,
         name: product.name,
         price: basePrice,
-<<<<<<< Updated upstream
-        displayPrice,
-=======
->>>>>>> Stashed changes
         originalPrice: basePrice,
         isFlashSale: hasFlash,
         image: product.img,
