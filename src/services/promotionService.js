@@ -78,6 +78,7 @@ const fetchPromotionCatalog = async () => {
     return await fetchActive().catch(() => []);
 };
 
+<<<<<<< Updated upstream
 const fetchFlashMap = async () => {
     const res = await api.get("/promotions/flash-sale").catch(() => null);
     const data = res?.data?.data;
@@ -99,6 +100,28 @@ const applyToCart = async (items = [], orderTotal = 0) => {
         fetchActive().then(normalizePromotions).catch(() => []),
         fetchFlashMap(),
     ]);
+=======
+// FE preview calculator — mirrors BE combine rules:
+// 1. Flash sale claims items first; flash items get no other promo.
+// 2. Among percent/amount promos, pick the ONE giving highest total discount.
+// 3. BOGO runs only when no percent/amount discount was applied; flash items
+//    cannot act as the "buy" trigger in a BOGO rule.
+// 4. Voucher applies after (handled separately in useCheckoutOrder).
+const applyToCart = async (items = [], orderTotal = 0) => {
+    const [allPromos, flashRes] = await Promise.all([
+        fetchActive().catch(() => []),
+        api.get("/promotions/flash-sale").then(r => r?.data?.data ?? null).catch(() => null),
+    ]);
+    const promotions = normalizePromotions(allPromos);
+
+    // Build flash map: productId → flash_price
+    const flashMap = {};
+    if (flashRes?.products?.length && (flashRes.remaining_seconds ?? 0) > 0) {
+        for (const p of flashRes.products) {
+            if (p.id && p.flash_price > 0) flashMap[String(p.id)] = Number(p.flash_price);
+        }
+    }
+>>>>>>> Stashed changes
 
     const norm = items.map((item) => ({
         productId: Number(item.productId ?? item.product_id ?? item.id ?? 0),
@@ -107,6 +130,7 @@ const applyToCart = async (items = [], orderTotal = 0) => {
         quantity: Number(item.quantity ?? 1),
     }));
 
+<<<<<<< Updated upstream
     const claimed = new Set();
     let discount = 0;
     const applied = [];
@@ -130,15 +154,103 @@ const applyToCart = async (items = [], orderTotal = 0) => {
                 type: "flash_sale",
                 amount: itemDiscount,
             });
+=======
+    const orderSubtotal = norm.reduce((s, i) => s + i.price * i.quantity, 0);
+
+    // ── Step 1: Flash sale ──────────────────────────────────────
+    const flashClaimed = new Array(norm.length).fill(false); // true = item belongs to flash
+    let flashDiscount = 0;
+    const flashApplied = [];
+
+    for (let idx = 0; idx < norm.length; idx++) {
+        const item = norm[idx];
+        const fp = flashMap[String(item.productId)];
+        if (!fp) continue;
+        const perUnit = item.price - fp;
+        if (perUnit <= 0) continue;
+        flashClaimed[idx] = true;
+        flashDiscount += perUnit * item.quantity;
+    }
+
+    if (flashDiscount > 0) {
+        const flashPromo = promotions.find(p => p.type === "flash_sale");
+        flashApplied.push({
+            id: flashPromo?.id ?? "flash",
+            name: flashPromo?.name ?? "Flash Sale",
+            type: "flash_sale",
+            amount: Math.round(flashDiscount),
+        });
+    }
+
+    // ── Step 2: Best percent/amount promo (non-flash items only) ──
+    const percentAmountPromos = promotions.filter(p => p.type === "percent" || p.type === "amount");
+
+    let bestPromo = null;
+    let bestDiscount = 0;
+
+    for (const promo of percentAmountPromos) {
+        // Eligible items = non-flash items matching scope
+        let eligibleAmount = 0;
+        const isGlobal = promo.products_scope.length === 0 && promo.categories_scope.length === 0;
+
+        for (let idx = 0; idx < norm.length; idx++) {
+            if (flashClaimed[idx]) continue; // flash items excluded
+            const item = norm[idx];
+            if (isGlobal ||
+                promo.products_scope.includes(item.productId) ||
+                promo.categories_scope.includes(item.categoryId)) {
+                eligibleAmount += item.price * item.quantity;
+            }
+>>>>>>> Stashed changes
         }
     }
 
+<<<<<<< Updated upstream
     const regularPromos = promotions.filter((promo) =>
         promo.is_active &&
         promo.is_running &&
         (promo.type === "percent" || promo.type === "amount") &&
         Number(orderTotal) >= Number(promo.min_order_total ?? 0)
     );
+=======
+        if (eligibleAmount <= 0) continue;
+        if (Number(promo.min_order_total ?? 0) > orderSubtotal) continue;
+
+        let thisDiscount = promo.type === "percent"
+            ? eligibleAmount * (Number(promo.value ?? 0) / 100)
+            : Number(promo.value ?? 0);
+
+        if (promo.max_discount) thisDiscount = Math.min(thisDiscount, Number(promo.max_discount));
+        thisDiscount = Math.min(thisDiscount, eligibleAmount);
+
+        if (thisDiscount > bestDiscount) {
+            bestDiscount = thisDiscount;
+            bestPromo = { promo, amount: thisDiscount };
+        }
+    }
+
+    const percentAmountApplied = [];
+    if (bestPromo) {
+        percentAmountApplied.push({
+            id: bestPromo.promo.id,
+            name: bestPromo.promo.name,
+            type: bestPromo.promo.type,
+            value: bestPromo.promo.value,
+            amount: Math.round(bestPromo.amount),
+        });
+    }
+
+    // ── Step 3: BOGO — only when no percent/amount promo applied ──
+    const giftItems = [];
+    let bogoDiscount = 0;
+    const bogoApplied = [];
+
+    if (!bestPromo) {
+        const bogoPromos = promotions.filter(p => p.type === "bogo");
+        for (const promo of bogoPromos) {
+            const rules = Array.isArray(promo.bogo_rules) ? promo.bogo_rules : [];
+            let promoHasGift = false;
+>>>>>>> Stashed changes
 
     let bestDiscountPromo = null;
     for (const promo of regularPromos) {
@@ -181,9 +293,12 @@ const applyToCart = async (items = [], orderTotal = 0) => {
                 const buyId = Number(rule.buy_product_id ?? rule.buy_product ?? 0);
                 if (claimed.has(buyId)) continue;
 
-                const cartItem = norm.find((item) => item.productId === buyId);
-                if (!cartItem) continue;
+                // Flash items cannot act as "buy" trigger
+                const buyItemIdx = norm.findIndex(i => i.productId === buyId && !flashClaimed[norm.indexOf(i)]);
+                const buyItem = buyItemIdx >= 0 ? norm[buyItemIdx] : null;
+                if (!buyItem || flashClaimed[buyItemIdx]) continue;
 
+<<<<<<< Updated upstream
                 const times = Math.floor(cartItem.quantity / (Number(rule.buy_quantity ?? 1) || 1));
                 if (times <= 0) continue;
 
@@ -192,17 +307,39 @@ const applyToCart = async (items = [], orderTotal = 0) => {
                 const estimatedDiscount = 0;
                 candidateDiscount += estimatedDiscount;
                 candidateGifts.push({
+=======
+                const times = Math.floor(buyItem.quantity / buyQty);
+                if (times <= 0) continue;
+
+                const giftInCart = norm.find(i => i.productId === giftId);
+                const giftUnitPrice = giftInCart ? giftInCart.price : 0;
+                const giftTotalQty = giftQty * times;
+                const giftDiscount = giftUnitPrice * giftTotalQty * (giftPct / 100);
+
+                bogoDiscount += giftDiscount;
+                promoHasGift = true;
+                giftItems.push({
+>>>>>>> Stashed changes
                     promotionId: promo.id,
                     giftProductId: Number(rule.gift_product_id ?? rule.gift_product ?? 0),
                     giftProductName: rule.gift_product_name ?? "",
                     quantity: giftQty,
                     discountPercent: giftPct,
+<<<<<<< Updated upstream
                     estimatedDiscount,
                 });
             }
 
             if (candidateGifts.length > 0 && (!bestBogo || candidateDiscount > bestBogo.discount)) {
                 bestBogo = { promo, giftItems: candidateGifts, discount: candidateDiscount };
+=======
+                    estimatedDiscount: Math.round(giftDiscount),
+                });
+            }
+
+            if (promoHasGift) {
+                bogoApplied.push({ id: promo.id, name: promo.name, type: "bogo" });
+>>>>>>> Stashed changes
             }
         }
 
@@ -212,9 +349,17 @@ const applyToCart = async (items = [], orderTotal = 0) => {
         }
     }
 
+    const applied = [...flashApplied, ...percentAmountApplied, ...bogoApplied];
+    const discount = Math.round(flashDiscount + bestDiscount + bogoDiscount);
+
     return {
+<<<<<<< Updated upstream
         discount: Math.round(discount),
         applied: applied.map((promo) => ({ ...promo, amount: Math.round(promo.amount ?? 0) })),
+=======
+        discount,
+        applied,
+>>>>>>> Stashed changes
         giftItems,
         promotionsCount: promotions.length,
     };
