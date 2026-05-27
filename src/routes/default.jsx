@@ -6,7 +6,6 @@ import ReturnPolicy from "../pages/users/returnPolicy/index.jsx";
 import ShippingPolicy from "../pages/users/shippingPolicy/index.jsx";
 import PrivacyPolicy from "../pages/users/privacyPolicy/index.jsx";
 import TermOfService from "../pages/users/termOfService/index.jsx";
-import CategoryPage from "../pages/users/CategoryPage/index.jsx";
 import ProductDetail from "../pages/users/ProductDetail/ProducDetail.jsx";
 import CheckoutPage from "../pages/users/Checkout/index.jsx";
 import PaymentResult from "../pages/users/PaymentResult/index.jsx";
@@ -41,7 +40,7 @@ function AppRoutes() {
                 <Route path="/shipping" element={<ShippingPolicy />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermOfService />} />
-                <Route path="/category/:slug" element={<CategoryPage />} />
+                <Route path="/category/:slug" element={<ProductPage />} />
                 <Route path="/san-pham/:id" element={<ProductDetail />} />
                 <Route path="/thanh-toan" element={<RequireAuth> <CheckoutPage /> </RequireAuth>} />
                 <Route path="/thanh-toan/ket-qua" element={<PaymentResult />} />

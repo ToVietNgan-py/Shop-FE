@@ -10,7 +10,7 @@ function CategoryMenu() {
 
             <ul className="category-dropdown">
                 <li><Link to="/category/quan-ao">Quần áo</Link></li>
-                <li><Link to="/category/giay">Giày</Link></li>
+                <li><Link to="/category/giay-dep">Giày dép</Link></li>
                 <li><Link to="/category/tui-xach">Túi xách</Link></li>
             </ul>
         </div>

@@ -1,5 +1,5 @@
 ﻿import { memo, useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { productService } from "../../../services/productService.js";
 import { categoryService } from "../../../services/categoryService.js";
 import "./style.scss";
@@ -72,6 +72,7 @@ function ProductCard({ item, promoMap, globalPromos, onAddToCart, onBuyNow }) {
 
 // ── Trang chính ──
 const ProductPage = () => {
+    const { slug: categorySlug } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const keyword = (searchParams.get("tu-khoa") || "").trim().toLowerCase();
     const currentPage = Math.max(Number(searchParams.get("page") || 1), 1);
@@ -87,7 +88,7 @@ const ProductPage = () => {
 
     const sortDropdownRef = useRef(null);
 
-    const [categories, setCategories] = useState([{ id: "all", value: "all", name: "Tất cả sản phẩm" }]);
+    const [categories, setCategories] = useState([{ id: "all", value: "all", slug: "all", name: "Tất cả sản phẩm" }]);
     const [products, setProducts] = useState([]);
     const [totalProducts, setTotalProducts] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
@@ -121,11 +122,19 @@ const ProductPage = () => {
                     ...c,
                     value: String(c.id ?? c.slug),
                 }));
-                setCategories([{ id: "all", value: "all", name: "Tất cả sản phẩm" }, ...unique]);
+                const nextCategories = [{ id: "all", value: "all", slug: "all", name: "Tất cả sản phẩm" }, ...unique];
+                setCategories(nextCategories);
+
+                if (categorySlug) {
+                    const matched = nextCategories.find((c) => c.slug === categorySlug);
+                    setSelectedCategory(matched?.value ?? "all");
+                } else {
+                    setSelectedCategory("all");
+                }
             })
             .catch(() => { });
         return () => { alive = false; };
-    }, []);
+    }, [categorySlug]);
 
     useEffect(() => {
         let alive = true;

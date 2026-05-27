@@ -12,8 +12,9 @@
     gap: 12px;
     margin-bottom: 20px;
 
-    .fss__btn {
+    >a {
         justify-self: end;
+        text-decoration: none;
     }
 }
 
@@ -123,7 +124,6 @@
 }
 
 /* Đẩy wishlist button xuống dưới badge flash (tránh đè) */
-.fss__card-wrap :global(.wishlist-btn),
 .fss__card-wrap [class*="wishlist"] {
     top: 36px !important;
     right: 8px !important;
