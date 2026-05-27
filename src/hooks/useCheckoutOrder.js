@@ -1,4 +1,4 @@
-import { useContext, useRef, useState, useEffect } from "react";
+import { useContext, useMemo, useRef, useState, useEffect } from "react";
 import { CartContext } from "../context/CartContext.jsx";
 import { AuthContext } from "../context/AuthContext.jsx";
 import { cartService } from "../services/cartService.js";
@@ -30,6 +30,7 @@ export function useCheckoutOrder({ checkoutItems, subtotal, onFreezeItems, buyNo
     const [promotionDiscount, setPromotionDiscount] = useState(0);
     const [promotionGifts, setPromotionGifts] = useState([]);
     const [isLoadingPromotions, setIsLoadingPromotions] = useState(false);
+    const [itemPrices, setItemPrices] = useState([]);
 
     const couponDiscount = appliedCoupon?.discount ?? 0;
     const promoDiscount = promotionDiscount ?? 0;
@@ -104,10 +105,12 @@ export function useCheckoutOrder({ checkoutItems, subtotal, onFreezeItems, buyNo
             setPromotionDiscount(res.discount ?? 0);
             setAppliedPromotions(res.applied ?? []);
             setPromotionGifts(res.giftItems ?? []);
+            setItemPrices(res.itemPrices ?? []);
         } catch (e) {
             setPromotionDiscount(0);
             setAppliedPromotions([]);
             setPromotionGifts([]);
+            setItemPrices([]);
         } finally {
             setIsLoadingPromotions(false);
         }
@@ -234,6 +237,24 @@ export function useCheckoutOrder({ checkoutItems, subtotal, onFreezeItems, buyNo
         }
     };
 
+    // resolvedSubtotal: subtotal sau khi đã áp promotion per-item (dùng cho display)
+    const resolvedSubtotal = useMemo(() => {
+        if (!itemPrices.length || !checkoutItems.length) return subtotal;
+        return checkoutItems.reduce((sum, item, idx) => {
+            const ip = itemPrices[idx];
+            return sum + (ip?.resolvedPrice ?? item.price) * item.quantity;
+        }, 0);
+    }, [itemPrices, checkoutItems, subtotal]);
+
+    const totalSavings = useMemo(() => {
+        if (!itemPrices.length || !checkoutItems.length) return 0;
+        return checkoutItems.reduce((sum, item, idx) => {
+            const ip = itemPrices[idx];
+            if (!ip || ip.resolvedPrice >= ip.originalPrice) return sum;
+            return sum + (ip.originalPrice - ip.resolvedPrice) * item.quantity;
+        }, 0);
+    }, [itemPrices, checkoutItems]);
+
     // --- Xác nhận chuyển khoản ---
     const handleConfirmTransfer = async () => {
         if (!orderData?.orderCode) return;
@@ -267,6 +288,9 @@ export function useCheckoutOrder({ checkoutItems, subtotal, onFreezeItems, buyNo
         appliedPromotions,
         promotionGifts,
         isLoadingPromotions,
+        itemPrices,
+        resolvedSubtotal,
+        totalSavings,
         handleApplyCoupon,
         handlePlaceOrder,
         handleConfirmTransfer,
