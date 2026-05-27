@@ -29,7 +29,7 @@ const normalizeValue = (value) => {
     });
 };
 
-function ImageUploader({ value = [], onChange, maxCount = 5, label = "Ảnh sản phẩm", hint = "Tải ảnh lên để xem trước trước khi lưu." }) {
+function ImageUploader({ value = [], onChange, maxCount = 5, label = "Ảnh sản phẩm", hint = "Tải ảnh lên để xem trước trước khi lưu.", customRequest }) {
     const [fileList, setFileList] = useState(() => normalizeValue(value));
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState("");
@@ -44,10 +44,17 @@ function ImageUploader({ value = [], onChange, maxCount = 5, label = "Ảnh sả
     };
 
     const handleChange = ({ fileList: nextList }) => {
-        setFileList(nextList);
+        // Khi customRequest upload xong, extract URL từ response vào file.url
+        const normalized = nextList.map((file) => {
+            if (file.status === "done" && file.response?.url && !file.url) {
+                return { ...file, url: file.response.url };
+            }
+            return file;
+        });
+        setFileList(normalized);
 
         if (typeof onChange === "function") {
-            onChange(nextList);
+            onChange(normalized);
         }
     };
 
@@ -65,7 +72,8 @@ function ImageUploader({ value = [], onChange, maxCount = 5, label = "Ảnh sả
                 fileList={fileList}
                 onChange={handleChange}
                 onPreview={handlePreview}
-                beforeUpload={() => false}
+                beforeUpload={customRequest ? undefined : () => false}
+                customRequest={customRequest}
                 maxCount={maxCount}
             >
                 {fileList.length >= maxCount ? null : uploadButton}

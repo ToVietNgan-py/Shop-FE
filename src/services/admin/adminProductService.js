@@ -8,22 +8,23 @@ const adminProductService = {
     async list(params = {}) {
         const response = await api.get("/admin/products", { params });
         const payload = response?.data ?? {};
-        // const normalizeImg = (url) => {
-        //     if (!url) return null;
-        //     return url.replace("http://127.0.0.1:8000", "").replace("http://localhost:8000", "");
-        // };
-        const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+        const BASE_URL = (import.meta.env.VITE_API_URL || "")
+            .replace(/\/api\/?$/, "")
+            .replace(/\/$/, "");
 
         const normalizeImg = (url) => {
             if (!url) return null;
-
-            // Nếu đã là full URL thì strip domain về relative
-            const relative = url
-                .replace("http://127.0.0.1:8000/storage/", "")
-                .replace("http://localhost:8000/storage/", "");
-
-            // Trả về full URL để dùng trong <img src>
-            return `${BASE_URL}/storage/${relative}`;
+            // Extract path after /storage/ regardless of what domain the BE returned
+            const storageMatch = url.match(/\/storage\/(.+)$/);
+            if (storageMatch) {
+                return `${BASE_URL}/storage/${storageMatch[1]}`;
+            }
+            // Relative path (e.g. "products/file.webp")
+            if (!url.startsWith("http")) {
+                return `${BASE_URL}/storage/${url}`;
+            }
+            return url;
         };
         // BE trả { data: [...], meta: { current_page, per_page, total, last_page } }
         return {
