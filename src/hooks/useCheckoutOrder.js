@@ -85,7 +85,8 @@ export function useCheckoutOrder({ checkoutItems, subtotal, onFreezeItems, buyNo
 
         setIsApplyingCoupon(true);
         try {
-            const voucher = await voucherService.apply({ code, orderTotal: subtotal, cartId });
+            const voucherBase = Math.max(0, subtotal - promoDiscount);
+            const voucher = await voucherService.apply({ code, orderTotal: voucherBase, cartId });
             setAppliedCoupon(voucher);
         } catch (error) {
             setCouponError(error?.message || "Mã giảm giá không hợp lệ.");

@@ -42,17 +42,10 @@ const promotionMatchesProduct = (promo, product) => {
     if (!promo || !product) return false;
 
     const productId = Number(product.id ?? product.productId ?? product.product_id ?? 0);
-    const categoryId = Number(product.category_id ?? product.categoryId ?? product.category?.id ?? product.category_id ?? 0);
+    const categoryId = Number(product.category_id ?? product.categoryId ?? product.category?.id ?? 0);
 
-    if (promo.products_scope.length > 0 && Number.isFinite(productId) && productId > 0) {
-        if (promo.products_scope.includes(productId)) return true;
-    }
-
-    if (promo.categories_scope.length > 0 && Number.isFinite(categoryId) && categoryId > 0) {
-        if (promo.categories_scope.includes(categoryId)) return true;
-    }
-
-    return promo.products_scope.length === 0 && promo.categories_scope.length === 0;
+    if (promo.products_scope.length === 0 && promo.categories_scope.length === 0) return true;
+    return promo.products_scope.includes(productId) || promo.categories_scope.includes(categoryId);
 };
 
 const estimateProductPromotion = (product, promotions = []) => {
@@ -63,28 +56,18 @@ const estimateProductPromotion = (product, promotions = []) => {
     let best = null;
 
     for (const promo of promos) {
-        if (!promotionMatchesProduct(promo, product)) continue;
+        if (promo.type === "bogo" || promo.type === "flash_sale") continue;
+        if (promo.min_order_total > 0 || !promotionMatchesProduct(promo, product)) continue;
 
-        if (promo.type === "percent") {
-            const discountAmount = Math.round(price * (Number(promo.value || 0) / 100));
-            const finalPrice = Math.max(0, price - discountAmount);
-            if (!best || discountAmount > best.discountAmount) {
-                best = { promo, discountAmount, finalPrice };
-            }
-            continue;
-        }
+        const rawDiscount = promo.type === "percent"
+            ? price * (Number(promo.value || 0) / 100)
+            : Number(promo.value || 0);
+        const capped = promo.max_discount ? Math.min(rawDiscount, Number(promo.max_discount)) : rawDiscount;
+        const discountAmount = Math.min(capped, price);
+        const finalPrice = Math.max(0, price - discountAmount);
 
-        if (promo.type === "amount") {
-            const discountAmount = Math.min(Number(promo.value || 0), price);
-            const finalPrice = Math.max(0, price - discountAmount);
-            if (!best || discountAmount > best.discountAmount) {
-                best = { promo, discountAmount, finalPrice };
-            }
-            continue;
-        }
-
-        if (!best) {
-            best = { promo, discountAmount: 0, finalPrice: price };
+        if (!best || discountAmount > best.discountAmount) {
+            best = { promo, discountAmount: Math.round(discountAmount), finalPrice: Math.round(finalPrice) };
         }
     }
 
@@ -95,110 +78,143 @@ const fetchPromotionCatalog = async () => {
     return await fetchActive().catch(() => []);
 };
 
-// Progressive enhancement: FE fallback calculator
+const fetchFlashMap = async () => {
+    const res = await api.get("/promotions/flash-sale").catch(() => null);
+    const data = res?.data?.data;
+    if (!data?.products?.length || Number(data.remaining_seconds ?? 0) <= 0) return {};
+
+    return data.products.reduce((map, product) => {
+        map[String(product.id)] = {
+            promotionId: data.id,
+            name: data.name,
+            flashPrice: Number(product.flash_price ?? 0),
+            originalPrice: Number(product.original_price ?? product.price ?? 0),
+        };
+        return map;
+    }, {});
+};
+
 const applyToCart = async (items = [], orderTotal = 0) => {
-    const promotions = normalizePromotions(await fetchActive().catch(() => []));
+    const [promotions, flashMap] = await Promise.all([
+        fetchActive().then(normalizePromotions).catch(() => []),
+        fetchFlashMap(),
+    ]);
 
     const norm = items.map((item) => ({
         productId: Number(item.productId ?? item.product_id ?? item.id ?? 0),
         categoryId: Number(item.categoryId ?? item.category_id ?? item.category?.id ?? 0),
-        price: Number(item.price ?? 0),
+        price: Number(item.originalPrice ?? item.price ?? 0),
         quantity: Number(item.quantity ?? 1),
-        raw: item,
     }));
 
+    const claimed = new Set();
     let discount = 0;
     const applied = [];
     const giftItems = [];
 
-    promotions.sort((a, b) => (Number(b.priority ?? 0) - Number(a.priority ?? 0)) || (Number(a.id ?? 0) - Number(b.id ?? 0)));
+    for (const item of norm) {
+        const flash = flashMap[String(item.productId)];
+        if (!flash || flash.flashPrice <= 0 || flash.flashPrice >= item.price) continue;
 
-    for (const promo of promotions) {
-        if (!promo || (!promo.is_active && !promo.is_running)) continue;
+        const itemDiscount = (item.price - flash.flashPrice) * item.quantity;
+        discount += itemDiscount;
+        claimed.add(item.productId);
 
-        if (promo.type === "percent" || promo.type === "amount") {
-            let eligibleAmount = 0;
-
-            if (promo.products_scope.length > 0 || promo.categories_scope.length > 0) {
-                for (const item of norm) {
-                    const inProductScope = promo.products_scope.includes(item.productId);
-                    const inCategoryScope = promo.categories_scope.includes(item.categoryId);
-                    if (inProductScope || inCategoryScope) {
-                        eligibleAmount += item.price * item.quantity;
-                    }
-                }
-            } else {
-                eligibleAmount = Number(orderTotal ?? 0);
-            }
-
-            if (Number(promo.min_order_total ?? 0) > eligibleAmount) continue;
-
-            let thisDiscount = 0;
-            if (promo.type === "percent") {
-                thisDiscount = eligibleAmount * (Number(promo.value ?? 0) / 100);
-            } else {
-                thisDiscount = Number(promo.value ?? 0);
-            }
-
-            if (promo.max_discount) {
-                thisDiscount = Math.min(thisDiscount, Number(promo.max_discount));
-            }
-            if (thisDiscount > 0) {
-                discount += thisDiscount;
-                applied.push({
-                    id: promo.id,
-                    name: promo.name,
-                    type: promo.type,
-                    value: promo.value,
-                    amount: thisDiscount,
-                });
-            }
-            continue;
+        const existing = applied.find((promo) => promo.id === flash.promotionId);
+        if (existing) {
+            existing.amount += itemDiscount;
+        } else {
+            applied.push({
+                id: flash.promotionId,
+                name: flash.name,
+                type: "flash_sale",
+                amount: itemDiscount,
+            });
         }
+    }
 
-        if (promo.type === "bogo") {
-            const rules = Array.isArray(promo.bogo_rules) ? promo.bogo_rules : [];
+    const regularPromos = promotions.filter((promo) =>
+        promo.is_active &&
+        promo.is_running &&
+        (promo.type === "percent" || promo.type === "amount") &&
+        Number(orderTotal) >= Number(promo.min_order_total ?? 0)
+    );
 
-            for (const rule of rules) {
+    let bestDiscountPromo = null;
+    for (const promo of regularPromos) {
+        const matched = norm.filter((item) => !claimed.has(item.productId) && promotionMatchesProduct(promo, {
+            id: item.productId,
+            category_id: item.categoryId,
+        }));
+        if (matched.length === 0) continue;
+
+        const subtotal = matched.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const rawDiscount = promo.type === "percent"
+            ? subtotal * (Number(promo.value ?? 0) / 100)
+            : Number(promo.value ?? 0);
+        const capped = promo.max_discount ? Math.min(rawDiscount, Number(promo.max_discount)) : rawDiscount;
+        const amount = Math.min(capped, subtotal);
+
+        if (amount > 0 && (!bestDiscountPromo || amount > bestDiscountPromo.amount)) {
+            bestDiscountPromo = { promo, amount, matched };
+        }
+    }
+
+    if (bestDiscountPromo) {
+        discount += bestDiscountPromo.amount;
+        bestDiscountPromo.matched.forEach((item) => claimed.add(item.productId));
+        applied.push({
+            id: bestDiscountPromo.promo.id,
+            name: bestDiscountPromo.promo.name,
+            type: bestDiscountPromo.promo.type,
+            value: bestDiscountPromo.promo.value,
+            amount: bestDiscountPromo.amount,
+        });
+    } else {
+        let bestBogo = null;
+        for (const promo of promotions.filter((promo) => promo.type === "bogo" && promo.is_active && promo.is_running)) {
+            if (Number(orderTotal) < Number(promo.min_order_total ?? 0)) continue;
+
+            const candidateGifts = [];
+            let candidateDiscount = 0;
+            for (const rule of Array.isArray(promo.bogo_rules) ? promo.bogo_rules : []) {
                 const buyId = Number(rule.buy_product_id ?? rule.buy_product ?? 0);
-                const giftId = Number(rule.gift_product_id ?? rule.gift_product ?? 0);
-                const buyQty = Number(rule.buy_quantity ?? 1) || 1;
-                const giftQty = Number(rule.gift_quantity ?? 1) || 1;
-                const giftPct = Number(rule.gift_discount_percent ?? 100) || 100;
+                if (claimed.has(buyId)) continue;
 
                 const cartItem = norm.find((item) => item.productId === buyId);
                 if (!cartItem) continue;
 
-                const times = Math.floor(cartItem.quantity / buyQty);
+                const times = Math.floor(cartItem.quantity / (Number(rule.buy_quantity ?? 1) || 1));
                 if (times <= 0) continue;
 
-                const giftProductInCart = norm.find((item) => item.productId === giftId);
-                const giftUnitPrice = giftProductInCart ? giftProductInCart.price : 0;
-                const giftTotalQty = giftQty * times;
-                const giftDiscountAmount = giftUnitPrice * giftTotalQty * (giftPct / 100);
-
-                if (giftDiscountAmount > 0) {
-                    discount += giftDiscountAmount;
-                }
-
-                giftItems.push({
+                const giftQty = (Number(rule.gift_quantity ?? 1) || 1) * times;
+                const giftPct = Number(rule.gift_discount_percent ?? 100) || 100;
+                const estimatedDiscount = 0;
+                candidateDiscount += estimatedDiscount;
+                candidateGifts.push({
                     promotionId: promo.id,
-                    giftProductId: giftId,
-                    quantity: giftTotalQty,
+                    giftProductId: Number(rule.gift_product_id ?? rule.gift_product ?? 0),
+                    giftProductName: rule.gift_product_name ?? "",
+                    quantity: giftQty,
                     discountPercent: giftPct,
-                    estimatedDiscount: giftDiscountAmount,
+                    estimatedDiscount,
                 });
             }
 
-            if (rules.length > 0) {
-                applied.push({ id: promo.id, name: promo.name, type: "bogo" });
+            if (candidateGifts.length > 0 && (!bestBogo || candidateDiscount > bestBogo.discount)) {
+                bestBogo = { promo, giftItems: candidateGifts, discount: candidateDiscount };
             }
+        }
+
+        if (bestBogo) {
+            giftItems.push(...bestBogo.giftItems);
+            applied.push({ id: bestBogo.promo.id, name: bestBogo.promo.name, type: "bogo", amount: bestBogo.discount });
         }
     }
 
     return {
         discount: Math.round(discount),
-        applied,
+        applied: applied.map((promo) => ({ ...promo, amount: Math.round(promo.amount ?? 0) })),
         giftItems,
         promotionsCount: promotions.length,
     };

@@ -85,8 +85,12 @@ export const normalizeCartItem = (item = {}) => {
         cartItemId,
         cartKey: item.cart_key ?? item.cartKey ?? String(cartItemId ?? `${productId}-${color}-${size}`),
         productId,
+        variantId: item.product_variant_id ?? item.productVariantId ?? item.variant_id ?? item.variantId ?? null,
         name: product.name ?? item.name ?? item.product_name ?? "",
-        price: Number(product.price ?? item.price ?? item.unit_price ?? 0),
+        price: Number(item.originalPrice ?? product.price ?? item.price ?? item.unit_price ?? 0),
+        displayPrice: Number(item.displayPrice ?? item.sale_price ?? product.sale_price ?? item.price ?? product.price ?? 0),
+        originalPrice: Number(item.originalPrice ?? product.price ?? item.price ?? item.unit_price ?? 0),
+        isFlashSale: Boolean(item.isFlashSale ?? item.is_flash_sale ?? false),
         image: getImage(item),
         color,
         size,
@@ -163,6 +167,7 @@ export const cartService = {
             const productId = item.productId ?? item.product_id ?? item.id;
             const payload = {
                 product_id: productId,
+                product_variant_id: item.variantId ?? item.product_variant_id ?? item.productVariantId ?? undefined,
                 color: item.color ?? "",
                 size: item.size ?? "",
                 quantity: item.quantity ?? 1,
@@ -218,6 +223,7 @@ export const cartService = {
         try {
             const payload = guestItems.map((item) => ({
                 product_id: item.productId ?? item.product_id ?? item.id,
+                product_variant_id: item.variantId ?? item.product_variant_id ?? item.productVariantId ?? undefined,
                 color: item.color ?? "",
                 size: item.size ?? "",
                 quantity: item.quantity ?? 1,
