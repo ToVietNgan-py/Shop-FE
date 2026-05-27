@@ -3,7 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { productService } from "../../../services/productService.js";
 import { categoryService } from "../../../services/categoryService.js";
 import "./style.scss";
-import { formatVND } from "../../../utils/format.js";
 import PageLoading from "../../../components/PageLoading/PageLoading.jsx";
 import ErrorState from "../../../components/ErrorState/ErrorState.jsx";
 import WishlistButton from "../../../components/common/WishlistButton.jsx";
@@ -11,6 +10,7 @@ import ProductQuickActions from "../../../components/common/ProductQuickActions.
 import QuickShopModal from "../../../components/QuickShopModal/QuickShopModal.jsx";
 import { usePromoCatalog } from "../../../hooks/usePromoCatalog.js";
 import { useProductPrice } from "../../../hooks/useProductPrice.js";
+import PriceBlock from "../../../components/common/PriceBlock.jsx";
 
 const PRICE_RANGES = [
     { value: "all", label: "Tất cả mức giá" },
@@ -33,84 +33,38 @@ function ProductCard({ item, promoMap, globalPromos, onAddToCart, onBuyNow }) {
     const priceInfo = useProductPrice(item, promoMap, globalPromos);
 
     return (
-        <div className="product-card-wrapper">
+        <div className="product-card-wrapper" style={{ position: "relative" }}>
             <WishlistButton product={item} />
 
             <div className="product-card">
                 <Link to={`/san-pham/${item.id}`} className="product-card__main">
-                    <div className="image-box" style={{ position: "relative" }}>
+                    <div className="image-box">
                         {item.img
                             ? <img src={item.img} alt={item.name} loading="lazy" />
                             : <div className="image-placeholder" />
                         }
 
-                        {priceInfo?.isFlashSale ? (
-                            <span className="product-promo" style={{
-                                position: "absolute", top: 8, left: 8,
-                                background: "#ff3b3b", color: "#fff",
-                                padding: "4px 8px", borderRadius: 6, fontSize: 12,
-                            }}>
-                                ⚡ Flash
-                            </span>
-                        ) : priceInfo?.hasDiscount ? (
-                            <span className="product-promo" style={{
-                                position: "absolute", top: 8, left: 8,
-                                background: "#db2777", color: "#fff",
-                                padding: "4px 8px", borderRadius: 6, fontSize: 12,
-                            }}>
-                                {priceInfo.badgeLabel}
-                            </span>
-                        ) : null}
+                        {priceInfo?.isFlashSale && <span className="product-promo">⚡ Flash</span>}
                     </div>
 
                     <div className="product-card__content">
-                        <div className="product-card__meta">
-                            {item.category && <span className="product-tag">{item.category}</span>}
-                            {item.isHot && <span className="product-badge">Nổi bật</span>}
-                        </div>
                         <h3>{item.name}</h3>
+                        <div className="product-card__price">
+                            <PriceBlock priceInfo={priceInfo} center />
+                        </div>
                     </div>
                 </Link>
 
-                <div className="product-card__footer">
-                    {priceInfo?.hasDiscount ? (
-                        <div className="price-block">
-                            <span className="price-original">{formatVND(priceInfo.originalPrice)}</span>
-                            <span className="price-sale">{formatVND(priceInfo.displayPrice)}</span>
-                            {priceInfo.badgeLabel && (
-                                <span className="price-badge"
-                                    style={priceInfo.isFlashSale ? { background: "#ff3b3b", color: "#fff" } : {}}>
-                                    {priceInfo.isFlashSale ? `⚡ ${priceInfo.badgeLabel}` : priceInfo.badgeLabel}
-                                </span>
-                            )}
-                        </div>
-                    ) : (
-                        <p className="price">{formatVND(priceInfo?.displayPrice ?? item.price)}</p>
-                    )}
-
-                    <span className={`stock ${item.in_stock ? "in-stock" : "out-stock"}`}>
-                        {item.in_stock ? `Còn ${item.inventory}` : "Hết hàng"}
-                    </span>
-                </div>
-
-                <div className="product-card__title-row">
-                    <h3>{item.name}</h3>
-                    <div onClick={(e) => e.preventDefault()}>
-                        <ProductQuickActions
-                            product={{
-                                ...item,
-                                // price phải là giá gốc để QuickShopModal gạch đúng
-                                price: priceInfo?.originalPrice ?? item.price,
-                                // salePrice: giá đã giảm (promo hoặc flash) — modal ưu tiên field này
-                                ...(priceInfo?.hasDiscount ? { salePrice: priceInfo.displayPrice } : {}),
-                                // flashPrice: chỉ để hiện badge ⚡ trong modal
-                                ...(priceInfo?.isFlashSale ? { flashPrice: priceInfo.displayPrice } : {}),
-                            }}
-                            onAddToCart={onAddToCart}
-                            onBuyNow={onBuyNow}
-                        />
-                    </div>
-                </div>
+                <ProductQuickActions
+                    product={{
+                        ...item,
+                        price: priceInfo?.originalPrice ?? item.price,
+                        ...(priceInfo?.hasDiscount ? { salePrice: priceInfo.displayPrice } : {}),
+                        ...(priceInfo?.isFlashSale ? { flashPrice: priceInfo.displayPrice } : {}),
+                    }}
+                    onAddToCart={onAddToCart}
+                    onBuyNow={onBuyNow}
+                />
             </div>
         </div>
     );
@@ -133,7 +87,7 @@ const ProductPage = () => {
 
     const sortDropdownRef = useRef(null);
 
-    const [categories, setCategories] = useState([{ slug: "all", name: "Tất cả sản phẩm" }]);
+    const [categories, setCategories] = useState([{ id: "all", value: "all", name: "Tất cả sản phẩm" }]);
     const [products, setProducts] = useState([]);
     const [totalProducts, setTotalProducts] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
@@ -159,11 +113,15 @@ const ProductPage = () => {
                 if (!alive || !Array.isArray(data) || data.length === 0) return;
                 const seen = new Set();
                 const unique = data.filter((c) => {
-                    if (seen.has(c.slug)) return false;
-                    seen.add(c.slug);
+                    const key = String(c.id ?? c.slug ?? c.name);
+                    if (seen.has(key)) return false;
+                    seen.add(key);
                     return true;
-                });
-                setCategories([{ slug: "all", name: "Tất cả sản phẩm" }, ...unique]);
+                }).map((c) => ({
+                    ...c,
+                    value: String(c.id ?? c.slug),
+                }));
+                setCategories([{ id: "all", value: "all", name: "Tất cả sản phẩm" }, ...unique]);
             })
             .catch(() => { });
         return () => { alive = false; };
@@ -225,9 +183,9 @@ const ProductPage = () => {
                     <div className="sidebar-card">
                         <h3>Danh mục</h3>
                         {categories.map((c) => (
-                            <button key={c.slug} type="button"
-                                className={`sidebar-option ${selectedCategory === c.slug ? "active" : ""}`}
-                                onClick={() => { setSelectedCategory(c.slug); updatePageQuery(1); }}
+                            <button key={c.value} type="button"
+                                className={`sidebar-option ${selectedCategory === c.value ? "active" : ""}`}
+                                onClick={() => { setSelectedCategory(c.value); updatePageQuery(1); }}
                             >
                                 {c.name}
                             </button>
