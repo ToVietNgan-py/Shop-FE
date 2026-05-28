@@ -136,6 +136,34 @@ function ProductForm({ visible = false, product = null, categories = [], onSave,
     };
 
     // ─── Save product ─────────────────────────────────────────────────────
+    // const handleSubmit = async (values) => {
+    //     setSubmitting(true);
+    //     try {
+    //         const formData = new FormData();
+    //         formData.append("sku", values.sku);
+    //         formData.append("name", values.name);
+    //         formData.append("brand", values.brand);
+    //         formData.append("description", values.description || "");
+    //         formData.append("price", values.price);
+    //         formData.append("inventory", values.inventory);
+    //         formData.append("category_id", values.category_id);
+
+    //         // FE đã upload lên Cloudinary → chỉ gửi URL string về BE
+    //         const imgFile = images[0];
+    //         if (imgFile?.url) {
+    //             formData.append("img", imgFile.url);
+    //         }
+
+    //         await onSave?.(formData);
+    //         message.success(product ? "Cập nhật sản phẩm thành công" : "Tạo sản phẩm thành công");
+    //         onClose?.();
+    //     } catch (error) {
+    //         message.error(error.message || "Có lỗi xảy ra");
+    //     } finally {
+    //         setSubmitting(false);
+    //     }
+    // };
+
     const handleSubmit = async (values) => {
         setSubmitting(true);
         try {
@@ -148,10 +176,12 @@ function ProductForm({ visible = false, product = null, categories = [], onSave,
             formData.append("inventory", values.inventory);
             formData.append("category_id", values.category_id);
 
-            // FE đã upload lên Cloudinary → chỉ gửi URL string về BE
             const imgFile = images[0];
-            if (imgFile?.url) {
-                formData.append("img", imgFile.url);
+            // ✅ Lấy URL từ response Cloudinary (ảnh mới upload)
+            // hoặc từ url trực tiếp (ảnh cũ khi edit)
+            const imgUrl = imgFile?.response?.url ?? imgFile?.url ?? null;
+            if (imgUrl) {
+                formData.append("img", imgUrl);
             }
 
             await onSave?.(formData);
