@@ -5,7 +5,7 @@ const ROUTE_LABELS = {
     'admin': 'Admin',
     'dashboard': 'Dashboard',
     'san-pham': 'Sản phẩm',
-    'danh-muc': 'Danh mục',
+    'loai-san-pham': 'Danh mục',
     'don-hang': 'Đơn hàng',
     'khuyen-mai': 'Khuyến mãi',
     'promotions': 'Chiến dịch Khuyến mãi',
