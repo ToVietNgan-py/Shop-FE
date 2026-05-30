@@ -1,8 +1,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Input, Select, DatePicker, Space, Button, message, Tag, Tooltip, Popconfirm } from 'antd';
-import { EyeOutlined, CheckCircleOutlined, CarOutlined, TrophyOutlined } from '@ant-design/icons';
+import { EyeOutlined, CheckCircleOutlined, CarOutlined, TrophyOutlined, FileExcelOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import * as XLSX from 'xlsx';
 import DataTable from '../../../components/admin/DataTable';
 import adminOrderService from "../../../services/admin/adminOrderService.js";
 import OrderStatusTag from './OrderStatusTag';
@@ -151,6 +152,44 @@ export default function AdminOrders() {
 
     const hasFilter = filters.status || filters.search || filters.date_from;
 
+    const STATUS_LABEL = {
+        Pending: 'Chờ xác nhận',
+        Processing: 'Đã xác nhận',
+        Delivering: 'Đang giao',
+        Completed: 'Hoàn thành',
+        Cancelled: 'Đã huỷ',
+    };
+
+    const PAYMENT_LABEL = {
+        paid: 'Đã thanh toán',
+        pending: 'Chờ thanh toán',
+        failed: 'Thất bại',
+    };
+
+    const handleExportExcel = () => {
+        const rows = orders.map((o) => ({
+            'Mã đơn': `#${o.id}`,
+            'Khách hàng': o.FullName ?? '',
+            'Tổng tiền (₫)': Number(o.total),
+            'Trạng thái': STATUS_LABEL[o.Status] ?? o.Status ?? '',
+            'Thanh toán': PAYMENT_LABEL[o.payment_status] ?? o.payment_status ?? '',
+            'Ngày đặt': dayjs(o.created_at).format('DD/MM/YYYY HH:mm'),
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [
+            { wch: 10 }, { wch: 28 }, { wch: 16 },
+            { wch: 16 }, { wch: 18 }, { wch: 20 },
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Đơn hàng');
+
+        const filename = `don-hang_${dayjs().format('YYYYMMDD_HHmm')}.xlsx`;
+        XLSX.writeFile(wb, filename);
+        message.success(`Đã xuất ${rows.length} đơn hàng`);
+    };
+
     const handleUpdateStatus = useCallback(async (orderId, nextStatus) => {
         setUpdatingId(orderId);
         try {
@@ -268,6 +307,14 @@ export default function AdminOrders() {
                     <h2 className="admin-page__title">Đơn hàng</h2>
                     <div className="admin-page__subtitle">Theo dõi trạng thái đơn và xử lý vận hành.</div>
                 </div>
+                <Button
+                    icon={<FileExcelOutlined />}
+                    onClick={handleExportExcel}
+                    disabled={orders.length === 0}
+                    style={{ color: '#16a34a', borderColor: '#16a34a' }}
+                >
+                    Xuất Excel
+                </Button>
             </div>
 
             <Space wrap className="admin-page__filters">
